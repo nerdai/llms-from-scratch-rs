@@ -1,0 +1,14 @@
+---
+repos:
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        name: "fmt"
+        args: ["--manifest-path", "./Cargo.toml"]
+      - id: clippy
+        name: "clippy"
+        args: ["--manifest-path", "./Cargo.toml"]
+      - id: cargo-check
+        name: "check"
+        args: ["--manifest-path", "./Cargo.toml"]
