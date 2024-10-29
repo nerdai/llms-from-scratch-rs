@@ -15,12 +15,13 @@ impl SimpleTokenizerV1 {
         }
     }
 
+    // accessor methods
     pub fn str_to_int(&self) -> &HashMap<String, i32> {
-        return &self.str_to_int;
+        &self.str_to_int
     }
 
     pub fn int_to_str(&self) -> &HashMap<i32, String> {
-        return &self.int_to_str;
+        &self.int_to_str
     }
 }
 
