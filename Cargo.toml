@@ -5,3 +5,4 @@ edition = "2021"
 author = "Val Andrei Fajardo <andrei@nerdai.io>"
 
 [dependencies]
+fancy-regex = "0.14.0"
