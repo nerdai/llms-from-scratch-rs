@@ -1,4 +1,4 @@
-use fancy_regex::Regex;
+use fancy_regex::{Captures, Regex};
 use std::collections::HashMap;
 
 // Listing 2.3
@@ -35,8 +35,17 @@ impl SimpleTokenizerV1 {
             .collect()
     }
 
-    pub fn decode(self, _ids: Vec<i32>) -> String {
-        todo!()
+    pub fn decode(&self, ids: Vec<i32>) -> String {
+        let text_vec: Vec<String> = ids
+            .iter()
+            .map(|i| self.int_to_str.get(i).unwrap())
+            .cloned()
+            .collect();
+        let text = &text_vec.join(" ")[..];
+
+        // remove space before any punctuations
+        let re = Regex::new(r#"\s+([,.?!"()\'])"#).unwrap();
+        String::from(re.replace_all(text, |caps: &Captures| caps[1].to_string()))
     }
 }
 
@@ -78,5 +87,21 @@ mod tests {
         assert_eq!(token_ids[1], 2);
         assert_eq!(token_ids[2], 3);
         assert_eq!(token_ids[3], 4);
+    }
+
+    #[test]
+    fn test_simple_tokenizer_decode() {
+        let mut vocab: HashMap<&str, i32> = HashMap::new();
+        vocab.entry("this").or_insert(1);
+        vocab.entry("is").or_insert(2);
+        vocab.entry("a").or_insert(3);
+        vocab.entry("test").or_insert(4);
+        vocab.entry(".").or_insert(5);
+        let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
+
+        let token_ids = vec![1, 2, 3, 4, 5];
+        let text = tokenizer.decode(token_ids);
+
+        assert_eq!(text, "this is a test.");
     }
 }
