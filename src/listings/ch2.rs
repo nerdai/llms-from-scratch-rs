@@ -1,0 +1,49 @@
+use std::collections::HashMap;
+
+// Listing 2.3
+#[derive(Default, Debug)]
+pub struct SimpleTokenizerV1 {
+    str_to_int: HashMap<String, i32>,
+    int_to_str: HashMap<i32, String>,
+}
+
+impl SimpleTokenizerV1 {
+    pub fn from_vocab(vocab: HashMap<&str, i32>) -> Self {
+        Self {
+            str_to_int: vocab.iter().map(|(k, v)| (String::from(*k), *v)).collect(),
+            int_to_str: vocab.iter().map(|(k, v)| (*v, String::from(*k))).collect(),
+        }
+    }
+
+    pub fn str_to_int(&self) -> &HashMap<String, i32> {
+        return &self.str_to_int;
+    }
+
+    pub fn int_to_str(&self) -> &HashMap<i32, String> {
+        return &self.int_to_str;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_simple_tokenizer_init() {
+        // arrange
+        let mut vocab: HashMap<&str, i32> = HashMap::new();
+        vocab.entry("this").or_insert(1);
+        vocab.entry("is").or_insert(2);
+        vocab.entry("a").or_insert(3);
+        vocab.entry("test").or_insert(4);
+
+        // act
+        let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
+
+        // assert
+        assert_eq!(tokenizer.str_to_int.get(&String::from("this")), Some(&1));
+        assert_eq!(tokenizer.str_to_int.get(&String::from("is")), Some(&2));
+        assert_eq!(tokenizer.str_to_int.get(&String::from("a")), Some(&3));
+        assert_eq!(tokenizer.str_to_int.get(&String::from("test")), Some(&4));
+    }
+}
