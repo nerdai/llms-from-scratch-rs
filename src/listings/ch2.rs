@@ -16,15 +16,6 @@ impl SimpleTokenizerV1 {
         }
     }
 
-    // accessor methods
-    pub fn str_to_int(&self) -> &HashMap<String, i32> {
-        &self.str_to_int
-    }
-
-    pub fn int_to_str(&self) -> &HashMap<i32, String> {
-        &self.int_to_str
-    }
-
     pub fn encode(&self, text: &str) -> Vec<i32> {
         let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
         let preprocessed: Vec<&str> = re.split(text).map(|x| x.unwrap()).collect();
