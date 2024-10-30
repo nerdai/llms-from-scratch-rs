@@ -50,9 +50,17 @@ pub struct SimpleTokenizerV2 {
 impl SimpleTokenizerV2 {
     pub fn from_vocab(vocab: HashMap<&str, i32>) -> Self {
         // add special tokens to vocab if needed
-        let vocab_size = vocab.len() as i32;
+        let mut next_token_id = vocab.len() as i32 + 1_i32;
         let mut vocab_copy = vocab.clone();
-        vocab_copy.entry("<|unk|>").or_insert(vocab_size + 1);
+
+        if !vocab.contains_key("<|unk|>") {
+            vocab_copy.entry("<|unk|>").or_insert(next_token_id);
+            next_token_id += 1;
+        }
+
+        if !vocab.contains_key("|endoftext|>") {
+            vocab_copy.entry("<|endoftext|>").or_insert(next_token_id);
+        }
 
         Self {
             str_to_int: vocab_copy
@@ -145,22 +153,23 @@ mod tests {
     #[rstest]
     fn test_simple_tokenizer_v2_encode(vocab: HashMap<&str, i32>) {
         let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
-        let token_ids = tokenizer.encode("this is a test!");
+        let token_ids = tokenizer.encode("this is a test! <|endoftext|>");
 
         assert_eq!(token_ids[0], 1);
         assert_eq!(token_ids[1], 2);
         assert_eq!(token_ids[2], 3);
         assert_eq!(token_ids[3], 4);
         assert_eq!(token_ids[4], 5);
+        assert_eq!(token_ids[5], 6);
     }
 
     #[rstest]
     fn test_simple_tokenizer_v2_decode(vocab: HashMap<&str, i32>) {
         let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
 
-        let token_ids = vec![1, 2, 3, 4, 5];
+        let token_ids = vec![1, 2, 3, 4, 5, 6];
         let text = tokenizer.decode(token_ids);
 
-        assert_eq!(text, "this is a test <|unk|>");
+        assert_eq!(text, "this is a test <|unk|> <|endoftext|>");
     }
 }
