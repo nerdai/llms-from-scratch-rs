@@ -43,17 +43,20 @@ impl SimpleTokenizerV1 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::*;
 
-    #[test]
-    fn test_simple_tokenizer_init() {
-        // arrange
+    #[fixture]
+    pub fn vocab() -> HashMap<&'static str, i32> {
         let mut vocab: HashMap<&str, i32> = HashMap::new();
         vocab.entry("this").or_insert(1);
         vocab.entry("is").or_insert(2);
         vocab.entry("a").or_insert(3);
         vocab.entry("test").or_insert(4);
+        return vocab;
+    }
 
-        // act
+    #[rstest]
+    fn test_simple_tokenizer_init(vocab: HashMap<&str, i32>) {
         let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
 
         // assert
@@ -63,15 +66,9 @@ mod tests {
         assert_eq!(tokenizer.str_to_int.get(&String::from("test")), Some(&4));
     }
 
-    #[test]
-    fn test_encode() {
-        let mut vocab: HashMap<&str, i32> = HashMap::new();
-        vocab.entry("this").or_insert(1);
-        vocab.entry("is").or_insert(2);
-        vocab.entry("a").or_insert(3);
-        vocab.entry("test").or_insert(4);
+    #[rstest]
+    fn test_encode(vocab: HashMap<&str, i32>) {
         let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
-
         let token_ids = tokenizer.encode("this is a test");
 
         assert_eq!(token_ids[0], 1);
@@ -80,13 +77,8 @@ mod tests {
         assert_eq!(token_ids[3], 4);
     }
 
-    #[test]
-    fn test_simple_tokenizer_decode() {
-        let mut vocab: HashMap<&str, i32> = HashMap::new();
-        vocab.entry("this").or_insert(1);
-        vocab.entry("is").or_insert(2);
-        vocab.entry("a").or_insert(3);
-        vocab.entry("test").or_insert(4);
+    #[rstest]
+    fn test_simple_tokenizer_decode(mut vocab: HashMap<&str, i32>) {
         vocab.entry(".").or_insert(5);
         let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
 

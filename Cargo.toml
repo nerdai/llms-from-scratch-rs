@@ -6,3 +6,4 @@ author = "Val Andrei Fajardo <andrei@nerdai.io>"
 
 [dependencies]
 fancy-regex = "0.14.0"
+rstest = "0.23.0"
