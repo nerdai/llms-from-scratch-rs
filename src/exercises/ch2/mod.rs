@@ -9,7 +9,11 @@ impl Exercise for X2P1 {
     }
 
     fn main(&self) {
-        todo!()
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let token_ids = tokenizer.encode_with_special_tokens("Akwirw ier");
+        println!("token ids: {:?}", token_ids);
     }
 }
 
