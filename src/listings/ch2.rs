@@ -1,7 +1,7 @@
 use fancy_regex::{Captures, Regex};
 use std::collections::HashMap;
 
-// Listing 2.3
+/// Listing 2.3
 #[derive(Default, Debug)]
 pub struct SimpleTokenizerV1 {
     str_to_int: HashMap<String, i32>,
@@ -22,6 +22,60 @@ impl SimpleTokenizerV1 {
         preprocessed
             .into_iter()
             .map(|s| self.str_to_int.get(&String::from(s)).unwrap())
+            .cloned()
+            .collect()
+    }
+
+    pub fn decode(&self, ids: Vec<i32>) -> String {
+        let text_vec: Vec<String> = ids
+            .iter()
+            .map(|i| self.int_to_str.get(i).unwrap())
+            .cloned()
+            .collect();
+        let text = &text_vec.join(" ")[..];
+
+        // remove space before any punctuations
+        let re = Regex::new(r#"\s+([,.?!"()\'])"#).unwrap();
+        String::from(re.replace_all(text, |caps: &Captures| caps[1].to_string()))
+    }
+}
+
+/// Listing 2.4
+#[derive(Default, Debug)]
+pub struct SimpleTokenizerV2 {
+    str_to_int: HashMap<String, i32>,
+    int_to_str: HashMap<i32, String>,
+}
+
+impl SimpleTokenizerV2 {
+    pub fn from_vocab(vocab: HashMap<&str, i32>) -> Self {
+        // add special tokens to vocab if needed
+        let vocab_size = vocab.len() as i32;
+        let mut vocab_copy = vocab.clone();
+        vocab_copy.entry("<|unk|>").or_insert(vocab_size + 1);
+
+        Self {
+            str_to_int: vocab_copy
+                .iter()
+                .map(|(k, v)| (String::from(*k), *v))
+                .collect(),
+            int_to_str: vocab_copy
+                .iter()
+                .map(|(k, v)| (*v, String::from(*k)))
+                .collect(),
+        }
+    }
+
+    pub fn encode(&self, text: &str) -> Vec<i32> {
+        let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
+        let preprocessed: Vec<&str> = re.split(text).map(|x| x.unwrap()).collect();
+        preprocessed
+            .into_iter()
+            .map(|s| {
+                self.str_to_int
+                    .get(&String::from(s))
+                    .unwrap_or(self.str_to_int.get("<|unk|>").unwrap())
+            })
             .cloned()
             .collect()
     }
@@ -86,5 +140,27 @@ mod tests {
         let text = tokenizer.decode(token_ids);
 
         assert_eq!(text, "this is a test.");
+    }
+
+    #[rstest]
+    fn test_simple_tokenizer_v2_encode(vocab: HashMap<&str, i32>) {
+        let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
+        let token_ids = tokenizer.encode("this is a test!");
+
+        assert_eq!(token_ids[0], 1);
+        assert_eq!(token_ids[1], 2);
+        assert_eq!(token_ids[2], 3);
+        assert_eq!(token_ids[3], 4);
+        assert_eq!(token_ids[4], 5);
+    }
+
+    #[rstest]
+    fn test_simple_tokenizer_v2_decode(vocab: HashMap<&str, i32>) {
+        let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
+
+        let token_ids = vec![1, 2, 3, 4, 5];
+        let text = tokenizer.decode(token_ids);
+
+        assert_eq!(text, "this is a test <|unk|>");
     }
 }
