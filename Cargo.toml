@@ -5,6 +5,8 @@ edition = "2021"
 author = "Val Andrei Fajardo <andrei@nerdai.io>"
 
 [dependencies]
+candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.7.2", features = ["cuda"] }
+candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.7.2", features = ["accelerate", "cuda", "mkl"] }
 fancy-regex = "0.14.0"
 rstest = "0.23.0"
 tiktoken-rs = "0.6.0"
