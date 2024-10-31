@@ -14,6 +14,9 @@ impl Exercise for X2P1 {
         let tokenizer = get_bpe_from_model("gpt2").unwrap();
         let token_ids = tokenizer.encode_with_special_tokens("Akwirw ier");
         println!("token ids: {:?}", token_ids);
+
+        let decoded_text = tokenizer.decode(token_ids).unwrap();
+        println!("decoded text: {}", decoded_text);
     }
 }
 
