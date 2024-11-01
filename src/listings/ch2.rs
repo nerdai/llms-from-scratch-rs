@@ -1,5 +1,6 @@
 use fancy_regex::{Captures, Regex};
 use std::collections::HashMap;
+use tiktoken_rs::CoreBPE;
 
 /// Listing 2.3
 #[derive(Default, Debug)]
@@ -99,6 +100,41 @@ impl SimpleTokenizerV2 {
         // remove space before any punctuations
         let re = Regex::new(r#"\s+([,.?!"()\'])"#).unwrap();
         String::from(re.replace_all(text, |caps: &Captures| caps[1].to_string()))
+    }
+}
+
+/// Listing 2.5 A dataset for batched inputs and targets
+pub struct GPTDatasetV1 {
+    input_ids: Vec<Vec<u32>>,
+    target_ids: Vec<Vec<u32>>,
+}
+
+impl GPTDatasetV1 {
+    pub fn new(txt: &str, tokenizer: CoreBPE, max_length: usize, stride: usize) -> Self {
+        let token_ids = tokenizer.encode_with_special_tokens(txt);
+
+        let mut input_ids: Vec<Vec<u32>> = Vec::default();
+        let mut target_ids: Vec<Vec<u32>> = Vec::default();
+        // get input_ids and target_ids
+        for i in (0..token_ids.len() - max_length).step_by(stride) {
+            let input_chunk = &token_ids[i..(i + max_length)];
+            let target_chunk = &token_ids[(i + 1_usize)..(i + max_length + 1_usize)];
+            input_ids.push(input_chunk.to_vec());
+            target_ids.push(target_chunk.to_vec());
+        }
+
+        Self {
+            input_ids,
+            target_ids,
+        }
+    }
+
+    pub fn input_ids(&self) -> &Vec<Vec<u32>> {
+        &self.input_ids
+    }
+
+    pub fn target_ids(&self) -> &Vec<Vec<u32>> {
+        &self.target_ids
     }
 }
 
