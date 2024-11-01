@@ -112,6 +112,7 @@ pub struct GPTDatasetV1 {
 impl GPTDatasetV1 {
     pub fn new(txt: &str, tokenizer: CoreBPE, max_length: usize, stride: usize) -> Self {
         let token_ids = tokenizer.encode_with_special_tokens(txt);
+        println!("{:?}", token_ids);
 
         let mut input_ids: Vec<Vec<u32>> = Vec::default();
         let mut target_ids: Vec<Vec<u32>> = Vec::default();
@@ -207,5 +208,19 @@ mod tests {
         let text = tokenizer.decode(token_ids);
 
         assert_eq!(text, "this is a test <|unk|> <|endoftext|>");
+    }
+
+    #[rstest]
+    fn test_gpt_dataset_v1_init() {
+        use tiktoken_rs::get_bpe_from_model;
+
+        let txt = "In the heart of the city";
+
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let dataset = GPTDatasetV1::new(txt, tokenizer, 3, 1);
+
+        println!("{:?}", dataset.input_ids);
+        println!("{:?}", dataset.target_ids);
+        assert_eq!(dataset.input_ids().len(), 2);
     }
 }
