@@ -782,6 +782,7 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "fancy-regex 0.14.0",
+ "rand",
  "rstest",
  "tiktoken-rs",
  "tokenizers",

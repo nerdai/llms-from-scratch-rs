@@ -1,4 +1,6 @@
+use candle_core::{Device, Result, Tensor};
 use fancy_regex::{Captures, Regex};
+use rand::{seq::SliceRandom, thread_rng};
 use std::collections::HashMap;
 use tiktoken_rs::CoreBPE;
 
@@ -129,12 +131,62 @@ impl GPTDatasetV1 {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.input_ids.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.input_ids.len() == 0
+    }
+
     pub fn input_ids(&self) -> &Vec<Vec<u32>> {
         &self.input_ids
     }
 
     pub fn target_ids(&self) -> &Vec<Vec<u32>> {
         &self.target_ids
+    }
+
+    pub fn get_pair_at_index(&self, idx: usize) -> (&Vec<u32>, &Vec<u32>) {
+        (&self.input_ids[idx], &self.target_ids[idx])
+    }
+}
+
+/// Listing 2.6 A data loader to generate batches with input-target pairs
+pub struct GPTDatasetIter<'a> {
+    dataset: &'a GPTDatasetV1,
+    device: Device,
+    remaining_indices: Vec<usize>,
+}
+
+impl<'a> GPTDatasetIter<'a> {
+    pub fn new(dataset: &'a GPTDatasetV1, device: Device, shuffle: bool) -> Self {
+        let mut remaining_indices = (0..dataset.len()).collect::<Vec<_>>();
+        if shuffle {
+            remaining_indices.shuffle(&mut thread_rng());
+        }
+        Self {
+            dataset,
+            device,
+            remaining_indices,
+        }
+    }
+}
+
+impl<'a> Iterator for GPTDatasetIter<'a> {
+    type Item = Result<(Tensor, Tensor)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.remaining_indices.pop() {
+            let (input_ids, target_ids) = self.dataset.get_pair_at_index(idx);
+
+            // turn into Tensors and return
+            let input_tensor = Tensor::new(&input_ids[..], &self.device);
+            let target_tensor = Tensor::new(&target_ids[..], &self.device);
+            Some(candle_core::error::zip(input_tensor, target_tensor))
+        } else {
+            None
+        }
     }
 }
 

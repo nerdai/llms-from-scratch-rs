@@ -8,6 +8,7 @@ author = "Val Andrei Fajardo <andrei@nerdai.io>"
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.7.2", features = ["cuda"] }
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.7.2", features = ["cuda"] }
 fancy-regex = "0.14.0"
+rand = "0.8.5"
 rstest = "0.23.0"
 tiktoken-rs = "0.6.0"
 tokenizers = "0.20.1"
