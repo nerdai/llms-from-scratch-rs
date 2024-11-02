@@ -11,25 +11,20 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  POETRY_VERSION: "1.8.3"
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Install pre-commit
-      shell: bash
-      run: pip install pre-commit
+    - uses: actions/checkout@v3
     - name: Lint
-      run: make lint
+      run: cargo clippy --verbose
 
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Install pre-commit
-      shell: bash
-      run: pip install pre-commit
-    - name: Lint
-      run: make test
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
