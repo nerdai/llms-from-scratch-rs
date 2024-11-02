@@ -18,19 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Install Poetry
-      run: pipx install poetry==${{ env.POETRY_VERSION }}
-    - name: Set up python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: "poetry"
-        cache-dependency-path: "**/poetry.lock"
     - name: Install pre-commit
       shell: bash
-      run: poetry run pip install pre-commit
+      run: pip install pre-commit
     - name: Lint
-      run: poetry run make lint
+      run: make lint
 
   test:
     runs-on: ubuntu-latest
