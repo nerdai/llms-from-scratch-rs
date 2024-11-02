@@ -10,3 +10,6 @@ lint:	## Run linters: pre-commit (black, ruff, codespell) and mypy
 
 check:
 	pre-commit install && pre-commit run cargo-check
+
+test:
+	cargo test --verbose
