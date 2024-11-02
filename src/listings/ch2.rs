@@ -161,7 +161,7 @@ pub struct GPTDatasetIter<'a> {
 
 impl<'a> GPTDatasetIter<'a> {
     pub fn new(dataset: &'a GPTDatasetV1, device: Device, shuffle: bool) -> Self {
-        let mut remaining_indices = (0..dataset.len()).collect::<Vec<_>>();
+        let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
             remaining_indices.shuffle(&mut thread_rng());
         }
@@ -194,6 +194,7 @@ impl<'a> Iterator for GPTDatasetIter<'a> {
 mod tests {
     use super::*;
     use rstest::*;
+    use tiktoken_rs::get_bpe_from_model;
 
     #[fixture]
     pub fn vocab() -> HashMap<&'static str, i32> {
@@ -203,6 +204,13 @@ mod tests {
         vocab.entry("a").or_insert(3);
         vocab.entry("test").or_insert(4);
         return vocab;
+    }
+
+    #[fixture]
+    pub fn txt_tokenizer() -> (String, CoreBPE) {
+        let txt = "In the heart of the city";
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        (txt.to_string(), tokenizer)
     }
 
     #[rstest]
@@ -262,16 +270,11 @@ mod tests {
     }
 
     #[rstest]
-    fn test_gpt_dataset_v1_init() {
-        use tiktoken_rs::get_bpe_from_model;
-
-        let txt = "In the heart of the city";
-
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
-        let token_ids = tokenizer.encode_with_special_tokens(txt);
+    fn test_gpt_dataset_v1_init(#[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE)) {
+        let token_ids = tokenizer.encode_with_special_tokens(&txt[..]);
         let stride = 1_usize;
         let max_length = 3_usize;
-        let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
+        let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
 
         for mx in 1..max_length {
             // test target alignments
@@ -287,5 +290,34 @@ mod tests {
             // test stride alignments
             assert_eq!(dataset.input_ids[ix][0], token_ids[ix * stride]);
         }
+    }
+
+    #[rstest]
+    fn test_gpt_dataset_v1_iter(#[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE)) {
+        let stride = 1_usize;
+        let max_length = 3_usize;
+        let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
+        let dev = Device::cuda_if_available(0).unwrap();
+        let mut iter = GPTDatasetIter::new(&dataset, dev, false);
+        let mut count = 0_usize;
+
+        // user iter to sequentially get next pair checking equality with dataset
+        while let Some(Ok((this_inputs, this_targets))) = iter.next() {
+            let this_inputs_vec: Vec<u32> = this_inputs.to_vec1::<u32>().unwrap();
+            let this_targets_vec: Vec<u32> = this_targets.to_vec1::<u32>().unwrap();
+
+            assert_eq!(this_inputs.shape().dims()[0], max_length);
+            assert_eq!(this_inputs.shape().dims()[0], max_length);
+
+            for (idx, token_id) in this_inputs_vec.iter().enumerate() {
+                assert_eq!(*token_id, dataset.input_ids[count][idx]);
+            }
+            for (idx, token_id) in this_targets_vec.iter().enumerate() {
+                assert_eq!(*token_id, dataset.target_ids[count][idx]);
+            }
+
+            count += 1;
+        }
+        assert_eq!(count, dataset.len());
     }
 }
