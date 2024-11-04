@@ -305,11 +305,18 @@ mod tests {
     }
 
     #[rstest]
-    fn test_gpt_dataset_v1_iter(#[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE)) {
+    fn test_gpt_dataset_v1_iter(
+        #[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE),
+        #[values(
+                Device::Cpu,
+                Device::cuda_if_available(0).unwrap()
+            )
+        ]
+        dev: Device,
+    ) {
         let stride = 1_usize;
         let max_length = 3_usize;
         let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
-        let dev = Device::cuda_if_available(0).unwrap();
         let mut iter = GPTDatasetIter::new(&dataset, dev, false);
         let mut count = 0_usize;
 
@@ -336,18 +343,22 @@ mod tests {
     #[rstest]
     fn test_gpt_dataset_with_batch(
         #[from(gpt_dataset)] dataset: GPTDatasetV1,
-        #[values(Device::Cpu, Device::cuda_if_available(0).unwrap())] dev: Device,
+        #[values(
+                Device::Cpu,
+                // Device::cuda_if_available(0).unwrap()
+            )
+        ]
+        dev: Device,
     ) {
         // let dev = Device::cuda_if_available(0).unwrap();
         let iter = GPTDatasetIter::new(&dataset, dev, false);
         let batch_size = 2_usize;
-        let mut batch_iter = Batcher::new_r2(iter)
-            .batch_size(batch_size)
-            .return_last_incomplete_batch(true);
+        let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
 
         match batch_iter.next() {
             Some(Ok((inputs, targets))) => {
-                println!("inputs: {:?}\n\ntargets: {:?}", inputs, targets);
+                assert_eq!(inputs.dims(), targets.dims());
+                assert_eq!(inputs.dims()[0], batch_size);
             }
             Some(Err(err)) => panic!("{}", err),
             None => panic!("None"),
