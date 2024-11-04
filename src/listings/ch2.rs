@@ -334,8 +334,11 @@ mod tests {
     }
 
     #[rstest]
-    fn test_gpt_dataset_with_batch(#[from(gpt_dataset)] dataset: GPTDatasetV1) {
-        let dev = Device::cuda_if_available(0).unwrap();
+    fn test_gpt_dataset_with_batch(
+        #[from(gpt_dataset)] dataset: GPTDatasetV1,
+        #[values(Device::Cpu, Device::cuda_if_available(0).unwrap())] dev: Device,
+    ) {
+        // let dev = Device::cuda_if_available(0).unwrap();
         let iter = GPTDatasetIter::new(&dataset, dev, false);
         let batch_size = 2_usize;
         let mut batch_iter = Batcher::new_r2(iter)
