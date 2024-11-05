@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 static EXERCISE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Exercise>>> =
     LazyLock::new(|| {
-        let mut m: HashMap<&'static str, Box<dyn Exercise>> = HashMap::new();
+        let mut m: HashMap<&'static str, Box<dyn Exercise + 'static>> = HashMap::new();
         m.insert("2.1", Box::new(X2P1 {}));
         m.insert("2.2", Box::new(X2P2 {}));
         m
