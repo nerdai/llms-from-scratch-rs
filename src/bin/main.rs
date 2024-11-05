@@ -1,4 +1,4 @@
-use llms_from_scratch_rs::exercises::ch2::{X2P1, X2P2};
+use llms_from_scratch_rs::exercises::ch02::{X2P1, X2P2};
 use llms_from_scratch_rs::Exercise;
 use std::collections::HashMap;
 use std::sync::LazyLock;

@@ -29,7 +29,7 @@ impl Exercise for X2P2 {
     }
 
     fn main(&self) {
-        use crate::listings::ch2::{GPTDatasetIter, GPTDatasetV1};
+        use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
         use candle_core::Device;
         use candle_datasets::Batcher;
         use std::fs;
