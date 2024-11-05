@@ -1,19 +1,18 @@
 use llms_from_scratch_rs::exercises::ch2::{X2P1, X2P2};
 use llms_from_scratch_rs::Exercise;
-use phf::phf_map;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
-static EXERCISE_REGISTRY: phf::Map<&'static str, Box<dyn Exercise>> = phf_map! {
-    "2.1" => Box::new(X2P1 {}),
-    "2.2" => Box::new(X2P2 {}),
-};
+static EXERCISE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Exercise>>> =
+    LazyLock::new(|| {
+        let mut m: HashMap<&'static str, Box<dyn Exercise>> = HashMap::new();
+        m.insert("2.1", Box::new(X2P1 {}));
+        m.insert("2.2", Box::new(X2P2 {}));
+        m
+    });
 
 fn main() {
-    let ex = EXERCISE_REGISTRY.get("2.2");
-    match ex {
-        Some(box_exercise) => *box_exercise.main(),
-        None => {
-            panic!("Exercise doesn't exist.")
-        }
-    }
+    let registry = &*EXERCISE_REGISTRY;
+    let ex = registry.get("2.2").unwrap();
+    ex.main()
 }
