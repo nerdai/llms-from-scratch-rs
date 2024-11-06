@@ -1,5 +1,6 @@
 use crate::Example;
 
+/// Example 02.01
 pub struct EG01 {}
 
 impl Example for EG01 {
@@ -32,5 +33,72 @@ impl Example for EG01 {
                 .unwrap()
                 .to_vec2::<f32>()
         );
+    }
+}
+
+/// Example 02.02
+pub struct EG02 {}
+
+impl Example for EG02 {
+    fn description(&self) -> String {
+        String::from("Create absolute postiional embeddings.")
+    }
+
+    fn page_source(&self) -> usize {
+        47_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
+        use candle_core::{DType, Device};
+        use candle_datasets::Batcher;
+        use candle_nn::{embedding, VarBuilder, VarMap};
+        use std::fs;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // create data batcher
+        let raw_text = fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let max_length = 4_usize;
+        let stride = max_length;
+        let dataset = GPTDatasetV1::new(&raw_text[..], tokenizer, max_length, stride);
+        let device = Device::Cpu;
+        let iter = GPTDatasetIter::new(&dataset, device, false);
+        let batch_size = 8_usize;
+        let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
+
+        // get embeddings of first batch inputs
+        match batch_iter.next() {
+            Some(Ok((inputs, _targets))) => {
+                let input_indexes = inputs.flatten_all().unwrap();
+
+                let varmap = VarMap::new();
+                let dev = Device::Cpu;
+                let vs = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+                let vocab_size = 50_257_usize;
+                let output_dim = 256_usize;
+                let token_embedding_layer =
+                    embedding(vocab_size, output_dim, vs.pp("tok_emb")).unwrap();
+                let token_embeddings = token_embedding_layer
+                    .embeddings()
+                    .index_select(&input_indexes, 0)
+                    .unwrap();
+
+                let context_length = max_length;
+                let pos_embedding_layer =
+                    embedding(context_length, output_dim, vs.pp("pos_emb")).unwrap();
+
+                let pos_embeddings = pos_embedding_layer
+                    .embeddings()
+                    .index_select(&input_indexes, 0)
+                    .unwrap();
+
+                println!("{:?}", token_embeddings.to_vec2::<f32>());
+                println!("{:?}", pos_embeddings.to_vec2::<f32>());
+            }
+            Some(Err(err)) => panic!("{}", err),
+            None => panic!("None"),
+        }
     }
 }
