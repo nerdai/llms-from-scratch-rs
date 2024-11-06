@@ -50,7 +50,7 @@ impl Example for EG02 {
 
     fn main(&self) {
         use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
-        use candle_core::{DType, Device};
+        use candle_core::{DType, Device, Tensor};
         use candle_datasets::Batcher;
         use candle_nn::{embedding, VarBuilder, VarMap};
         use std::fs;
@@ -70,32 +70,43 @@ impl Example for EG02 {
         // get embeddings of first batch inputs
         match batch_iter.next() {
             Some(Ok((inputs, _targets))) => {
-                let input_indexes = inputs.flatten_all().unwrap();
-
                 let varmap = VarMap::new();
                 let dev = Device::Cpu;
                 let vs = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
 
                 let vocab_size = 50_257_usize;
                 let output_dim = 256_usize;
+                let mut final_dims = inputs.dims().to_vec();
+                final_dims.push(output_dim);
+
+                // token embeddings of the current batch inputs
                 let token_embedding_layer =
                     embedding(vocab_size, output_dim, vs.pp("tok_emb")).unwrap();
                 let token_embeddings = token_embedding_layer
                     .embeddings()
-                    .index_select(&input_indexes, 0)
+                    .index_select(&inputs.flatten_all().unwrap(), 0)
                     .unwrap();
+                let token_embeddings = token_embeddings.reshape(final_dims).unwrap();
+                println!("token embeddings dims: {:?}", token_embeddings.dims());
 
+                // position embeddings
                 let context_length = max_length;
                 let pos_embedding_layer =
                     embedding(context_length, output_dim, vs.pp("pos_emb")).unwrap();
-
+                let pos_ids = Tensor::new(
+                    &(0_u32..context_length as u32).collect::<Vec<u32>>()[..],
+                    &dev,
+                )
+                .unwrap();
                 let pos_embeddings = pos_embedding_layer
                     .embeddings()
-                    .index_select(&input_indexes, 0)
+                    .index_select(&pos_ids, 0)
                     .unwrap();
+                println!("pos embeddings dims: {:?}", pos_embeddings.dims());
 
-                println!("{:?}", token_embeddings.to_vec2::<f32>());
-                println!("{:?}", pos_embeddings.to_vec2::<f32>());
+                // incorporate positional embeddings
+                let input_embeddings = token_embeddings.broadcast_add(&pos_embeddings).unwrap();
+                println!("input embeddings dims: {:?}", input_embeddings.dims());
             }
             Some(Err(err)) => panic!("{}", err),
             None => panic!("None"),
