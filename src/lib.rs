@@ -13,5 +13,7 @@ pub trait Exercise: Send + Sync {
 pub trait Example: Send + Sync {
     fn description(&self) -> String;
 
+    fn page_source(&self) -> usize;
+
     fn main(&self);
 }
