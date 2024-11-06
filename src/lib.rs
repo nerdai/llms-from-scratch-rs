@@ -9,31 +9,9 @@ pub trait Exercise: Send + Sync {
     fn main(&self);
 }
 
-pub struct Example {
-    description: String,
-    source_page: usize,
-}
+/// Example Trait
+pub trait Example: Send + Sync {
+    fn description(&self) -> String;
 
-impl Example {
-    pub fn new(desc: &str, source_page: usize) -> Self {
-        Self {
-            description: String::from(desc),
-            source_page,
-        }
-    }
-
-    pub fn description(&self) -> &str {
-        &self.description[..]
-    }
-
-    pub fn source_page(&self) -> usize {
-        self.source_page
-    }
-}
-
-impl Main for Example {}
-pub trait Main: Send + Sync {
-    fn main(&self) {
-        println!("The main method has not been implemented yet.")
-    }
+    fn main(&self);
 }
