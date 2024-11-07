@@ -13,7 +13,7 @@ impl Example for EG01 {
     }
 
     fn main(&self) {
-        use candle_core::{Device, Tensor};
+        use candle_core::{DType, Device, Tensor};
 
         let dev = Device::cuda_if_available(0).unwrap();
         let inputs = Tensor::new(
@@ -29,10 +29,18 @@ impl Example for EG01 {
         )
         .unwrap();
 
-        let query = inputs
+        let _query = inputs
             .index_select(&Tensor::new(&[1u32], &dev).unwrap(), 0)
             .unwrap();
 
-        println!("{:?}", query.to_vec2::<f32>());
+        // compute attention scores
+        let attn_scores_2 = Tensor::zeros(inputs.dims()[0], DType::F32, &dev).unwrap();
+        for i in 0..inputs.dims()[0] {
+            let _x_i = inputs
+                .index_select(&Tensor::new(&[i as u32], &dev).unwrap(), 0)
+                .unwrap();
+        }
+
+        println!("{:?}", attn_scores_2.to_vec1::<f32>());
     }
 }

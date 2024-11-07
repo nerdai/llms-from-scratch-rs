@@ -93,11 +93,7 @@ impl Example for EG02 {
                 let context_length = max_length;
                 let pos_embedding_layer =
                     embedding(context_length, output_dim, vs.pp("pos_emb")).unwrap();
-                let pos_ids = Tensor::new(
-                    &(0_u32..context_length as u32).collect::<Vec<u32>>()[..],
-                    &dev,
-                )
-                .unwrap();
+                let pos_ids = Tensor::arange(0u32, context_length as u32, &dev).unwrap();
                 let pos_embeddings = pos_embedding_layer
                     .embeddings()
                     .index_select(&pos_ids, 0)
