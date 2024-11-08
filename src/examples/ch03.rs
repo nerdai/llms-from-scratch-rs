@@ -62,7 +62,7 @@ impl Example for EG01 {
             println!("Normalized attention scores: {:?}", normalized_attn_scores);
 
             // softmax normalization
-            let exponentiator = Tensor::exp(&attn_scores_2).unwrap();
+            let exponentiator = attn_scores_2.exp().unwrap();
             let exponentiator_sum = exponentiator.sum_all().unwrap();
             let softmax_attn_scores = exponentiator.broadcast_div(&exponentiator_sum).unwrap();
             println!(
