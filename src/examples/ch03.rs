@@ -13,7 +13,7 @@ impl Example for EG01 {
     }
 
     fn main(&self) {
-        use candle_core::{Device, Tensor};
+        use candle_core::{Device, IndexOp, Tensor};
         use candle_nn::ops::softmax;
 
         let dev = Device::cuda_if_available(0).unwrap();
@@ -78,6 +78,21 @@ impl Example for EG01 {
                 "Softmax-normalized attention scores: {:?}",
                 softmax_attn_scores
             );
+
+            // compute second context vector
+            let mut context_vec_2 = Tensor::zeros_like(&query).unwrap();
+            for i in 0..inputs.dims()[0] {
+                let x_i = inputs
+                    .index_select(&Tensor::new(&[i as u32], &dev).unwrap(), 0)
+                    .unwrap();
+                context_vec_2 = context_vec_2
+                    .add(
+                        &x_i.broadcast_mul(&softmax_attn_scores.i(i).unwrap())
+                            .unwrap(),
+                    )
+                    .unwrap();
+            }
+            println!("Context vector 2: {:?}", context_vec_2.to_vec2::<f32>());
         }
     }
 }
