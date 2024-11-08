@@ -14,6 +14,7 @@ impl Example for EG01 {
 
     fn main(&self) {
         use candle_core::{Device, Tensor};
+        use candle_nn::ops::softmax;
 
         let dev = Device::cuda_if_available(0).unwrap();
         let inputs = Tensor::new(
@@ -61,10 +62,18 @@ impl Example for EG01 {
                 .to_vec1::<f32>();
             println!("Normalized attention scores: {:?}", normalized_attn_scores);
 
-            // softmax normalization
+            // naive softmax normalization
             let exponentiator = attn_scores_2.exp().unwrap();
             let exponentiator_sum = exponentiator.sum_all().unwrap();
-            let softmax_attn_scores = exponentiator.broadcast_div(&exponentiator_sum).unwrap();
+            let naive_softmax_attn_scores =
+                exponentiator.broadcast_div(&exponentiator_sum).unwrap();
+            println!(
+                "Naive Softmax-normalized attention scores: {:?}",
+                naive_softmax_attn_scores
+            );
+
+            // candle softmax
+            let softmax_attn_scores = softmax(&attn_scores_2, 0).unwrap();
             println!(
                 "Softmax-normalized attention scores: {:?}",
                 softmax_attn_scores
