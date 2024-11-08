@@ -13,7 +13,7 @@ impl Example for EG01 {
     }
 
     fn main(&self) {
-        use candle_core::{DType, Device, Tensor};
+        use candle_core::{Device, Tensor};
 
         let dev = Device::cuda_if_available(0).unwrap();
         let inputs = Tensor::new(
@@ -29,18 +29,35 @@ impl Example for EG01 {
         )
         .unwrap();
 
-        let _query = inputs
+        let query = inputs
             .index_select(&Tensor::new(&[1u32], &dev).unwrap(), 0)
             .unwrap();
 
         // compute attention scores
-        let attn_scores_2 = Tensor::zeros(inputs.dims()[0], DType::F32, &dev).unwrap();
+        let mut optional_attn_scores_2: Option<Tensor> = None;
         for i in 0..inputs.dims()[0] {
-            let _x_i = inputs
+            let x_i = inputs
                 .index_select(&Tensor::new(&[i as u32], &dev).unwrap(), 0)
                 .unwrap();
+            let a_i = x_i
+                .matmul(&query.t().unwrap())
+                .unwrap()
+                .flatten_all()
+                .unwrap();
+            optional_attn_scores_2 = match optional_attn_scores_2 {
+                Some(attn_scores_2) => Some(Tensor::cat(&[&attn_scores_2, &a_i], 0).unwrap()),
+                None => Some(a_i),
+            }
         }
 
-        println!("{:?}", attn_scores_2.to_vec1::<f32>());
+        if let Some(attn_scores_2) = optional_attn_scores_2 {
+            let sum = attn_scores_2.sum_all().unwrap();
+            println!(
+                "{:?}",
+                (attn_scores_2.broadcast_div(&sum))
+                    .unwrap()
+                    .to_vec1::<f32>()
+            );
+        }
     }
 }
