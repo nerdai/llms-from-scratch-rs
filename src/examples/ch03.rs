@@ -207,3 +207,22 @@ impl Example for EG03 {
         println!("Context vector 2: {:?}", context_vec_2.to_vec2::<f32>());
     }
 }
+
+/// Example 03.04
+pub struct EG04 {}
+
+impl Example for EG04 {
+    fn description(&self) -> String {
+        String::from(
+            "Implement self-attention mechanism to compute context vectors in the input sequence.",
+        )
+    }
+
+    fn page_source(&self) -> usize {
+        71_usize
+    }
+
+    fn main(&self) {
+        todo!()
+    }
+}
