@@ -138,3 +138,19 @@ impl Example for EG02 {
         );
     }
 }
+
+pub struct EG03 {}
+
+impl Example for EG03 {
+    fn description(&self) -> String {
+        String::from("Implementing the self-attention mechanism with trainable weights.")
+    }
+
+    fn page_source(&self) -> usize {
+        66_usize
+    }
+
+    fn main(&self) {
+        todo!()
+    }
+}

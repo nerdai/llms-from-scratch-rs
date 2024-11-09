@@ -25,7 +25,7 @@ fn main() {
     let exercise_registry = &*EXERCISE_REGISTRY;
     let example_registry = &*EXAMPLE_REGISTRY;
     let _ex = exercise_registry.get("2.2").unwrap();
-    let eg = example_registry.get("03.02").unwrap();
+    let eg = example_registry.get("03.03").unwrap();
     // ex.main()
     eg.main()
 }
