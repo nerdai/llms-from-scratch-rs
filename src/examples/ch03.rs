@@ -180,9 +180,9 @@ impl Example for EG03 {
         let key_2 = x_2.matmul(&w_key).unwrap();
         let value_2 = x_2.matmul(&w_value).unwrap();
 
-        println!("Query 2: {:?}", query_2.to_vec2::<f32>().unwrap());
-        println!("Key 2: {:?}", key_2.to_vec2::<f32>().unwrap());
-        println!("Value 2: {:?}", value_2.to_vec2::<f32>().unwrap());
+        println!("Query 2: {:?}", query_2.to_vec2::<f32>());
+        println!("Key 2: {:?}", key_2.to_vec2::<f32>());
+        println!("Value 2: {:?}", value_2.to_vec2::<f32>());
 
         // key and value vectors all input elements
         let keys = inputs.matmul(&w_key).unwrap();
@@ -193,12 +193,15 @@ impl Example for EG03 {
 
         // compute attn scores
         let attn_scores = query_2.matmul(&keys.t().unwrap()).unwrap();
-        println!("Attn scores: {:?}", attn_scores.to_vec2::<f32>().unwrap());
+        println!("Attn scores: {:?}", attn_scores.to_vec2::<f32>());
 
         // compute attns weights by first scaling then softmax
         let d_k = Tensor::new(&[f32::powf(keys.dims()[1] as f32, 0.5_f32)], &dev).unwrap();
-        println!("{}", f32::powf(4f32, 0.5f32));
         let attn_weights = softmax(&attn_scores.broadcast_div(&d_k).unwrap(), 1).unwrap();
-        println!("Attn weights: {:?}", attn_weights.to_vec2::<f32>().unwrap());
+        println!("Attn weights: {:?}", attn_weights.to_vec2::<f32>());
+
+        // compute context vector
+        let context_vec_2 = attn_weights.matmul(&values).unwrap();
+        println!("Context vector 2: {:?}", context_vec_2.to_vec2::<f32>());
     }
 }
