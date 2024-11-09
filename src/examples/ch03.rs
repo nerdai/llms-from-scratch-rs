@@ -153,6 +153,41 @@ impl Example for EG03 {
     }
 
     fn main(&self) {
-        todo!()
+        use candle_core::DType;
+        use candle_nn::init::DEFAULT_KAIMING_NORMAL;
+        use candle_nn::{VarBuilder, VarMap};
+
+        let inputs = get_inputs();
+        let dev = inputs.device().to_owned();
+        let varmap = VarMap::new();
+        let vs = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+        let x_2 = inputs
+            .index_select(&Tensor::new(&[1u32], &dev).unwrap(), 0)
+            .unwrap();
+        let d_in = x_2.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+
+        // projections
+        let init = DEFAULT_KAIMING_NORMAL;
+        let w_query = vs.get_with_hints((d_in, d_out), "query", init).unwrap();
+        let w_key = vs.get_with_hints((d_in, d_out), "key", init).unwrap();
+        let w_value = vs.get_with_hints((d_in, d_out), "value", init).unwrap();
+
+        // query, key, value vectors
+        let query_2 = x_2.matmul(&w_query).unwrap();
+        let key_2 = x_2.matmul(&w_key).unwrap();
+        let value_2 = x_2.matmul(&w_value).unwrap();
+
+        println!("Query 2: {:?}", query_2.to_vec2::<f32>().unwrap());
+        println!("Key 2: {:?}", key_2.to_vec2::<f32>().unwrap());
+        println!("Value 2: {:?}", value_2.to_vec2::<f32>().unwrap());
+
+        // key and value vectors all input elements
+        let keys = inputs.matmul(&w_key).unwrap();
+        let values = inputs.matmul(&w_value).unwrap();
+
+        println!("Keys shape: {:?}", keys);
+        println!("Values shape: {:?}", values);
     }
 }
