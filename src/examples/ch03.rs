@@ -16,7 +16,7 @@ fn get_inputs() -> Tensor {
     .unwrap()
 }
 
-/// Example 02.01
+/// Example 03.01
 pub struct EG01 {}
 
 impl Example for EG01 {
@@ -102,6 +102,7 @@ impl Example for EG01 {
     }
 }
 
+/// Example 03.02
 pub struct EG02 {}
 
 impl Example for EG02 {
@@ -139,6 +140,7 @@ impl Example for EG02 {
     }
 }
 
+/// Example 03.03
 pub struct EG03 {}
 
 impl Example for EG03 {
