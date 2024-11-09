@@ -155,6 +155,7 @@ impl Example for EG03 {
     fn main(&self) {
         use candle_core::DType;
         use candle_nn::init::DEFAULT_KAIMING_NORMAL;
+        use candle_nn::ops::softmax;
         use candle_nn::{VarBuilder, VarMap};
 
         let inputs = get_inputs();
@@ -189,5 +190,15 @@ impl Example for EG03 {
 
         println!("Keys shape: {:?}", keys);
         println!("Values shape: {:?}", values);
+
+        // compute attn scores
+        let attn_scores = query_2.matmul(&keys.t().unwrap()).unwrap();
+        println!("Attn scores: {:?}", attn_scores.to_vec2::<f32>().unwrap());
+
+        // compute attns weights by first scaling then softmax
+        let d_k = Tensor::new(&[f32::powf(keys.dims()[1] as f32, 0.5_f32)], &dev).unwrap();
+        println!("{}", f32::powf(4f32, 0.5f32));
+        let attn_weights = softmax(&attn_scores.broadcast_div(&d_k).unwrap(), 1).unwrap();
+        println!("Attn weights: {:?}", attn_weights.to_vec2::<f32>().unwrap());
     }
 }
