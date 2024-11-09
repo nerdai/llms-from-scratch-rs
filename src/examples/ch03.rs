@@ -145,7 +145,9 @@ pub struct EG03 {}
 
 impl Example for EG03 {
     fn description(&self) -> String {
-        String::from("Implementing the self-attention mechanism with trainable weights.")
+        let desc = "Implementing the self-attention mechanism with \
+        trainable weights to compute single context vector.";
+        String::from(desc)
     }
 
     fn page_source(&self) -> usize {
