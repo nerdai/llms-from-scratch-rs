@@ -96,3 +96,53 @@ impl Example for EG01 {
         }
     }
 }
+
+pub struct EG02 {}
+
+impl Example for EG02 {
+    fn description(&self) -> String {
+        String::from("Manual computation of multiple context vectors simultaneously.")
+    }
+
+    fn page_source(&self) -> usize {
+        62_usize
+    }
+
+    fn main(&self) {
+        use candle_core::{Device, Tensor};
+        use candle_nn::ops::softmax;
+
+        let dev = Device::cuda_if_available(0).unwrap();
+        let inputs = Tensor::new(
+            &[
+                [0.43_f32, 0.15, 0.89], // Your
+                [0.55, 0.87, 0.66],     // journey
+                [0.57, 0.85, 0.64],     // starts
+                [0.22, 0.58, 0.33],     // with
+                [0.77, 0.25, 0.10],     // one
+                [0.05, 0.80, 0.55],     // step
+            ],
+            &dev,
+        )
+        .unwrap();
+
+        // matmul to get attn scores
+        let attn_scores = inputs.matmul(&inputs.t().unwrap()).unwrap();
+
+        // apply softmax
+        let attn_weights = softmax(&attn_scores, 1).unwrap();
+
+        // check sums along rows equal to 1
+        let sum = attn_weights.sum(1).unwrap();
+
+        // context vectors
+        let all_context_vectors = attn_weights.matmul(&inputs).unwrap();
+
+        println!("Attention Weights: {:?}\n", attn_weights.to_vec2::<f32>());
+        println!("All Rows Sum: {:?}\n\n", sum.flatten_all());
+        println!(
+            "Context Vectors: {:?}",
+            all_context_vectors.to_vec2::<f32>()
+        );
+    }
+}
