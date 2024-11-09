@@ -16,7 +16,7 @@ fn get_inputs() -> Tensor {
     .unwrap()
 }
 
-/// Example 02.01
+/// Example 03.01
 pub struct EG01 {}
 
 impl Example for EG01 {
@@ -102,6 +102,7 @@ impl Example for EG01 {
     }
 }
 
+/// Example 03.02
 pub struct EG02 {}
 
 impl Example for EG02 {
@@ -136,5 +137,73 @@ impl Example for EG02 {
             "Context Vectors: {:?}",
             all_context_vectors.to_vec2::<f32>()
         );
+    }
+}
+
+/// Example 03.03
+pub struct EG03 {}
+
+impl Example for EG03 {
+    fn description(&self) -> String {
+        let desc = "Implementing the self-attention mechanism with \
+        trainable weights to compute single context vector.";
+        String::from(desc)
+    }
+
+    fn page_source(&self) -> usize {
+        66_usize
+    }
+
+    fn main(&self) {
+        use candle_core::DType;
+        use candle_nn::init::DEFAULT_KAIMING_NORMAL;
+        use candle_nn::ops::softmax;
+        use candle_nn::{VarBuilder, VarMap};
+
+        let inputs = get_inputs();
+        let dev = inputs.device().to_owned();
+        let varmap = VarMap::new();
+        let vs = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+        let x_2 = inputs
+            .index_select(&Tensor::new(&[1u32], &dev).unwrap(), 0)
+            .unwrap();
+        let d_in = x_2.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+
+        // projections
+        let init = DEFAULT_KAIMING_NORMAL;
+        let w_query = vs.get_with_hints((d_in, d_out), "query", init).unwrap();
+        let w_key = vs.get_with_hints((d_in, d_out), "key", init).unwrap();
+        let w_value = vs.get_with_hints((d_in, d_out), "value", init).unwrap();
+
+        // query, key, value vectors
+        let query_2 = x_2.matmul(&w_query).unwrap();
+        let key_2 = x_2.matmul(&w_key).unwrap();
+        let value_2 = x_2.matmul(&w_value).unwrap();
+
+        println!("Query 2: {:?}", query_2.to_vec2::<f32>());
+        println!("Key 2: {:?}", key_2.to_vec2::<f32>());
+        println!("Value 2: {:?}", value_2.to_vec2::<f32>());
+
+        // key and value vectors all input elements
+        let keys = inputs.matmul(&w_key).unwrap();
+        let values = inputs.matmul(&w_value).unwrap();
+
+        println!("Keys shape: {:?}", keys);
+        println!("Values shape: {:?}", values);
+
+        // compute attn scores
+        let attn_scores = query_2.matmul(&keys.t().unwrap()).unwrap();
+        println!("Attn scores: {:?}", attn_scores.to_vec2::<f32>());
+
+        // compute attns weights by first scaling then softmax
+        let d_k = Tensor::new(&[f32::powf(keys.dims()[1] as f32, 0.5_f32)], &dev).unwrap();
+        let attn_weights = softmax(&attn_scores.broadcast_div(&d_k).unwrap(), 1).unwrap();
+        println!("Attn weights: {:?}", attn_weights.to_vec2::<f32>());
+
+        // compute context vector
+        let context_vec_2 = attn_weights.matmul(&values).unwrap();
+        println!("Context vector 2: {:?}", context_vec_2.to_vec2::<f32>());
     }
 }
