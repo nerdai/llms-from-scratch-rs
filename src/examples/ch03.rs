@@ -209,7 +209,7 @@ impl Example for EG03 {
 }
 
 /// Example 03.04
-pub struct EG04 {}
+pub struct EG04;
 
 impl Example for EG04 {
     fn description(&self) -> String {
