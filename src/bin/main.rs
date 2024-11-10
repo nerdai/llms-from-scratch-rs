@@ -7,18 +7,18 @@ use std::sync::LazyLock;
 static EXERCISE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Exercise>>> =
     LazyLock::new(|| {
         let mut m: HashMap<&'static str, Box<dyn Exercise + 'static>> = HashMap::new();
-        m.insert("2.1", Box::new(X2P1 {}));
-        m.insert("2.2", Box::new(X2P2 {}));
+        m.insert("2.1", Box::new(X2P1));
+        m.insert("2.2", Box::new(X2P2));
         m
     });
 
 static EXAMPLE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Example>>> = LazyLock::new(|| {
     let mut m: HashMap<&'static str, Box<dyn Example + 'static>> = HashMap::new();
-    m.insert("02.01", Box::new(ch02::EG01 {}));
-    m.insert("02.02", Box::new(ch02::EG02 {}));
-    m.insert("03.01", Box::new(ch03::EG01 {}));
-    m.insert("03.02", Box::new(ch03::EG02 {}));
-    m.insert("03.03", Box::new(ch03::EG03 {}));
+    m.insert("02.01", Box::new(ch02::EG01));
+    m.insert("02.02", Box::new(ch02::EG02));
+    m.insert("03.01", Box::new(ch03::EG01));
+    m.insert("03.02", Box::new(ch03::EG02));
+    m.insert("03.03", Box::new(ch03::EG03));
     m.insert("03.04", Box::new(ch03::EG04));
     m
 });
