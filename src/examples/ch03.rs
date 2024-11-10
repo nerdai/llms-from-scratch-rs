@@ -243,6 +243,7 @@ impl Example for EG04 {
     }
 }
 
+/// Example 03.05
 pub struct EG05;
 
 impl Example for EG05 {
