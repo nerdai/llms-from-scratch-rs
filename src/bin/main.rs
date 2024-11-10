@@ -7,6 +7,7 @@ static EXERCISE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Exercise>>> =
         let mut m: HashMap<&'static str, Box<dyn Exercise + 'static>> = HashMap::new();
         m.insert("2.1", Box::new(exercises::ch02::X2P1));
         m.insert("2.2", Box::new(exercises::ch02::X2P2));
+        m.insert("3.1", Box::new(exercises::ch03::X3P1));
         m
     });
 
@@ -25,8 +26,8 @@ static EXAMPLE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Example>>> = Laz
 fn main() {
     let exercise_registry = &*EXERCISE_REGISTRY;
     let example_registry = &*EXAMPLE_REGISTRY;
-    let _ex = exercise_registry.get("2.2").unwrap();
-    let eg = example_registry.get("03.04").unwrap();
-    // ex.main()
-    eg.main()
+    let ex = exercise_registry.get("3.1").unwrap();
+    let _eg = example_registry.get("03.04").unwrap();
+    ex.main()
+    // eg.main()
 }
