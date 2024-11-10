@@ -227,14 +227,17 @@ impl Example for EG04 {
         use candle_core::{DType, Module};
         use candle_nn::{VarBuilder, VarMap};
 
+        let inputs = get_inputs();
+        let d_in = inputs.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+
         // construct self attention layer
-        let (d_in, d_out) = (3_usize, 2_usize);
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
         let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
 
         // run a random, embedded input sequence through self-attention
-        let input_length = 6_usize;
+        let input_length = inputs.dims()[0];
         let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &Device::Cpu).unwrap();
         let context_vectors = attn_v1_layer.forward(&xs).unwrap();
 
