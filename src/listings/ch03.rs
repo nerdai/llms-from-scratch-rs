@@ -8,6 +8,7 @@ pub struct SelfAttentionV1 {
     w_query: Tensor,
     w_key: Tensor,
     w_value: Tensor,
+    scaling: f64,
 }
 
 impl SelfAttentionV1 {
@@ -16,10 +17,13 @@ impl SelfAttentionV1 {
         let w_query = vb.get_with_hints((d_in, d_out), "query", init)?;
         let w_key = vb.get_with_hints((d_in, d_out), "key", init)?;
         let w_value = vb.get_with_hints((d_in, d_out), "value", init)?;
+        let scaling = 1. / (w_key.dims()[1] as f64).sqrt();
+
         Ok(Self {
             w_query,
             w_key,
             w_value,
+            scaling,
         })
     }
 
@@ -38,8 +42,14 @@ impl SelfAttentionV1 {
 
 impl Module for SelfAttentionV1 {
     /// Computes the context vector for `xs`
-    fn forward(&self, _xs: &Tensor) -> Result<Tensor> {
-        todo!()
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let queries = xs.matmul(&self.w_query)?;
+        let keys = xs.matmul(&self.w_key)?;
+        let values = xs.matmul(&self.w_value)?;
+
+        let attn_scores = queries.matmul(&keys.t()?)?;
+        let attn_weights = candle_nn::ops::softmax(&(attn_scores * self.scaling)?, 1)?;
+        attn_weights.matmul(&values)
     }
 }
 
