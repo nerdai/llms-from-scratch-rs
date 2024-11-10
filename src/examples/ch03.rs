@@ -243,7 +243,10 @@ impl Example for EG04 {
     }
 }
 
+<<<<<<< HEAD
 /// Example 03.05
+=======
+>>>>>>> bba9efa (add EG05; actually use inputs for EG04)
 pub struct EG05;
 
 impl Example for EG05 {
