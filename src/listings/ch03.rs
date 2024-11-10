@@ -2,6 +2,8 @@ use candle_core::{Module, Result, Tensor};
 use candle_nn::VarBuilder;
 
 /// Listing 3.1
+/// `SelfAttentionV1` is a simple implementation of a self-attention layer.
+/// It follows a similar interface to other candle `Module`s.
 pub struct SelfAttentionV1 {
     w_query: Tensor,
     w_key: Tensor,
