@@ -71,4 +71,18 @@ mod tests {
         assert_eq!(attn_v1_layer.w_key.dims(), &[d_in, d_out]);
         assert_eq!(attn_v1_layer.w_value.dims(), &[d_in, d_out]);
     }
+
+    #[rstest]
+    fn test_self_attention_v1_forward() {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
+
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &Device::Cpu).unwrap();
+        let context_vectors = attn_v1_layer.forward(&xs).unwrap();
+
+        assert_eq!(context_vectors.dims(), &[input_length, d_out]);
+    }
 }
