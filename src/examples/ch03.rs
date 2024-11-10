@@ -17,7 +17,7 @@ fn get_inputs() -> Tensor {
 }
 
 /// Example 03.01
-pub struct EG01 {}
+pub struct EG01;
 
 impl Example for EG01 {
     fn description(&self) -> String {
@@ -103,7 +103,7 @@ impl Example for EG01 {
 }
 
 /// Example 03.02
-pub struct EG02 {}
+pub struct EG02;
 
 impl Example for EG02 {
     fn description(&self) -> String {
@@ -141,7 +141,7 @@ impl Example for EG02 {
 }
 
 /// Example 03.03
-pub struct EG03 {}
+pub struct EG03;
 
 impl Example for EG03 {
     fn description(&self) -> String {

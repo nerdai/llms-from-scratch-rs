@@ -1,7 +1,7 @@
 use crate::Example;
 
 /// Example 02.01
-pub struct EG01 {}
+pub struct EG01;
 
 impl Example for EG01 {
     fn description(&self) -> String {
@@ -37,7 +37,7 @@ impl Example for EG01 {
 }
 
 /// Example 02.02
-pub struct EG02 {}
+pub struct EG02;
 
 impl Example for EG02 {
     fn description(&self) -> String {
