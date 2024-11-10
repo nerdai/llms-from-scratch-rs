@@ -37,6 +37,7 @@ impl SelfAttentionV1 {
 }
 
 impl Module for SelfAttentionV1 {
+    /// Computes the context vector for `xs`
     fn forward(&self, _xs: &Tensor) -> Result<Tensor> {
         todo!()
     }
