@@ -1,5 +1,5 @@
 use candle_core::{Module, Result, Tensor};
-use candle_nn::VarBuilder;
+use candle_nn::{Linear, VarBuilder};
 
 /// Listing 3.1
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
@@ -50,6 +50,30 @@ impl Module for SelfAttentionV1 {
         let attn_scores = queries.matmul(&keys.t()?)?;
         let attn_weights = candle_nn::ops::softmax(&(attn_scores * self.scaling)?, 1)?;
         attn_weights.matmul(&values)
+    }
+}
+
+pub struct SelfAttentionV2 {
+    w_query: Linear,
+    w_key: Linear,
+    w_value: Linear,
+    scaling: f64,
+}
+
+impl SelfAttentionV2 {
+    pub fn new(d_in: usize, d_out: usize, vb: VarBuilder<'_>) -> Result<Self> {
+        let init = candle_nn::init::DEFAULT_KAIMING_NORMAL;
+        let w_query = vb.get_with_hints((d_in, d_out), "query", init)?;
+        let w_key = vb.get_with_hints((d_in, d_out), "key", init)?;
+        let w_value = vb.get_with_hints((d_in, d_out), "value", init)?;
+        let scaling = 1. / (w_key.dims()[1] as f64).sqrt();
+
+        Ok(Self {
+            w_query,
+            w_key,
+            w_value,
+            scaling,
+        })
     }
 }
 
