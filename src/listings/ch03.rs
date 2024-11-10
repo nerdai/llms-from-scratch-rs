@@ -53,6 +53,8 @@ impl Module for SelfAttentionV1 {
     }
 }
 
+/// Listing 3.2
+/// Note: `candle_nn::linear` takes in dimensions in reverse.  
 pub struct SelfAttentionV2 {
     w_query: Linear,
     w_key: Linear,
@@ -62,9 +64,9 @@ pub struct SelfAttentionV2 {
 
 impl SelfAttentionV2 {
     pub fn new(d_in: usize, d_out: usize, qkv_bias: bool, vb: VarBuilder<'_>) -> Result<Self> {
-        let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
-        let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
-        let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
+        let w_query = linear_b(d_out, d_in, qkv_bias, vb.pp("query"))?;
+        let w_key = linear_b(d_out, d_in, qkv_bias, vb.pp("key"))?;
+        let w_value = linear_b(d_out, d_in, qkv_bias, vb.pp("value"))?;
         let scaling = 1. / (w_key.weight().dims()[1] as f64).sqrt();
 
         Ok(Self {
@@ -119,5 +121,17 @@ mod tests {
         let context_vectors = attn_v1_layer.forward(&xs).unwrap();
 
         assert_eq!(context_vectors.dims(), &[input_length, d_out]);
+    }
+
+    #[rstest]
+    fn test_self_attention_v2_init() {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let attn_v1_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+
+        assert_eq!(attn_v1_layer.w_query.weight().dims(), &[d_in, d_out]);
+        assert_eq!(attn_v1_layer.w_key.weight().dims(), &[d_in, d_out]);
+        assert_eq!(attn_v1_layer.w_value.weight().dims(), &[d_in, d_out]);
     }
 }
