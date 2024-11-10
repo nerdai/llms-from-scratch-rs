@@ -1,5 +1,5 @@
 use candle_core::{Module, Result, Tensor};
-use candle_nn::{Linear, VarBuilder};
+use candle_nn::{linear_b, Linear, VarBuilder};
 
 /// Listing 3.1
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
@@ -57,23 +57,34 @@ pub struct SelfAttentionV2 {
     w_query: Linear,
     w_key: Linear,
     w_value: Linear,
-    scaling: f64,
+    _scaling: f64,
 }
 
 impl SelfAttentionV2 {
-    pub fn new(d_in: usize, d_out: usize, vb: VarBuilder<'_>) -> Result<Self> {
-        let init = candle_nn::init::DEFAULT_KAIMING_NORMAL;
-        let w_query = vb.get_with_hints((d_in, d_out), "query", init)?;
-        let w_key = vb.get_with_hints((d_in, d_out), "key", init)?;
-        let w_value = vb.get_with_hints((d_in, d_out), "value", init)?;
-        let scaling = 1. / (w_key.dims()[1] as f64).sqrt();
+    pub fn new(d_in: usize, d_out: usize, qkv_bias: bool, vb: VarBuilder<'_>) -> Result<Self> {
+        let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
+        let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
+        let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
+        let scaling = 1. / (w_key.weight().dims()[1] as f64).sqrt();
 
         Ok(Self {
             w_query,
             w_key,
             w_value,
-            scaling,
+            _scaling: scaling,
         })
+    }
+
+    pub fn w_query(&self) -> &Linear {
+        &self.w_query
+    }
+
+    pub fn w_key(&self) -> &Linear {
+        &self.w_key
+    }
+
+    pub fn w_value(&self) -> &Linear {
+        &self.w_value
     }
 }
 
