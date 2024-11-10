@@ -1,5 +1,5 @@
-use candle_core::{Module, Result, Tensor};
-use candle_nn::VarBuilder;
+use candle_core::{Module, Result, Tensor, D};
+use candle_nn::{linear_b, Linear, VarBuilder};
 
 /// Listing 3.1
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
@@ -53,6 +53,55 @@ impl Module for SelfAttentionV1 {
     }
 }
 
+/// Listing 3.2
+/// Note: `candle_nn::linear` takes in dimensions in reverse.  
+pub struct SelfAttentionV2 {
+    w_query: Linear,
+    w_key: Linear,
+    w_value: Linear,
+    scaling: f64,
+}
+
+impl SelfAttentionV2 {
+    pub fn new(d_in: usize, d_out: usize, qkv_bias: bool, vb: VarBuilder<'_>) -> Result<Self> {
+        let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
+        let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
+        let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
+        let scaling = 1. / (w_key.weight().dims()[0] as f64).sqrt();
+
+        Ok(Self {
+            w_query,
+            w_key,
+            w_value,
+            scaling,
+        })
+    }
+
+    pub fn w_query(&self) -> &Linear {
+        &self.w_query
+    }
+
+    pub fn w_key(&self) -> &Linear {
+        &self.w_key
+    }
+
+    pub fn w_value(&self) -> &Linear {
+        &self.w_value
+    }
+}
+
+impl Module for SelfAttentionV2 {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let queries = self.w_query.forward(xs)?;
+        let keys = self.w_key.forward(xs)?;
+        let values = self.w_value.forward(xs)?;
+
+        let attn_scores = queries.matmul(&keys.t()?)?;
+        let attn_weights = candle_nn::ops::softmax(&(attn_scores * self.scaling)?, D::Minus1)?;
+        attn_weights.matmul(&values)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,6 +131,32 @@ mod tests {
         let input_length = 10_usize;
         let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &Device::Cpu).unwrap();
         let context_vectors = attn_v1_layer.forward(&xs).unwrap();
+
+        assert_eq!(context_vectors.dims(), &[input_length, d_out]);
+    }
+
+    #[rstest]
+    fn test_self_attention_v2_init() {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+
+        assert_eq!(attn_v2_layer.w_query.weight().dims(), &[d_out, d_in]);
+        assert_eq!(attn_v2_layer.w_key.weight().dims(), &[d_out, d_in]);
+        assert_eq!(attn_v2_layer.w_value.weight().dims(), &[d_out, d_in]);
+    }
+
+    #[rstest]
+    fn test_self_attention_v2_forward() {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &Device::Cpu).unwrap();
+        let context_vectors = attn_v2_layer.forward(&xs).unwrap();
 
         assert_eq!(context_vectors.dims(), &[input_length, d_out]);
     }
