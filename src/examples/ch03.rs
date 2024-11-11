@@ -277,3 +277,37 @@ impl Example for EG05 {
         println!("context vectors: {:?}", context_vectors.to_vec2::<f32>());
     }
 }
+
+/// Example 03.06
+pub struct EG06;
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        String::from("Compute causal attention weights.")
+    }
+
+    fn page_source(&self) -> usize {
+        75_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch03::SelfAttentionV2;
+        use candle_core::{DType, Module};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let inputs = get_inputs();
+        let d_in = inputs.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+
+        // construct self attention layer
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+
+        let queries = attn_v2_layer.w_query().forward(&inputs).unwrap();
+        let keys = attn_v2_layer.w_key().forward(&inputs).unwrap();
+        let attn_scores = queries.matmul(&keys.t().unwrap()).unwrap();
+
+        println!("attn_scores: {:?}", attn_scores.to_vec2::<f32>());
+    }
+}
