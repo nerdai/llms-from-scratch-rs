@@ -304,10 +304,19 @@ impl Example for EG06 {
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
         let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
 
+        // attn scores
         let queries = attn_v2_layer.w_query().forward(&inputs).unwrap();
         let keys = attn_v2_layer.w_key().forward(&inputs).unwrap();
         let attn_scores = queries.matmul(&keys.t().unwrap()).unwrap();
 
-        println!("attn_scores: {:?}", attn_scores.to_vec2::<f32>());
+        // causal mask
+        let context_length = attn_scores.dims()[0];
+        let mask: Vec<_> = (0..context_length as u32)
+            .flat_map(|i| (0..context_length as u32).map(move |j| f32::from(j > i)))
+            .collect();
+        let mask =
+            Tensor::from_slice(&mask, (context_length, context_length), &Device::Cpu).unwrap();
+
+        println!("mask: {:?}", mask.to_vec2::<f32>());
     }
 }
