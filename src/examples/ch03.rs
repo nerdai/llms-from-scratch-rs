@@ -17,7 +17,7 @@ fn get_inputs() -> Tensor {
 }
 
 // use for cuda enabled dev
-fn _masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
+fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
     let shape = mask.shape();
     let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
     let m = mask.where_cond(&on_true, on_false)?;
@@ -340,5 +340,56 @@ impl Example for EG06 {
             "masked_simple_norm: {:?}",
             masked_simple_norm.to_vec2::<f32>()
         );
+    }
+}
+
+/// Example 03.07
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        let desc = "Compute causal attention weights more efficiently \
+        using `f32::NEGATIVE_INFINITY` and `masked_fill()`.";
+        String::from(desc)
+    }
+
+    fn page_source(&self) -> usize {
+        77_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch03::SelfAttentionV2;
+        use candle_core::{DType, Module};
+        use candle_nn::ops::softmax;
+        use candle_nn::{VarBuilder, VarMap};
+
+        let inputs = get_inputs();
+        let d_in = inputs.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+
+        // construct self attention layer
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, inputs.device());
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+
+        // attn scores
+        let queries = attn_v2_layer.w_query().forward(&inputs).unwrap();
+        let keys = attn_v2_layer.w_key().forward(&inputs).unwrap();
+        let attn_scores = queries.matmul(&keys.t().unwrap()).unwrap();
+
+        // efficient computation of causal mask
+        let context_length = attn_scores.dims()[0];
+        let mask: Vec<_> = (0..context_length as u32)
+            .flat_map(|i| (0..context_length as u32).map(move |j| f32::from(j > i)))
+            .collect();
+        let mask =
+            Tensor::from_slice(&mask, (context_length, context_length), inputs.device()).unwrap();
+        let masked = masked_fill(&attn_scores, &mask, f32::NEG_INFINITY).unwrap();
+        println!("masked: {:?}", masked.to_vec2::<f32>());
+
+        // masked attn weights
+        let scaling = 1. / (keys.dims()[1] as f64).sqrt();
+        let attn_weights = softmax(&(masked * scaling).unwrap(), 1).unwrap();
+        println!("attn_weights: {:?}", attn_weights.to_vec2::<f32>());
     }
 }
