@@ -289,16 +289,8 @@ impl Example for EG05 {
 /// Example 03.06
 pub struct EG06;
 
-impl Example for EG06 {
-    fn description(&self) -> String {
-        String::from("Compute causal attention weights.")
-    }
-
-    fn page_source(&self) -> usize {
-        75_usize
-    }
-
-    fn main(&self) {
+impl EG06 {
+    fn main_with_return(&self) -> Result<Tensor> {
         use crate::listings::ch03::SelfAttentionV2;
         use candle_core::{DType, Module, D};
         use candle_nn::ops::softmax;
@@ -311,13 +303,13 @@ impl Example for EG06 {
         // construct self attention layer
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, inputs.device());
-        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn"))?;
 
         // attn scores
-        let queries = attn_v2_layer.w_query().forward(&inputs).unwrap();
-        let keys = attn_v2_layer.w_key().forward(&inputs).unwrap();
-        let attn_scores = queries.matmul(&keys.t().unwrap()).unwrap();
-        let attn_weights = softmax(&attn_scores, 1).unwrap();
+        let queries = attn_v2_layer.w_query().forward(&inputs)?;
+        let keys = attn_v2_layer.w_key().forward(&inputs)?;
+        let attn_scores = queries.matmul(&keys.t().unwrap())?;
+        let attn_weights = softmax(&attn_scores, 1)?;
 
         // causal mask
         let context_length = attn_scores.dims()[0];
@@ -328,18 +320,29 @@ impl Example for EG06 {
             &mask_simple,
             (context_length, context_length),
             inputs.device(),
-        )
-        .unwrap();
-        let masked_simple = (attn_weights * mask_simple).unwrap();
+        )?;
+        let masked_simple = (attn_weights * mask_simple)?;
         println!("masked_simple: {:?}", masked_simple.to_vec2::<f32>());
 
         // normalize
-        let row_sums = masked_simple.sum_keepdim(D::Minus1).unwrap();
-        let masked_simple_norm = masked_simple.broadcast_div(&row_sums).unwrap();
-        println!(
-            "masked_simple_norm: {:?}",
-            masked_simple_norm.to_vec2::<f32>()
-        );
+        let row_sums = masked_simple.sum_keepdim(D::Minus1)?;
+        let attn_weights = masked_simple.broadcast_div(&row_sums)?;
+        println!("masked_simple_norm: {:?}", attn_weights.to_vec2::<f32>());
+        Ok(attn_weights)
+    }
+}
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        String::from("Compute causal attention weights.")
+    }
+
+    fn page_source(&self) -> usize {
+        75_usize
+    }
+
+    fn main(&self) {
+        let _ = self.main_with_return();
     }
 }
 
@@ -391,5 +394,31 @@ impl Example for EG07 {
         let scaling = 1. / (keys.dims()[1] as f64).sqrt();
         let attn_weights = softmax(&(masked * scaling).unwrap(), 1).unwrap();
         println!("attn_weights: {:?}", attn_weights.to_vec2::<f32>());
+    }
+}
+
+/// Example 03.08
+pub struct EG08;
+
+impl Example for EG08 {
+    fn description(&self) -> String {
+        String::from("Dropout on attention weights.")
+    }
+
+    fn page_source(&self) -> usize {
+        80_usize
+    }
+
+    fn main(&self) {
+        use candle_nn::Dropout;
+
+        // re-use attn weights from example 03.06
+        let eg06 = EG06;
+        let attn_weights = eg06.main_with_return().unwrap();
+        let dropout = Dropout::new(0.5);
+
+        // could have also just used the candle_nn::ops::dropout directly
+        let dropped_out = dropout.forward(&attn_weights, true).unwrap();
+        println!("dropped_out: {:?}", dropped_out.to_vec2::<f32>());
     }
 }
