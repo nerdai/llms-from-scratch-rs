@@ -396,3 +396,29 @@ impl Example for EG07 {
         println!("attn_weights: {:?}", attn_weights.to_vec2::<f32>());
     }
 }
+
+/// Example 03.08
+pub struct EG08;
+
+impl Example for EG08 {
+    fn description(&self) -> String {
+        String::from("Dropout on attention weights.")
+    }
+
+    fn page_source(&self) -> usize {
+        80_usize
+    }
+
+    fn main(&self) {
+        use candle_nn::Dropout;
+
+        // re-use attn weights from example 03.06
+        let eg06 = EG06;
+        let attn_weights = eg06.main_with_return().unwrap();
+        let dropout = Dropout::new(0.5);
+
+        // could have also just used the candle_nn::ops::dropout directly
+        let dropped_out = dropout.forward(&attn_weights, true).unwrap();
+        println!("dropped_out: {:?}", dropped_out.to_vec2::<f32>());
+    }
+}
