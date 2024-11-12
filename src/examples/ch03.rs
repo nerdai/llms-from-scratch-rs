@@ -1,5 +1,5 @@
 use crate::Example;
-use candle_core::{Device, Tensor};
+use candle_core::{Device, Result, Tensor};
 
 fn get_inputs() -> Tensor {
     Tensor::new(
@@ -11,9 +11,17 @@ fn get_inputs() -> Tensor {
             [0.77, 0.25, 0.10],     // one
             [0.05, 0.80, 0.55],     // step
         ],
-        &Device::Cpu,
+        &Device::cuda_if_available(0).unwrap(),
     )
     .unwrap()
+}
+
+// use for cuda enabled dev
+fn _masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
+    let shape = mask.shape();
+    let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
+    let m = mask.where_cond(&on_true, on_false)?;
+    Ok(m)
 }
 
 /// Example 03.01
@@ -275,5 +283,62 @@ impl Example for EG05 {
         let context_vectors = attn_v2_layer.forward(&inputs).unwrap();
 
         println!("context vectors: {:?}", context_vectors.to_vec2::<f32>());
+    }
+}
+
+/// Example 03.06
+pub struct EG06;
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        String::from("Compute causal attention weights.")
+    }
+
+    fn page_source(&self) -> usize {
+        75_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch03::SelfAttentionV2;
+        use candle_core::{DType, Module, D};
+        use candle_nn::ops::softmax;
+        use candle_nn::{VarBuilder, VarMap};
+
+        let inputs = get_inputs();
+        let d_in = inputs.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+
+        // construct self attention layer
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, inputs.device());
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+
+        // attn scores
+        let queries = attn_v2_layer.w_query().forward(&inputs).unwrap();
+        let keys = attn_v2_layer.w_key().forward(&inputs).unwrap();
+        let attn_scores = queries.matmul(&keys.t().unwrap()).unwrap();
+        let attn_weights = softmax(&attn_scores, 1).unwrap();
+
+        // causal mask
+        let context_length = attn_scores.dims()[0];
+        let mask_simple: Vec<_> = (0..context_length as u32)
+            .flat_map(|i| (0..context_length as u32).map(move |j| f32::from(j <= i)))
+            .collect();
+        let mask_simple = Tensor::from_slice(
+            &mask_simple,
+            (context_length, context_length),
+            inputs.device(),
+        )
+        .unwrap();
+        let masked_simple = (attn_weights * mask_simple).unwrap();
+        println!("masked_simple: {:?}", masked_simple.to_vec2::<f32>());
+
+        // normalize
+        let row_sums = masked_simple.sum_keepdim(D::Minus1).unwrap();
+        let masked_simple_norm = masked_simple.broadcast_div(&row_sums).unwrap();
+        println!(
+            "masked_simple_norm: {:?}",
+            masked_simple_norm.to_vec2::<f32>()
+        );
     }
 }
