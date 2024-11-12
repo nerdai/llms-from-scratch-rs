@@ -340,13 +340,5 @@ impl Example for EG06 {
             "masked_simple_norm: {:?}",
             masked_simple_norm.to_vec2::<f32>()
         );
-
-        // cuda issues on personal gpu prevent the more efficient computation from working
-        // let mask: Vec<_> = (0..context_length as u32)
-        //     .flat_map(|i| (0..context_length as u32).map(move |j| f32::from(j > i)))
-        //     .collect();
-        // let mask =
-        //     Tensor::from_slice(&mask, (context_length, context_length), inputs.device()).unwrap();
-        // let masked = masked_fill(&attn_scores, &mask, f32::NEG_INFINITY).unwrap();
     }
 }
