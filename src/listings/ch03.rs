@@ -1,5 +1,5 @@
 use candle_core::{Module, Result, Tensor, D};
-use candle_nn::{linear_b, Linear, VarBuilder};
+use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
 
 /// Listing 3.1
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
@@ -99,6 +99,67 @@ impl Module for SelfAttentionV2 {
         let attn_scores = queries.matmul(&keys.t()?)?;
         let attn_weights = candle_nn::ops::softmax(&(attn_scores * self.scaling)?, D::Minus1)?;
         attn_weights.matmul(&values)
+    }
+}
+
+/// Listing 3.1
+pub struct CausalAttention {
+    w_query: Linear,
+    w_key: Linear,
+    w_value: Linear,
+    mask: Tensor,
+    d_out: usize,
+    scaling: f64,
+    dropout: Dropout,
+}
+
+impl CausalAttention {
+    pub fn new(
+        d_in: usize,
+        d_out: usize,
+        context_length: usize,
+        drop_p: f32,
+        qkv_bias: bool,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
+        let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
+        let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
+        let scaling = 1. / (w_key.weight().dims()[0] as f64).sqrt();
+        let dropout = Dropout::new(drop_p);
+        // todo: replace this with f32 mask on cuda enabled dev
+        let mask: Vec<_> = (0..context_length as u32)
+            .flat_map(|i| (0..context_length as u32).map(move |j| f32::from(j <= i)))
+            .collect();
+        let mask = Tensor::from_slice(&mask, (context_length, context_length), vb.device())?;
+
+        Ok(Self {
+            w_query,
+            w_key,
+            w_value,
+            mask,
+            d_out,
+            scaling,
+            dropout,
+        })
+    }
+
+    pub fn w_query(&self) -> &Linear {
+        &self.w_query
+    }
+
+    pub fn w_key(&self) -> &Linear {
+        &self.w_key
+    }
+
+    pub fn w_value(&self) -> &Linear {
+        &self.w_value
+    }
+}
+
+impl Module for CausalAttention {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        todo!()
     }
 }
 
