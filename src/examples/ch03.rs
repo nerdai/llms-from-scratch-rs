@@ -2,6 +2,7 @@ use crate::Example;
 use candle_core::{Device, Result, Tensor};
 
 fn get_inputs() -> Tensor {
+    let dev = Device::cuda_if_available(0).unwrap();
     Tensor::new(
         &[
             [0.43_f32, 0.15, 0.89], // Your
@@ -11,7 +12,7 @@ fn get_inputs() -> Tensor {
             [0.77, 0.25, 0.10],     // one
             [0.05, 0.80, 0.55],     // step
         ],
-        &Device::cuda_if_available(0).unwrap(),
+        &dev,
     )
     .unwrap()
 }
@@ -349,18 +350,8 @@ impl Example for EG06 {
 /// Example 03.07
 pub struct EG07;
 
-impl Example for EG07 {
-    fn description(&self) -> String {
-        let desc = "Compute causal attention weights more efficiently \
-        using `f32::NEGATIVE_INFINITY` and `masked_fill()`.";
-        String::from(desc)
-    }
-
-    fn page_source(&self) -> usize {
-        77_usize
-    }
-
-    fn main(&self) {
+impl EG07 {
+    fn main_with_return(&self) -> Result<Tensor> {
         use crate::listings::ch03::SelfAttentionV2;
         use candle_core::{DType, Module};
         use candle_nn::ops::softmax;
@@ -373,27 +364,43 @@ impl Example for EG07 {
         // construct self attention layer
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, inputs.device());
-        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn"))?;
 
         // attn scores
-        let queries = attn_v2_layer.w_query().forward(&inputs).unwrap();
-        let keys = attn_v2_layer.w_key().forward(&inputs).unwrap();
-        let attn_scores = queries.matmul(&keys.t().unwrap()).unwrap();
+        let queries = attn_v2_layer.w_query().forward(&inputs)?;
+        let keys = attn_v2_layer.w_key().forward(&inputs)?;
+        let attn_scores = queries.matmul(&keys.t()?)?;
 
         // efficient computation of causal mask
         let context_length = attn_scores.dims()[0];
         let mask: Vec<_> = (0..context_length as u32)
-            .flat_map(|i| (0..context_length as u32).map(move |j| f32::from(j > i)))
+            .flat_map(|i| (0..context_length as u32).map(move |j| u32::from(j > i)))
             .collect();
-        let mask =
-            Tensor::from_slice(&mask, (context_length, context_length), inputs.device()).unwrap();
-        let masked = masked_fill(&attn_scores, &mask, f32::NEG_INFINITY).unwrap();
+        let mask = Tensor::from_slice(&mask, (context_length, context_length), inputs.device())?;
+        let masked = masked_fill(&attn_scores, &mask, f32::NEG_INFINITY)?;
         println!("masked: {:?}", masked.to_vec2::<f32>());
 
         // masked attn weights
         let scaling = 1. / (keys.dims()[1] as f64).sqrt();
-        let attn_weights = softmax(&(masked * scaling).unwrap(), 1).unwrap();
+        let attn_weights = softmax(&(masked * scaling)?, 1)?;
         println!("attn_weights: {:?}", attn_weights.to_vec2::<f32>());
+        Ok(attn_weights)
+    }
+}
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        let desc = "Compute causal attention weights more efficiently \
+        using `f32::NEGATIVE_INFINITY` and `masked_fill()`.";
+        String::from(desc)
+    }
+
+    fn page_source(&self) -> usize {
+        77_usize
+    }
+
+    fn main(&self) {
+        let _ = self.main_with_return();
     }
 }
 
@@ -412,9 +419,8 @@ impl Example for EG08 {
     fn main(&self) {
         use candle_nn::Dropout;
 
-        // re-use attn weights from example 03.06
-        let eg06 = EG06;
-        let attn_weights = eg06.main_with_return().unwrap();
+        let eg07 = EG07;
+        let attn_weights = eg07.main_with_return().unwrap();
         let dropout = Dropout::new(0.5);
 
         // could have also just used the candle_nn::ops::dropout directly
