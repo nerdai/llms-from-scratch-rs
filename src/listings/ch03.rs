@@ -1,4 +1,5 @@
 use candle_core::{Module, Result, Tensor, D};
+use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
 
 /// Listing 3.1
@@ -108,7 +109,6 @@ pub struct CausalAttention {
     w_key: Linear,
     w_value: Linear,
     mask: Tensor,
-    d_out: usize,
     scaling: f64,
     dropout: Dropout,
 }
@@ -138,7 +138,6 @@ impl CausalAttention {
             w_key,
             w_value,
             mask,
-            d_out,
             scaling,
             dropout,
         })
@@ -159,7 +158,23 @@ impl CausalAttention {
 
 impl Module for CausalAttention {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        todo!()
+        let (_b, _num_tokens, _d_in) = xs.dims3()?;
+        let queries = self.w_query.forward(xs)?;
+        let keys = self.w_key.forward(xs)?;
+        let values = self.w_value.forward(xs)?;
+
+        let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
+        let attn_weights = softmax(&(attn_scores * self.scaling)?, 1)?;
+        let masked_simple = (attn_weights * self.mask.clone())?;
+
+        // normalize
+        let row_sums = masked_simple.sum_keepdim(D::Minus1)?;
+        let attn_weights = masked_simple.broadcast_div(&row_sums)?;
+        // dropout
+        let attn_weights = self.dropout.forward(&attn_weights, true).unwrap();
+
+        // context vectors
+        attn_weights.matmul(&values)
     }
 }
 
