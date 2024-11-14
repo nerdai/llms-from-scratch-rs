@@ -196,11 +196,16 @@ mod tests {
     use candle_nn::{VarBuilder, VarMap};
     use rstest::*;
 
+    #[fixture]
+    pub fn device() -> Device {
+        Device::cuda_if_available(0).unwrap()
+    }
+
     #[rstest]
-    fn test_self_attention_v1_init() {
+    fn test_self_attention_v1_init(device: Device) {
         let (d_in, d_out) = (3_usize, 5_usize);
         let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
 
         assert_eq!(attn_v1_layer.w_query.dims(), &[d_in, d_out]);
@@ -209,24 +214,24 @@ mod tests {
     }
 
     #[rstest]
-    fn test_self_attention_v1_forward() {
+    fn test_self_attention_v1_forward(device: Device) {
         let (d_in, d_out) = (3_usize, 5_usize);
         let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
 
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &Device::Cpu).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device()).unwrap();
         let context_vectors = attn_v1_layer.forward(&xs).unwrap();
 
         assert_eq!(context_vectors.dims(), &[input_length, d_out]);
     }
 
     #[rstest]
-    fn test_self_attention_v2_init() {
+    fn test_self_attention_v2_init(device: Device) {
         let (d_in, d_out) = (3_usize, 5_usize);
         let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
 
         assert_eq!(attn_v2_layer.w_query.weight().dims(), &[d_out, d_in]);
@@ -235,29 +240,44 @@ mod tests {
     }
 
     #[rstest]
-    fn test_self_attention_v2_forward() {
+    fn test_self_attention_v2_forward(device: Device) {
         let (d_in, d_out) = (3_usize, 5_usize);
         let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
 
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &Device::Cpu).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device()).unwrap();
         let context_vectors = attn_v2_layer.forward(&xs).unwrap();
 
         assert_eq!(context_vectors.dims(), &[input_length, d_out]);
     }
 
     #[rstest]
-    fn test_causal_attention_init() {
+    fn test_causal_attention_init(device: Device) {
         let (d_in, d_out) = (3_usize, 5_usize);
         let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
 
         assert_eq!(casual_attn.w_query.weight().dims(), &[d_out, d_in]);
         assert_eq!(casual_attn.w_key.weight().dims(), &[d_out, d_in]);
         assert_eq!(casual_attn.w_value.weight().dims(), &[d_out, d_in]);
         assert_eq!(casual_attn.drop_p, 0.5_f32);
+    }
+
+    #[rstest]
+    fn test_causal_attention_forward(device: Device) {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
+        let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
+
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
+        let context_vectors = casual_attn.forward(&xs).unwrap();
+
+        println!("{:?}", context_vectors);
+        assert_eq!(context_vectors.dims(), &[input_length, d_out]);
     }
 }
