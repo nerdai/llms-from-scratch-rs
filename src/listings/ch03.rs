@@ -194,6 +194,45 @@ impl Module for CausalAttention {
     }
 }
 
+/// Listing 3.4
+pub struct MultiHeadAttentionWrapper {
+    heads: Vec<CausalAttention>,
+}
+
+impl MultiHeadAttentionWrapper {
+    pub fn new(
+        num_heads: usize,
+        d_in: usize,
+        d_out: usize,
+        drop_p: f32,
+        qkv_bias: bool,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let heads = (0..num_heads)
+            .map(|i| {
+                CausalAttention::new(d_in, d_out, drop_p, qkv_bias, vb.pp(format!("head-{}", i)))
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        Ok(Self { heads })
+    }
+}
+
+impl Module for MultiHeadAttentionWrapper {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let context_vectors = self
+            .heads
+            .iter()
+            .map(|attn| attn.forward(&xs).unwrap())
+            .collect::<Vec<_>>();
+        let reduced = context_vectors
+            .into_iter()
+            .reduce(|acc, e| Tensor::cat(&[&acc, &e], 0).unwrap())
+            .unwrap(); // todo us ok_or to convert Option to Result
+        Ok(reduced)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
