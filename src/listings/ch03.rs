@@ -108,16 +108,15 @@ pub struct CausalAttention {
     w_query: Linear,
     w_key: Linear,
     w_value: Linear,
-    mask: Tensor,
     scaling: f64,
     dropout: Dropout,
+    drop_p: f32,
 }
 
 impl CausalAttention {
     pub fn new(
         d_in: usize,
         d_out: usize,
-        context_length: usize,
         drop_p: f32,
         qkv_bias: bool,
         vb: VarBuilder<'_>,
@@ -127,19 +126,14 @@ impl CausalAttention {
         let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
         let scaling = 1. / (w_key.weight().dims()[0] as f64).sqrt();
         let dropout = Dropout::new(drop_p);
-        // todo: replace this with f32 mask on cuda enabled dev
-        let mask: Vec<_> = (0..context_length as u32)
-            .flat_map(|i| (0..context_length as u32).map(move |j| f32::from(j <= i)))
-            .collect();
-        let mask = Tensor::from_slice(&mask, (context_length, context_length), vb.device())?;
 
         Ok(Self {
             w_query,
             w_key,
             w_value,
-            mask,
             scaling,
             dropout,
+            drop_p, // a private field in Dropout
         })
     }
 
@@ -168,6 +162,10 @@ impl CausalAttention {
     pub fn w_value(&self) -> &Linear {
         &self.w_value
     }
+
+    pub fn drop_p(&self) -> f32 {
+        self.drop_p
+    }
 }
 
 impl Module for CausalAttention {
@@ -182,8 +180,7 @@ impl Module for CausalAttention {
         let masked = Self::masked_fill(&attn_scores, &mask, f32::NEG_INFINITY)?;
 
         // scale
-        let scaling = 1. / (keys.dims()[1] as f64).sqrt();
-        let mut attn_weights = softmax(&(masked * scaling)?, 1)?;
+        let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
         // dropout
         attn_weights = self.dropout.forward(&attn_weights, true).unwrap();
 
@@ -249,5 +246,18 @@ mod tests {
         let context_vectors = attn_v2_layer.forward(&xs).unwrap();
 
         assert_eq!(context_vectors.dims(), &[input_length, d_out]);
+    }
+
+    #[rstest]
+    fn test_causal_attention_init() {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
+
+        assert_eq!(casual_attn.w_query.weight().dims(), &[d_out, d_in]);
+        assert_eq!(casual_attn.w_key.weight().dims(), &[d_out, d_in]);
+        assert_eq!(casual_attn.w_value.weight().dims(), &[d_out, d_in]);
+        assert_eq!(casual_attn.drop_p, 0.5_f32);
     }
 }
