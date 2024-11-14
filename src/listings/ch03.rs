@@ -194,6 +194,45 @@ impl Module for CausalAttention {
     }
 }
 
+/// Listing 3.4
+pub struct MultiHeadAttentionWrapper {
+    heads: Vec<CausalAttention>,
+}
+
+impl MultiHeadAttentionWrapper {
+    pub fn new(
+        num_heads: usize,
+        d_in: usize,
+        d_out: usize,
+        drop_p: f32,
+        qkv_bias: bool,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let heads = (0..num_heads)
+            .map(|i| {
+                CausalAttention::new(d_in, d_out, drop_p, qkv_bias, vb.pp(format!("head-{}", i)))
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        Ok(Self { heads })
+    }
+}
+
+impl Module for MultiHeadAttentionWrapper {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let context_vectors = self
+            .heads
+            .iter()
+            .map(|attn| attn.forward(&xs).unwrap())
+            .collect::<Vec<_>>();
+        let reduced = context_vectors
+            .into_iter()
+            .reduce(|acc, e| Tensor::cat(&[&acc, &e], D::Minus1).unwrap())
+            .unwrap(); // todo us ok_or to convert Option to Result
+        Ok(reduced)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -285,5 +324,60 @@ mod tests {
         let context_vectors = casual_attn.forward(&batch).unwrap();
 
         assert_eq!(context_vectors.dims(), &[2_usize, input_length, d_out]);
+    }
+
+    #[rstest]
+    fn test_multihead_attention_wrapper_init(device: Device) {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
+        let num_heads = 3_usize;
+        let multihead_attn = MultiHeadAttentionWrapper::new(
+            num_heads,
+            d_in,
+            d_out,
+            0.5_f32,
+            false,
+            vb.pp("multihead_attn"),
+        )
+        .unwrap();
+
+        assert_eq!(multihead_attn.heads.len(), num_heads);
+
+        for i in 0..num_heads {
+            let causal_attn = &multihead_attn.heads[i];
+            assert_eq!(causal_attn.w_query.weight().dims(), &[d_out, d_in]);
+            assert_eq!(causal_attn.w_key.weight().dims(), &[d_out, d_in]);
+            assert_eq!(causal_attn.w_value.weight().dims(), &[d_out, d_in]);
+            assert_eq!(causal_attn.drop_p, 0.5_f32);
+        }
+    }
+
+    #[rstest]
+    fn test_multihead_attention_wrapper_forward(device: Device) {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
+        let num_heads = 3_usize;
+        let multihead_attn = MultiHeadAttentionWrapper::new(
+            num_heads,
+            d_in,
+            d_out,
+            0.5_f32,
+            false,
+            vb.pp("multihead_attn"),
+        )
+        .unwrap();
+
+        // create batch
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
+        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
+        let context_vectors = multihead_attn.forward(&batch).unwrap();
+
+        assert_eq!(
+            context_vectors.dims(),
+            &[2_usize, input_length, num_heads * d_out]
+        );
     }
 }
