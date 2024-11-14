@@ -227,7 +227,7 @@ impl Module for MultiHeadAttentionWrapper {
             .collect::<Vec<_>>();
         let reduced = context_vectors
             .into_iter()
-            .reduce(|acc, e| Tensor::cat(&[&acc, &e], 0).unwrap())
+            .reduce(|acc, e| Tensor::cat(&[&acc, &e], D::Minus1).unwrap())
             .unwrap(); // todo us ok_or to convert Option to Result
         Ok(reduced)
     }
@@ -351,5 +351,33 @@ mod tests {
             assert_eq!(causal_attn.w_value.weight().dims(), &[d_out, d_in]);
             assert_eq!(causal_attn.drop_p, 0.5_f32);
         }
+    }
+
+    #[rstest]
+    fn test_multihead_attention_wrapper_forward(device: Device) {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
+        let num_heads = 3_usize;
+        let multihead_attn = MultiHeadAttentionWrapper::new(
+            num_heads,
+            d_in,
+            d_out,
+            0.5_f32,
+            false,
+            vb.pp("multihead_attn"),
+        )
+        .unwrap();
+
+        // create batch
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
+        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
+        let context_vectors = multihead_attn.forward(&batch).unwrap();
+
+        assert_eq!(
+            context_vectors.dims(),
+            &[2_usize, input_length, num_heads * d_out]
+        );
     }
 }
