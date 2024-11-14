@@ -466,3 +466,42 @@ impl Example for EG09 {
         println!("context_vectors.shape: {:?}", context_vectors);
     }
 }
+
+/// Example 03.09
+pub struct EG10;
+
+impl Example for EG10 {
+    fn description(&self) -> String {
+        String::from("Example usage of `MultiHeadAttentionWrapper`.")
+    }
+
+    fn page_source(&self) -> usize {
+        85_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch03::MultiHeadAttentionWrapper;
+        use candle_core::{DType, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // create batch
+        let inputs = get_inputs();
+        let d_in = inputs.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+        let batch = Tensor::stack(&[&inputs, &inputs], 0usize).unwrap();
+        println!("batch shape: {:?}", batch);
+
+        // build causal attn layer
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, inputs.device());
+        let num_heads = 2_usize;
+        let mha =
+            MultiHeadAttentionWrapper::new(num_heads, d_in, d_out, 0.0_f32, false, vb.pp("mha"))
+                .unwrap();
+
+        // context vectors
+        let context_vectors = mha.forward(&batch).unwrap();
+        println!("context_vectors.shape: {:?}", context_vectors);
+        println!("context_vectors: {:?}", context_vectors.to_vec3::<f32>());
+    }
+}
