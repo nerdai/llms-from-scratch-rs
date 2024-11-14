@@ -1,4 +1,4 @@
-use candle_core::{Module, Result, Tensor, D};
+use candle_core::{Device, Module, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
 
@@ -143,6 +143,20 @@ impl CausalAttention {
         })
     }
 
+    fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
+        let mask: Vec<_> = (0..size)
+            .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
+            .collect();
+        Tensor::from_slice(&mask, (size, size), device)
+    }
+
+    fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
+        let shape = mask.shape();
+        let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
+        let m = mask.where_cond(&on_true, on_false)?;
+        Ok(m)
+    }
+
     pub fn w_query(&self) -> &Linear {
         &self.w_query
     }
@@ -158,20 +172,20 @@ impl CausalAttention {
 
 impl Module for CausalAttention {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let (_b, _num_tokens, _d_in) = xs.dims3()?;
+        let (_b, num_tokens, _d_in) = xs.dims3()?;
         let queries = self.w_query.forward(xs)?;
         let keys = self.w_key.forward(xs)?;
         let values = self.w_value.forward(xs)?;
 
         let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
-        let attn_weights = softmax(&(attn_scores * self.scaling)?, 1)?;
-        let masked_simple = (attn_weights * self.mask.clone())?;
+        let mask = Self::get_mask(num_tokens, xs.device())?;
+        let masked = Self::masked_fill(&attn_scores, &mask, f32::NEG_INFINITY)?;
 
-        // normalize
-        let row_sums = masked_simple.sum_keepdim(D::Minus1)?;
-        let attn_weights = masked_simple.broadcast_div(&row_sums)?;
+        // scale
+        let scaling = 1. / (keys.dims()[1] as f64).sqrt();
+        let mut attn_weights = softmax(&(masked * scaling)?, 1)?;
         // dropout
-        let attn_weights = self.dropout.forward(&attn_weights, true).unwrap();
+        attn_weights = self.dropout.forward(&attn_weights, true).unwrap();
 
         // context vectors
         attn_weights.matmul(&values)
