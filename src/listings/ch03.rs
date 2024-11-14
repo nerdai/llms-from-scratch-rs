@@ -170,14 +170,19 @@ impl CausalAttention {
 
 impl Module for CausalAttention {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let (_b, num_tokens, _d_in) = xs.dims3()?;
+        // handles batches now
+        let (b, num_tokens, _d_in) = xs.dims3()?;
         let queries = self.w_query.forward(xs)?;
         let keys = self.w_key.forward(xs)?;
         let values = self.w_value.forward(xs)?;
 
         let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
         let mask = Self::get_mask(num_tokens, xs.device())?;
-        let masked = Self::masked_fill(&attn_scores, &mask, f32::NEG_INFINITY)?;
+        let masked = Self::masked_fill(
+            &attn_scores,
+            &mask.broadcast_left(b).unwrap(),
+            f32::NEG_INFINITY,
+        )?;
 
         // scale
         let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
@@ -273,11 +278,12 @@ mod tests {
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
 
+        // create batch
         let input_length = 10_usize;
         let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
-        let context_vectors = casual_attn.forward(&xs).unwrap();
+        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
+        let context_vectors = casual_attn.forward(&batch).unwrap();
 
-        println!("{:?}", context_vectors);
-        assert_eq!(context_vectors.dims(), &[input_length, d_out]);
+        assert_eq!(context_vectors.dims(), &[2_usize, input_length, d_out]);
     }
 }
