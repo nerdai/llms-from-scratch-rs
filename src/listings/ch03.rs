@@ -241,15 +241,15 @@ mod tests {
     use rstest::*;
 
     #[fixture]
-    pub fn device() -> Device {
-        Device::cuda_if_available(0).unwrap()
+    pub fn vb() -> VarBuilder<'static> {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        VarBuilder::from_varmap(&varmap, DType::F32, &dev)
     }
 
     #[rstest]
-    fn test_self_attention_v1_init(device: Device) {
+    fn test_self_attention_v1_init(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
 
         assert_eq!(attn_v1_layer.w_query.dims(), &[d_in, d_out]);
@@ -258,10 +258,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_self_attention_v1_forward(device: Device) {
+    fn test_self_attention_v1_forward(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
 
         let input_length = 10_usize;
@@ -272,10 +270,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_self_attention_v2_init(device: Device) {
+    fn test_self_attention_v2_init(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
 
         assert_eq!(attn_v2_layer.w_query.weight().dims(), &[d_out, d_in]);
@@ -284,10 +280,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_self_attention_v2_forward(device: Device) {
+    fn test_self_attention_v2_forward(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
 
         let input_length = 10_usize;
@@ -298,10 +292,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_causal_attention_init(device: Device) {
+    fn test_causal_attention_init(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
 
         assert_eq!(casual_attn.w_query.weight().dims(), &[d_out, d_in]);
@@ -311,10 +303,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_causal_attention_forward(device: Device) {
+    fn test_causal_attention_forward(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
 
         // create batch
@@ -327,10 +317,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_multihead_attention_wrapper_init(device: Device) {
+    fn test_multihead_attention_wrapper_init(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let num_heads = 3_usize;
         let multihead_attn = MultiHeadAttentionWrapper::new(
             num_heads,
@@ -354,10 +342,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_multihead_attention_wrapper_forward(device: Device) {
+    fn test_multihead_attention_wrapper_forward(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
         let num_heads = 3_usize;
         let multihead_attn = MultiHeadAttentionWrapper::new(
             num_heads,
