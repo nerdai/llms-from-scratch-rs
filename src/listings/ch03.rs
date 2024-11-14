@@ -325,4 +325,31 @@ mod tests {
 
         assert_eq!(context_vectors.dims(), &[2_usize, input_length, d_out]);
     }
+
+    #[rstest]
+    fn test_multihead_attention_wrapper_init(device: Device) {
+        let (d_in, d_out) = (3_usize, 5_usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
+        let num_heads = 3_usize;
+        let multihead_attn = MultiHeadAttentionWrapper::new(
+            num_heads,
+            d_in,
+            d_out,
+            0.5_f32,
+            false,
+            vb.pp("multihead_attn"),
+        )
+        .unwrap();
+
+        assert_eq!(multihead_attn.heads.len(), num_heads);
+
+        for i in 0..num_heads {
+            let causal_attn = &multihead_attn.heads[i];
+            assert_eq!(causal_attn.w_query.weight().dims(), &[d_out, d_in]);
+            assert_eq!(causal_attn.w_key.weight().dims(), &[d_out, d_in]);
+            assert_eq!(causal_attn.w_value.weight().dims(), &[d_out, d_in]);
+            assert_eq!(causal_attn.drop_p, 0.5_f32);
+        }
+    }
 }
