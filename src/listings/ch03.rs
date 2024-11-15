@@ -233,6 +233,69 @@ impl Module for MultiHeadAttentionWrapper {
     }
 }
 
+/// Listing 3.5
+/// An efficient implementation of Multi-Head Attention
+pub struct MultiHeadAttention {
+    num_heads: usize,
+    d_out: usize,
+    w_query: Linear,
+    w_key: Linear,
+    w_value: Linear,
+    out_proj: Linear,
+    scaling: f64,
+    dropout: Dropout,
+    drop_p: f32,
+}
+
+impl MultiHeadAttention {
+    pub fn new() -> Result<Self> {
+        todo!()
+    }
+
+    pub fn w_query(&self) -> &Linear {
+        &self.w_query
+    }
+
+    pub fn w_key(&self) -> &Linear {
+        &self.w_key
+    }
+
+    pub fn w_value(&self) -> &Linear {
+        &self.w_value
+    }
+
+    pub fn dropout(&self) -> &Dropout {
+        &self.dropout
+    }
+
+    pub fn out_proj(&self) -> &Linear {
+        &self.out_proj
+    }
+
+    pub fn num_heads(&self) -> usize {
+        self.num_heads
+    }
+
+    pub fn d_out(&self) -> usize {
+        self.d_out
+    }
+
+    pub fn drop_p(&self) -> f32 {
+        self.drop_p
+    }
+
+    pub fn scaling(&self) -> f64 {
+        self.scaling
+    }
+}
+
+impl Module for MultiHeadAttention {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        println!("{:?}", xs);
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
