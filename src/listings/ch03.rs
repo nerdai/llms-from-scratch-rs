@@ -302,6 +302,10 @@ impl MultiHeadAttention {
     pub fn drop_p(&self) -> f32 {
         self.drop_p
     }
+
+    pub fn head_dim(&self) -> usize {
+        self.head_dim
+    }
 }
 
 impl Module for MultiHeadAttention {
