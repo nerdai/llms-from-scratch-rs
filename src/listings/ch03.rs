@@ -2,6 +2,20 @@ use candle_core::{Device, Module, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
 
+fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
+    let mask: Vec<_> = (0..size)
+        .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
+        .collect();
+    Tensor::from_slice(&mask, (size, size), device)
+}
+
+fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
+    let shape = mask.shape();
+    let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
+    let m = mask.where_cond(&on_true, on_false)?;
+    Ok(m)
+}
+
 /// Listing 3.1
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
 /// It follows a similar interface to other candle `Module`s.
@@ -137,20 +151,6 @@ impl CausalAttention {
         })
     }
 
-    fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
-        let mask: Vec<_> = (0..size)
-            .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
-            .collect();
-        Tensor::from_slice(&mask, (size, size), device)
-    }
-
-    fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
-        let shape = mask.shape();
-        let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
-        let m = mask.where_cond(&on_true, on_false)?;
-        Ok(m)
-    }
-
     pub fn w_query(&self) -> &Linear {
         &self.w_query
     }
@@ -177,8 +177,8 @@ impl Module for CausalAttention {
         let values = self.w_value.forward(xs)?;
 
         let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
-        let mask = Self::get_mask(num_tokens, xs.device())?;
-        let masked = Self::masked_fill(
+        let mask = get_mask(num_tokens, xs.device())?;
+        let masked = masked_fill(
             &attn_scores,
             &mask.broadcast_left(b).unwrap(),
             f32::NEG_INFINITY,
@@ -283,20 +283,6 @@ impl MultiHeadAttention {
         })
     }
 
-    fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
-        let mask: Vec<_> = (0..size)
-            .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
-            .collect();
-        Tensor::from_slice(&mask, (size, size), device)
-    }
-
-    fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
-        let shape = mask.shape();
-        let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
-        let m = mask.where_cond(&on_true, on_false)?;
-        Ok(m)
-    }
-
     pub fn w_query(&self) -> &Linear {
         &self.w_query
     }
@@ -342,8 +328,8 @@ impl Module for MultiHeadAttention {
 
         let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
 
-        let mask = Self::get_mask(num_tokens, xs.device())?;
-        let masked = Self::masked_fill(
+        let mask = get_mask(num_tokens, xs.device())?;
+        let masked = masked_fill(
             &attn_scores,
             &mask.broadcast_left((b, self.num_heads)).unwrap(),
             f32::NEG_INFINITY,
