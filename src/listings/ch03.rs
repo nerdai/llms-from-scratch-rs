@@ -516,4 +516,19 @@ mod tests {
         let _ =
             MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
     }
+
+    #[rstest]
+    fn test_mha_forward(vb: VarBuilder<'_>) {
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let mha =
+            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+
+        // create batch
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
+        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
+        let context_vectors = mha.forward(&batch).unwrap();
+
+        assert_eq!(context_vectors.dims(), &[2_usize, input_length, d_out]);
+    }
 }
