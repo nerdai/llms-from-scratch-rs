@@ -1,5 +1,3 @@
-use core::num;
-
 use candle_core::{Device, Module, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
@@ -311,32 +309,12 @@ impl MultiHeadAttention {
         &self.w_value
     }
 
-    pub fn dropout(&self) -> &Dropout {
-        &self.dropout
-    }
-
     pub fn out_proj(&self) -> &Linear {
         &self.out_proj
     }
 
-    pub fn num_heads(&self) -> usize {
-        self.num_heads
-    }
-
-    pub fn d_out(&self) -> usize {
-        self.d_out
-    }
-
-    pub fn head_dim(&self) -> usize {
-        self.head_dim
-    }
-
     pub fn drop_p(&self) -> f32 {
         self.drop_p
-    }
-
-    pub fn scaling(&self) -> f64 {
-        self.scaling
     }
 }
 
@@ -348,6 +326,7 @@ impl Module for MultiHeadAttention {
         let values = self.w_value.forward(xs)?;
 
         // reshapes to facilitate getting attn scores each of the individual heads
+        // with one matrix multiplication
         let queries = queries
             .reshape((b, num_tokens, self.num_heads, self.head_dim))?
             .transpose(1, 2)?;
