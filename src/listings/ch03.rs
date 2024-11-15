@@ -329,15 +329,19 @@ impl Module for MultiHeadAttention {
         // with one matrix multiplication
         let queries = queries
             .reshape((b, num_tokens, self.num_heads, self.head_dim))?
-            .transpose(1, 2)?;
+            .transpose(1, 2)?
+            .contiguous()?;
         let keys = keys
             .reshape((b, num_tokens, self.num_heads, self.head_dim))?
-            .transpose(1, 2)?;
+            .transpose(1, 2)?
+            .contiguous()?;
         let values = values
             .reshape((b, num_tokens, self.num_heads, self.head_dim))?
-            .transpose(1, 2)?;
+            .transpose(1, 2)?
+            .contiguous()?;
 
         let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
+
         let mask = Self::get_mask(num_tokens, xs.device())?;
         let masked = Self::masked_fill(
             &attn_scores,
@@ -346,9 +350,9 @@ impl Module for MultiHeadAttention {
         )?;
 
         // scale
-        let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
+        let mut attn_weights = softmax(&(&attn_scores * self.scaling)?, 1)?;
         // dropout
-        attn_weights = self.dropout.forward(&attn_weights, true).unwrap();
+        attn_weights = self.dropout.forward(&attn_weights, true)?;
 
         // context vectors
         let context_vec = attn_weights.matmul(&values)?.transpose(1, 2)?;
@@ -519,7 +523,7 @@ mod tests {
 
     #[rstest]
     fn test_mha_forward(vb: VarBuilder<'_>) {
-        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 3_usize);
         let mha =
             MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
 
