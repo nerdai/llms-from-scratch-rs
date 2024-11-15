@@ -2,6 +2,20 @@ use candle_core::{Device, Module, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
 
+fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
+    let mask: Vec<_> = (0..size)
+        .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
+        .collect();
+    Tensor::from_slice(&mask, (size, size), device)
+}
+
+fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
+    let shape = mask.shape();
+    let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
+    let m = mask.where_cond(&on_true, on_false)?;
+    Ok(m)
+}
+
 /// Listing 3.1
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
 /// It follows a similar interface to other candle `Module`s.
@@ -137,20 +151,6 @@ impl CausalAttention {
         })
     }
 
-    fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
-        let mask: Vec<_> = (0..size)
-            .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
-            .collect();
-        Tensor::from_slice(&mask, (size, size), device)
-    }
-
-    fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
-        let shape = mask.shape();
-        let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
-        let m = mask.where_cond(&on_true, on_false)?;
-        Ok(m)
-    }
-
     pub fn w_query(&self) -> &Linear {
         &self.w_query
     }
@@ -177,8 +177,8 @@ impl Module for CausalAttention {
         let values = self.w_value.forward(xs)?;
 
         let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
-        let mask = Self::get_mask(num_tokens, xs.device())?;
-        let masked = Self::masked_fill(
+        let mask = get_mask(num_tokens, xs.device())?;
+        let masked = masked_fill(
             &attn_scores,
             &mask.broadcast_left(b).unwrap(),
             f32::NEG_INFINITY,
@@ -230,6 +230,124 @@ impl Module for MultiHeadAttentionWrapper {
             .reduce(|acc, e| Tensor::cat(&[&acc, &e], D::Minus1).unwrap())
             .unwrap(); // todo us ok_or to convert Option to Result
         Ok(reduced)
+    }
+}
+
+/// Listing 3.5
+/// An efficient implementation of Multi-Head Attention
+pub struct MultiHeadAttention {
+    num_heads: usize,
+    d_out: usize,
+    head_dim: usize,
+    w_query: Linear,
+    w_key: Linear,
+    w_value: Linear,
+    out_proj: Linear,
+    scaling: f64,
+    dropout: Dropout,
+    drop_p: f32,
+}
+
+impl MultiHeadAttention {
+    pub fn new(
+        d_in: usize,
+        d_out: usize,
+        drop_p: f32,
+        num_heads: usize,
+        qkv_bias: bool,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        if d_out % num_heads != 0 {
+            panic!("`d_out` must be divisible by `num_heads`.")
+        }
+        let head_dim = d_out / num_heads;
+
+        let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
+        let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
+        let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
+        let out_proj = linear_b(d_out, d_out, true, vb.pp("out_proj"))?;
+        let scaling = 1. / (head_dim as f64).sqrt();
+        let dropout = Dropout::new(drop_p);
+
+        Ok(Self {
+            num_heads,
+            d_out,
+            head_dim,
+            w_query,
+            w_key,
+            w_value,
+            out_proj,
+            scaling,
+            dropout,
+            drop_p,
+        })
+    }
+
+    pub fn w_query(&self) -> &Linear {
+        &self.w_query
+    }
+
+    pub fn w_key(&self) -> &Linear {
+        &self.w_key
+    }
+
+    pub fn w_value(&self) -> &Linear {
+        &self.w_value
+    }
+
+    pub fn out_proj(&self) -> &Linear {
+        &self.out_proj
+    }
+
+    pub fn drop_p(&self) -> f32 {
+        self.drop_p
+    }
+}
+
+impl Module for MultiHeadAttention {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let (b, num_tokens, _d_in) = xs.dims3()?;
+        let queries = self.w_query.forward(xs)?;
+        let keys = self.w_key.forward(xs)?;
+        let values = self.w_value.forward(xs)?;
+
+        // reshapes to facilitate getting attn scores each of the individual heads
+        // with one matrix multiplication
+        let queries = queries
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+        let keys = keys
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+        let values = values
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+
+        let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
+
+        let mask = get_mask(num_tokens, xs.device())?;
+        let masked = masked_fill(
+            &attn_scores,
+            &mask.broadcast_left((b, self.num_heads)).unwrap(),
+            f32::NEG_INFINITY,
+        )?;
+
+        // scale
+        let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
+        // dropout
+        attn_weights = self.dropout.forward(&attn_weights, true)?;
+
+        // context vectors
+        let context_vec = attn_weights.matmul(&values)?.transpose(1, 2)?;
+        let context_vec = context_vec
+            .reshape((b, num_tokens, self.d_out))?
+            .contiguous()?;
+
+        // projection
+        self.out_proj.forward(&context_vec)
     }
 }
 
@@ -365,5 +483,42 @@ mod tests {
             context_vectors.dims(),
             &[2_usize, input_length, num_heads * d_out]
         );
+    }
+
+    #[rstest]
+    fn test_mha_init(vb: VarBuilder<'_>) {
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let mha =
+            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+
+        assert_eq!(mha.w_query.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha.w_key.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha.w_value.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha.out_proj.weight().dims(), &[d_out, d_out]);
+        assert_eq!(mha.head_dim, d_out / num_heads);
+        assert_eq!(mha.drop_p, 0.5_f32);
+    }
+
+    #[rstest]
+    #[should_panic(expected = "`d_out` must be divisible by `num_heads`.")]
+    fn test_mha_init_panics_nondivisible_heads(vb: VarBuilder<'_>) {
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 4_usize);
+        let _ =
+            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+    }
+
+    #[rstest]
+    fn test_mha_forward(vb: VarBuilder<'_>) {
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 3_usize);
+        let mha =
+            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+
+        // create batch
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
+        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
+        let context_vectors = mha.forward(&batch).unwrap();
+
+        assert_eq!(context_vectors.dims(), &[2_usize, input_length, d_out]);
     }
 }
