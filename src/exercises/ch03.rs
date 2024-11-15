@@ -72,3 +72,29 @@ impl Exercise for X3P2 {
         println!("context_vectors: {:?}", context_vectors.to_vec3::<f32>());
     }
 }
+
+/// Exercise 3.3
+pub struct X3P3;
+
+impl Exercise for X3P3 {
+    fn name(&self) -> String {
+        String::from("3.3")
+    }
+
+    fn main(&self) {
+        use crate::listings::ch03::MultiHeadAttention;
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let (d_in, d_out, num_heads) = (768_usize, 768_usize, 12_usize); // set d_out to 1 to get desired final dim
+        let varmap = VarMap::new();
+        let dev = Device::cuda_if_available(0).unwrap();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let mha =
+            MultiHeadAttention::new(d_in, d_out, 0.0_f32, num_heads, false, vb.pp("mha")).unwrap();
+
+        println!("mha.num_heads: {:?}", mha.num_heads());
+        println!("mha.head_dim: {:?}", mha.head_dim());
+        println!("mha.w_query.shape: {:?}", mha.w_query().weight().dims());
+    }
+}
