@@ -265,7 +265,7 @@ impl MultiHeadAttention {
         let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
         let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
         let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
-        let out_proj = linear_b(d_in, d_out, true, vb.pp("out_proj"))?;
+        let out_proj = linear_b(d_out, d_out, true, vb.pp("out_proj"))?;
         let scaling = 1. / (head_dim as f64).sqrt();
         let dropout = Dropout::new(drop_p);
 
@@ -463,5 +463,19 @@ mod tests {
             context_vectors.dims(),
             &[2_usize, input_length, num_heads * d_out]
         );
+    }
+
+    #[rstest]
+    fn test_mha_init(vb: VarBuilder<'_>) {
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let mha =
+            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+
+        assert_eq!(mha.w_query.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha.w_key.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha.w_value.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha.out_proj.weight().dims(), &[d_out, d_out]);
+        assert_eq!(mha.head_dim, d_out / num_heads);
+        assert_eq!(mha.drop_p, 0.5_f32);
     }
 }
