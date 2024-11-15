@@ -467,7 +467,7 @@ impl Example for EG09 {
     }
 }
 
-/// Example 03.09
+/// Example 03.10
 pub struct EG10;
 
 impl Example for EG10 {
@@ -501,6 +501,45 @@ impl Example for EG10 {
 
         // context vectors
         let context_vectors = mha.forward(&batch).unwrap();
+        println!("context_vectors.shape: {:?}", context_vectors);
+        println!("context_vectors: {:?}", context_vectors.to_vec3::<f32>());
+    }
+}
+
+/// Example 03.11
+pub struct EG11;
+
+impl Example for EG11 {
+    fn description(&self) -> String {
+        String::from("Example usage of `MultiHeadAttention`.")
+    }
+
+    fn page_source(&self) -> usize {
+        90_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch03::MultiHeadAttention;
+        use candle_core::{DType, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // create batch
+        let inputs = get_inputs();
+        let d_in = inputs.dims()[1]; // input embedding dim
+        let d_out = 2_usize;
+        let batch = Tensor::stack(&[&inputs, &inputs], 0usize).unwrap();
+        println!("batch shape: {:?}", batch);
+
+        // build causal attn layer
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, inputs.device());
+        let num_heads = 2_usize;
+        let mha =
+            MultiHeadAttention::new(d_in, d_out, 0.0_f32, num_heads, false, vb.pp("mha")).unwrap();
+
+        // context vectors
+        let context_vectors = mha.forward(&batch).unwrap();
+        println!("mha.head_dim: {:?}", mha.head_dim());
         println!("context_vectors.shape: {:?}", context_vectors);
         println!("context_vectors: {:?}", context_vectors.to_vec3::<f32>());
     }

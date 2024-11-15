@@ -30,6 +30,7 @@ static EXAMPLE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Example>>> = Laz
     m.insert("03.08", Box::new(examples::ch03::EG08));
     m.insert("03.09", Box::new(examples::ch03::EG09));
     m.insert("03.10", Box::new(examples::ch03::EG10));
+    m.insert("03.11", Box::new(examples::ch03::EG11));
     m
 });
 
@@ -43,8 +44,8 @@ fn main() {
     let exercise_registry = &*EXERCISE_REGISTRY;
     let example_registry = &*EXAMPLE_REGISTRY;
 
-    let run_type = RunType::EX(String::from("3.2"));
-    // let run_type = RunType::EG(String::from("03.10"));
+    // let run_type = RunType::EX(String::from("3.2"));
+    let run_type = RunType::EG(String::from("03.11"));
     match run_type {
         RunType::EX(id) => {
             let ex = exercise_registry.get(&id[..]).unwrap();
