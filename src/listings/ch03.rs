@@ -345,12 +345,12 @@ impl Module for MultiHeadAttention {
         let mask = Self::get_mask(num_tokens, xs.device())?;
         let masked = Self::masked_fill(
             &attn_scores,
-            &mask.broadcast_left(b).unwrap(),
+            &mask.broadcast_left((b, self.num_heads)).unwrap(),
             f32::NEG_INFINITY,
         )?;
 
         // scale
-        let mut attn_weights = softmax(&(&attn_scores * self.scaling)?, 1)?;
+        let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
         // dropout
         attn_weights = self.dropout.forward(&attn_weights, true)?;
 
