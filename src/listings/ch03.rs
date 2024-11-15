@@ -258,7 +258,7 @@ impl MultiHeadAttention {
         vb: VarBuilder<'_>,
     ) -> Result<Self> {
         if d_out % num_heads != 0 {
-            panic!("`d_out` msut be divisible by `num_heads`.")
+            panic!("`d_out` must be divisible by `num_heads`.")
         }
         let head_dim = d_out / num_heads;
 
@@ -477,5 +477,13 @@ mod tests {
         assert_eq!(mha.out_proj.weight().dims(), &[d_out, d_out]);
         assert_eq!(mha.head_dim, d_out / num_heads);
         assert_eq!(mha.drop_p, 0.5_f32);
+    }
+
+    #[rstest]
+    #[should_panic(expected = "`d_out` must be divisible by `num_heads`.")]
+    fn test_mha_init_panics_nondivisible_heads(vb: VarBuilder<'_>) {
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 4_usize);
+        let _ =
+            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
     }
 }
