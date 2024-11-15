@@ -185,7 +185,7 @@ impl Module for CausalAttention {
         )?;
 
         // scale
-        let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
+        let mut attn_weights = softmax(&(masked * self.scaling)?, D::Minus1)?;
         // dropout
         attn_weights = self.dropout.forward(&attn_weights, true).unwrap();
 
@@ -340,7 +340,7 @@ impl Module for MultiHeadAttention {
         )?;
 
         // scale
-        let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
+        let mut attn_weights = softmax(&(masked * self.scaling)?, D::Minus1)?;
         // dropout
         attn_weights = self.dropout.forward(&attn_weights, true)?;
 
