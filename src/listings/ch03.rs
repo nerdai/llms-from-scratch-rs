@@ -238,6 +238,7 @@ impl Module for MultiHeadAttentionWrapper {
 pub struct MultiHeadAttention {
     num_heads: usize,
     d_out: usize,
+    head_dim: usize,
     w_query: Linear,
     w_key: Linear,
     w_value: Linear,
@@ -248,8 +249,38 @@ pub struct MultiHeadAttention {
 }
 
 impl MultiHeadAttention {
-    pub fn new() -> Result<Self> {
-        todo!()
+    pub fn new(
+        d_in: usize,
+        d_out: usize,
+        drop_p: f32,
+        num_heads: usize,
+        qkv_bias: bool,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        if d_out % num_heads != 0 {
+            panic!("`d_out` msut be divisible by `num_heads`.")
+        }
+        let head_dim = d_out / num_heads;
+
+        let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
+        let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
+        let w_value = linear_b(d_in, d_out, qkv_bias, vb.pp("value"))?;
+        let out_proj = linear_b(d_in, d_out, true, vb.pp("out_proj"))?;
+        let scaling = 1. / (head_dim as f64).sqrt();
+        let dropout = Dropout::new(drop_p);
+
+        Ok(Self {
+            num_heads,
+            d_out,
+            head_dim,
+            w_query,
+            w_key,
+            w_value,
+            out_proj,
+            scaling,
+            dropout,
+            drop_p,
+        })
     }
 
     pub fn w_query(&self) -> &Linear {
@@ -278,6 +309,10 @@ impl MultiHeadAttention {
 
     pub fn d_out(&self) -> usize {
         self.d_out
+    }
+
+    pub fn head_dim(&self) -> usize {
+        self.head_dim
     }
 
     pub fn drop_p(&self) -> f32 {
