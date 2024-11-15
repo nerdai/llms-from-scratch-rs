@@ -1,3 +1,5 @@
+use core::num;
+
 use candle_core::{Device, Module, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
@@ -283,6 +285,20 @@ impl MultiHeadAttention {
         })
     }
 
+    fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
+        let mask: Vec<_> = (0..size)
+            .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
+            .collect();
+        Tensor::from_slice(&mask, (size, size), device)
+    }
+
+    fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
+        let shape = mask.shape();
+        let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
+        let m = mask.where_cond(&on_true, on_false)?;
+        Ok(m)
+    }
+
     pub fn w_query(&self) -> &Linear {
         &self.w_query
     }
@@ -326,8 +342,43 @@ impl MultiHeadAttention {
 
 impl Module for MultiHeadAttention {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        println!("{:?}", xs);
-        todo!()
+        let (b, num_tokens, _d_in) = xs.dims3()?;
+        let queries = self.w_query.forward(xs)?;
+        let keys = self.w_key.forward(xs)?;
+        let values = self.w_value.forward(xs)?;
+
+        // reshapes to facilitate getting attn scores each of the individual heads
+        let queries = queries
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?;
+        let keys = keys
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?;
+        let values = values
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?;
+
+        let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
+        let mask = Self::get_mask(num_tokens, xs.device())?;
+        let masked = Self::masked_fill(
+            &attn_scores,
+            &mask.broadcast_left(b).unwrap(),
+            f32::NEG_INFINITY,
+        )?;
+
+        // scale
+        let mut attn_weights = softmax(&(masked * self.scaling)?, 1)?;
+        // dropout
+        attn_weights = self.dropout.forward(&attn_weights, true).unwrap();
+
+        // context vectors
+        let context_vec = attn_weights.matmul(&values)?.transpose(1, 2)?;
+        let context_vec = context_vec
+            .reshape((b, num_tokens, self.d_out))?
+            .contiguous()?;
+
+        // projection
+        self.out_proj.forward(&context_vec)
     }
 }
 
