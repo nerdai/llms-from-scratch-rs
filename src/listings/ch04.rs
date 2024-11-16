@@ -151,6 +151,12 @@ mod tests {
         let model = DummyGPTModel::new(cfg, vb).unwrap();
 
         assert_eq!(model.pos_emb.hidden_size(), cfg.emb_dim);
+        assert_eq!(model.tok_emb.hidden_size(), cfg.emb_dim);
+        assert_eq!(model.trf_blocks.len() as usize, cfg.n_layers);
+        assert_eq!(
+            model.out_head.weight().dims(),
+            &[cfg.vocab_size, cfg.emb_dim]
+        );
     }
 
     #[rstest]
