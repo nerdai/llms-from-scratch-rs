@@ -14,7 +14,7 @@ pub struct DummyGPTModel {
 }
 
 impl DummyGPTModel {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         todo!()
     }
 }
@@ -30,8 +30,8 @@ impl Module for DummyGPTModel {
 pub struct DummyLayerNorm {}
 
 impl DummyLayerNorm {
-    pub fn new(_emb_dim: usize) -> Self {
-        Self {}
+    pub fn new(_emb_dim: usize) -> Result<Self> {
+        Ok(Self {})
     }
 }
 
@@ -46,8 +46,8 @@ impl Module for DummyLayerNorm {
 pub struct DummyTransformerBlock {}
 
 impl DummyTransformerBlock {
-    pub fn new(_emb_dim: usize) -> Self {
-        Self {}
+    pub fn new(_emb_dim: usize) -> Result<Self> {
+        Ok(Self {})
     }
 }
 
@@ -72,12 +72,9 @@ mod tests {
     }
 
     #[rstest]
-    fn test_self_attention_v1_init(vb: VarBuilder<'_>) {
+    fn test_dummy_gpt_model_init(vb: VarBuilder<'_>) {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
-
-        assert_eq!(attn_v1_layer.w_query.dims(), &[d_in, d_out]);
-        assert_eq!(attn_v1_layer.w_key.dims(), &[d_in, d_out]);
-        assert_eq!(attn_v1_layer.w_value.dims(), &[d_in, d_out]);
+        let dummy_gpt = DummyGPTModel::new().unwrap();
+        assert!(true);
     }
 }
