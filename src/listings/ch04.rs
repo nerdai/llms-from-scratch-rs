@@ -73,7 +73,7 @@ mod tests {
 
     #[rstest]
     fn test_dummy_gpt_model_init(vb: VarBuilder<'_>) {
-        println!("{:?}", vb);
+        println!("{:?}", vb.device());
         let (_d_in, _d_out) = (3_usize, 5_usize);
         let _dummy_gpt = DummyGPTModel::new().unwrap();
         assert!(true);
