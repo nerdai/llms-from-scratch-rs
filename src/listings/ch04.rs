@@ -1,6 +1,32 @@
 use candle_core::{Module, Result, Tensor};
 use candle_nn::{Dropout, Embedding, Linear, Sequential};
 
+#[derive(Debug)]
+pub struct Config {
+    pub vocab_size: usize,
+    pub context_length: usize,
+    pub emb_dim: usize,
+    pub n_heads: usize,
+    pub n_layers: usize,
+    pub drop_rate: f32,
+    pub qkv_bias: bool,
+}
+
+impl Config {
+    #[allow(dead_code)]
+    pub fn gpt2_124m() -> Self {
+        Self {
+            vocab_size: 50_257,
+            context_length: 1_024,
+            emb_dim: 768,
+            n_heads: 12,
+            n_layers: 12,
+            drop_rate: 0.1,
+            qkv_bias: false,
+        }
+    }
+}
+
 /// Listing 4.1
 /// DummyGPTModel
 #[allow(dead_code)]
@@ -14,7 +40,8 @@ pub struct DummyGPTModel {
 }
 
 impl DummyGPTModel {
-    pub fn new() -> Result<Self> {
+    pub fn new(cfg: Config) -> Result<Self> {
+        println!("{:?}", cfg);
         todo!()
     }
 }
