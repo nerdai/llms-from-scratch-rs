@@ -25,6 +25,19 @@ impl Config {
             qkv_bias: false,
         }
     }
+
+    #[allow(dead_code)]
+    pub fn gpt_sm_test() -> Self {
+        Self {
+            vocab_size: 500,
+            context_length: 10,
+            emb_dim: 12,
+            n_heads: 3,
+            n_layers: 2,
+            drop_rate: 0.1,
+            qkv_bias: false,
+        }
+    }
 }
 
 /// Listing 4.1
@@ -63,7 +76,18 @@ impl DummyGPTModel {
 
 impl Module for DummyGPTModel {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        Ok(xs.to_owned())
+        let (_batch_size, seq_len) = xs.dims2()?;
+        let tok_embeds = self.tok_emb.forward(xs)?;
+        let pos_ids = Tensor::arange(0u32, seq_len as u32, xs.device())?;
+        let pos_embeds = self.pos_emb.embeddings().index_select(&pos_ids, 0)?;
+
+        let mut x = tok_embeds.broadcast_add(&pos_embeds)?;
+        x = self.drop_emb.forward(&x, true)?;
+        x = self.trf_blocks.forward(&x)?;
+        x = self.final_norm.forward(&x)?;
+
+        let logits = self.out_head.forward(&x)?;
+        Ok(logits)
     }
 }
 
@@ -104,7 +128,7 @@ impl Module for DummyTransformerBlock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use candle_core::{DType, Device};
+    use candle_core::{DType, Device, Tensor};
     use candle_nn::{VarBuilder, VarMap};
     use rstest::*;
 
@@ -115,10 +139,29 @@ mod tests {
         VarBuilder::from_varmap(&varmap, DType::F32, &dev)
     }
 
+    #[fixture]
+    pub fn batch_token_ids() -> Tensor {
+        let dev = Device::cuda_if_available(0).unwrap();
+        Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev).unwrap()
+    }
+
     #[rstest]
     fn test_dummy_gpt_model_init(vb: VarBuilder<'_>) {
-        let (_d_in, _d_out) = (3_usize, 5_usize);
-        let _dummy_gpt = DummyGPTModel::new(Config::gpt2_124m(), vb).unwrap();
-        assert!(true);
+        let cfg = Config::gpt_sm_test();
+        let model = DummyGPTModel::new(cfg, vb).unwrap();
+
+        assert_eq!(model.pos_emb.hidden_size(), cfg.emb_dim);
+    }
+
+    #[rstest]
+    fn test_dummy_gpt_model_forward(vb: VarBuilder<'_>, batch_token_ids: Tensor) {
+        let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
+
+        let cfg = Config::gpt_sm_test();
+        let model = DummyGPTModel::new(cfg, vb).unwrap();
+
+        let logits = model.forward(&batch_token_ids).unwrap();
+
+        assert_eq!(logits.dims(), &[batch_size, seq_len, cfg.vocab_size]);
     }
 }
