@@ -1,7 +1,7 @@
 use candle_core::{Module, Result, Tensor};
-use candle_nn::{Dropout, Embedding, Linear, Sequential};
+use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Config {
     pub vocab_size: usize,
     pub context_length: usize,
@@ -40,9 +40,24 @@ pub struct DummyGPTModel {
 }
 
 impl DummyGPTModel {
-    pub fn new(cfg: Config) -> Result<Self> {
-        println!("{:?}", cfg);
-        todo!()
+    pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
+        let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
+        let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
+        let drop_emb = Dropout::new(cfg.drop_rate);
+        let mut trf_blocks = seq();
+        for _ in 0..cfg.n_layers {
+            trf_blocks = trf_blocks.add(DummyTransformerBlock::new(cfg).unwrap());
+        }
+        let final_norm = DummyLayerNorm::new(cfg.emb_dim)?;
+        let out_head = linear_b(cfg.emb_dim, cfg.vocab_size, false, vb.pp("out_head"))?;
+        Ok(Self {
+            tok_emb,
+            pos_emb,
+            drop_emb,
+            trf_blocks,
+            final_norm,
+            out_head,
+        })
     }
 }
 
@@ -57,7 +72,8 @@ impl Module for DummyGPTModel {
 pub struct DummyLayerNorm {}
 
 impl DummyLayerNorm {
-    pub fn new(_emb_dim: usize) -> Result<Self> {
+    #[allow(unused_variables)]
+    pub fn new(emb_dim: usize) -> Result<Self> {
         Ok(Self {})
     }
 }
@@ -73,7 +89,8 @@ impl Module for DummyLayerNorm {
 pub struct DummyTransformerBlock {}
 
 impl DummyTransformerBlock {
-    pub fn new(_emb_dim: usize) -> Result<Self> {
+    #[allow(unused_variables)]
+    pub fn new(cfg: Config) -> Result<Self> {
         Ok(Self {})
     }
 }
@@ -100,9 +117,8 @@ mod tests {
 
     #[rstest]
     fn test_dummy_gpt_model_init(vb: VarBuilder<'_>) {
-        println!("{:?}", vb.device());
         let (_d_in, _d_out) = (3_usize, 5_usize);
-        let _dummy_gpt = DummyGPTModel::new().unwrap();
+        let _dummy_gpt = DummyGPTModel::new(Config::gpt2_124m(), vb).unwrap();
         assert!(true);
     }
 }

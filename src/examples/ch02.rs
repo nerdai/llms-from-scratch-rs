@@ -19,7 +19,7 @@ impl Example for EG01 {
         let vocab_size = 6_usize;
         let output_dim = 3_usize;
         let varmap = VarMap::new();
-        let dev = Device::Cpu;
+        let dev = Device::cuda_if_available(0).unwrap();
         let vs = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
         let emb = embedding(vocab_size, output_dim, vs).unwrap();
 
