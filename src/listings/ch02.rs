@@ -326,7 +326,7 @@ mod tests {
             let this_targets_vec: Vec<u32> = this_targets.to_vec1::<u32>().unwrap();
 
             assert_eq!(this_inputs.shape().dims()[0], max_length);
-            assert_eq!(this_inputs.shape().dims()[0], max_length);
+            assert_eq!(this_targets.shape().dims()[0], max_length);
 
             for (idx, token_id) in this_inputs_vec.iter().enumerate() {
                 assert_eq!(*token_id, dataset.input_ids[count][idx]);
