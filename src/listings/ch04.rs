@@ -1,9 +1,9 @@
-use candle_core::{Device, Module, Result, Tensor, D};
-use candle_nn::ops::softmax;
-use candle_nn::{linear_b, Dropout, Embedding, Linear, Sequential, VarBuilder};
+use candle_core::{Module, Result, Tensor};
+use candle_nn::{Dropout, Embedding, Linear, Sequential};
 
 /// Listing 4.1
 /// DummyGPTModel
+#[allow(dead_code)]
 pub struct DummyGPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
@@ -73,8 +73,9 @@ mod tests {
 
     #[rstest]
     fn test_dummy_gpt_model_init(vb: VarBuilder<'_>) {
-        let (d_in, d_out) = (3_usize, 5_usize);
-        let dummy_gpt = DummyGPTModel::new().unwrap();
+        println!("{:?}", vb);
+        let (_d_in, _d_out) = (3_usize, 5_usize);
+        let _dummy_gpt = DummyGPTModel::new().unwrap();
         assert!(true);
     }
 }

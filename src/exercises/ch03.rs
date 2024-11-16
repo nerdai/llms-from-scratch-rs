@@ -62,7 +62,7 @@ impl Exercise for X3P2 {
 
         // create random input batch
         let input_length = 6_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device()).unwrap();
         let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
         println!("batch shape: {:?}", batch);
 

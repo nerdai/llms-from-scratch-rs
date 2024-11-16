@@ -223,7 +223,7 @@ impl Module for MultiHeadAttentionWrapper {
         let context_vectors = self
             .heads
             .iter()
-            .map(|attn| attn.forward(&xs).unwrap())
+            .map(|attn| attn.forward(xs).unwrap())
             .collect::<Vec<_>>();
         let reduced = context_vectors
             .into_iter()
