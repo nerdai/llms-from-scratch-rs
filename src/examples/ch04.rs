@@ -1,5 +1,8 @@
+use candle_nn::Linear;
+
 use crate::Example;
 
+/// Example 04.01
 pub struct EG01;
 
 impl Example for EG01 {
@@ -37,5 +40,35 @@ impl Example for EG01 {
         let logits = model.forward(&batch).unwrap();
         println!("logits: {:?}", logits.to_vec3::<f32>());
         println!("output shape: {:?}", logits.shape());
+    }
+}
+
+/// Example 04.02
+pub struct EG02;
+
+impl Example for EG02 {
+    fn description(&self) -> String {
+        String::from("Manual computation of layern normalization.")
+    }
+
+    fn page_source(&self) -> usize {
+        100_usize
+    }
+
+    fn main(&self) {
+        use candle_core::{DType, Device, Module, Tensor};
+        use candle_nn::{linear_b, seq, Activation, VarBuilder, VarMap};
+
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+        let batch_example = Tensor::rand(0f32, 1f32, (2_usize, 5_usize), vb.device()).unwrap();
+        let layer = seq()
+            .add(linear_b(5_usize, 6_usize, false, vb.pp("linear")).unwrap())
+            .add(Activation::Relu);
+
+        let out = layer.forward(&batch_example).unwrap();
+        println!("out: {:?}", out.to_vec2::<f32>());
     }
 }
