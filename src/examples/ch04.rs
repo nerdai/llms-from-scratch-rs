@@ -78,5 +78,17 @@ impl Example for EG02 {
         let var = out.var_keepdim(D::Minus1).unwrap();
         println!("mean: {:?}", mean.to_vec2::<f32>());
         println!("variance: {:?}", var.to_vec2::<f32>());
+
+        // layer normalization
+        let out_norm = (out
+            .broadcast_sub(&mean)
+            .unwrap()
+            .broadcast_div(&var.sqrt().unwrap()))
+        .unwrap();
+        let mean = out_norm.mean_keepdim(D::Minus1).unwrap();
+        let var = out_norm.var_keepdim(D::Minus1).unwrap();
+        println!("normalized out: {:?}", out_norm.to_vec2::<f32>());
+        println!("mean: {:?}", mean.to_vec2::<f32>());
+        println!("variance: {:?}", var.to_vec2::<f32>());
     }
 }
