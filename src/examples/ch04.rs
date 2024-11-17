@@ -1,5 +1,3 @@
-use candle_nn::Linear;
-
 use crate::Example;
 
 /// Example 04.01
@@ -56,19 +54,29 @@ impl Example for EG02 {
     }
 
     fn main(&self) {
-        use candle_core::{DType, Device, Module, Tensor};
+        use candle_core::{DType, Device, Module, Tensor, D};
         use candle_nn::{linear_b, seq, Activation, VarBuilder, VarMap};
 
         let dev = Device::cuda_if_available(0).unwrap();
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
 
+        // create batch
         let batch_example = Tensor::rand(0f32, 1f32, (2_usize, 5_usize), vb.device()).unwrap();
+
+        // create layer
         let layer = seq()
             .add(linear_b(5_usize, 6_usize, false, vb.pp("linear")).unwrap())
             .add(Activation::Relu);
 
+        // execute layer on batch
         let out = layer.forward(&batch_example).unwrap();
         println!("out: {:?}", out.to_vec2::<f32>());
+
+        // calculate stats on outputs
+        let mean = out.mean_keepdim(D::Minus1).unwrap();
+        let var = out.var_keepdim(D::Minus1).unwrap();
+        println!("mean: {:?}", mean.to_vec2::<f32>());
+        println!("variance: {:?}", var.to_vec2::<f32>());
     }
 }
