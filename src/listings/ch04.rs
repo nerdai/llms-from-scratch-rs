@@ -162,6 +162,7 @@ impl Module for LayerNorm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use candle_core::test_utils;
     use candle_core::{DType, Device, IndexOp, Tensor};
     use candle_nn::{VarBuilder, VarMap};
     use rstest::*;
@@ -244,29 +245,15 @@ mod tests {
             .unwrap()
             .abs()
             .unwrap();
-        let tol_val: f64 = 1e-5;
-        let tol = (mean.ones_like().unwrap() * tol_val).unwrap();
 
         assert_eq!(out_norm.dims(), &[batch_size, cfg.emb_dim]);
         assert_eq!(
-            mean_minus_zero
-                .lt(&tol)
-                .unwrap()
-                .sum_all()
-                .unwrap()
-                .to_scalar::<u8>()
-                .unwrap(),
-            batch_size as u8
+            test_utils::to_vec2_round(&mean_minus_zero, 2_i32).unwrap(),
+            [[0.0], [0.0]]
         );
         assert_eq!(
-            var_minus_one
-                .lt(&tol)
-                .unwrap()
-                .sum_all()
-                .unwrap()
-                .to_scalar::<u8>()
-                .unwrap(),
-            batch_size as u8
+            test_utils::to_vec2_round(&var_minus_one, 2_i32).unwrap(),
+            [[0.0], [0.0]]
         );
     }
 }
