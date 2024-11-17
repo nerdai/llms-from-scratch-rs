@@ -125,6 +125,26 @@ impl Module for DummyTransformerBlock {
     }
 }
 
+/// Listing 4.2
+#[allow(dead_code)]
+pub struct LayerNorm {
+    eps: f32,
+    scale: Tensor,
+    shift: Tensor,
+}
+
+impl LayerNorm {
+    pub fn new(emb_dim: usize, vb: VarBuilder<'_>) -> Result<Self> {
+        let scale = vb.get_with_hints(emb_dim, "scale", candle_nn::init::ONE)?;
+        let shift = vb.get_with_hints(emb_dim, "shift", candle_nn::Init::Const(0.))?;
+        Ok(Self {
+            eps: 1e-05,
+            scale,
+            shift,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
