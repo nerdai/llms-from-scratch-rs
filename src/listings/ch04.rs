@@ -1,5 +1,7 @@
-use candle_core::{Module, Result, Tensor};
+use candle_core::{Module, Result, Tensor, D};
 use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
+
+const EPS: f32 = 1e-5;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Config {
@@ -125,10 +127,43 @@ impl Module for DummyTransformerBlock {
     }
 }
 
+/// Listing 4.2
+#[allow(dead_code)]
+pub struct LayerNorm {
+    eps: f32,
+    scale: Tensor,
+    shift: Tensor,
+}
+
+impl LayerNorm {
+    pub fn new(emb_dim: usize, vb: VarBuilder<'_>) -> Result<Self> {
+        let scale = vb.get_with_hints(emb_dim, "scale", candle_nn::Init::Const(1.))?;
+        let shift = vb.get_with_hints(emb_dim, "shift", candle_nn::Init::Const(0.))?;
+        Ok(Self {
+            eps: EPS,
+            scale,
+            shift,
+        })
+    }
+}
+
+impl Module for LayerNorm {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let mean = xs.mean_keepdim(D::Minus1)?;
+        let var = xs.var_keepdim(D::Minus1)?;
+        let norm_xs = xs.broadcast_sub(&mean)?.broadcast_div(&var.sqrt()?)?;
+        let out_norm = norm_xs
+            .broadcast_mul(&self.scale)?
+            .broadcast_add(&self.shift)?;
+        Ok(out_norm)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use candle_core::{DType, Device, Tensor};
+    use candle_core::test_utils;
+    use candle_core::{DType, Device, IndexOp, Tensor};
     use candle_nn::{VarBuilder, VarMap};
     use rstest::*;
 
@@ -169,5 +204,56 @@ mod tests {
         let logits = model.forward(&batch_token_ids).unwrap();
 
         assert_eq!(logits.dims(), &[batch_size, seq_len, cfg.vocab_size]);
+    }
+
+    #[rstest]
+    fn test_layer_norm_init(vb: VarBuilder<'_>) {
+        let cfg = Config::gpt_sm_test();
+        let layer_norm = LayerNorm::new(cfg.emb_dim, vb).unwrap();
+        assert_eq!(layer_norm.eps, EPS);
+        assert_eq!(layer_norm.scale.dims(), &[cfg.emb_dim]);
+        assert_eq!(layer_norm.shift.dims(), &[cfg.emb_dim]);
+        assert_eq!(
+            layer_norm.scale.i(..=1).unwrap().to_vec1::<f32>().unwrap(),
+            &[1., 1.]
+        );
+        assert_eq!(
+            layer_norm.shift.i(..=1).unwrap().to_vec1::<f32>().unwrap(),
+            &[0., 0.]
+        );
+    }
+
+    #[rstest]
+    fn test_layer_norm_forward(vb: VarBuilder<'_>) {
+        let cfg = Config::gpt_sm_test();
+        let batch_size = 2_usize;
+        let batch_example =
+            Tensor::rand(0f32, 1f32, (batch_size, cfg.emb_dim), vb.device()).unwrap();
+        let layer_norm = LayerNorm::new(cfg.emb_dim, vb.pp("layer_norm")).unwrap();
+
+        let out_norm = layer_norm.forward(&batch_example).unwrap();
+        let mean = out_norm.mean_keepdim(D::Minus1).unwrap();
+        let var = out_norm.var_keepdim(D::Minus1).unwrap();
+
+        let mean_minus_zero = mean
+            .broadcast_sub(&mean.zeros_like().unwrap())
+            .unwrap()
+            .abs()
+            .unwrap();
+        let var_minus_one = var
+            .broadcast_sub(&var.ones_like().unwrap())
+            .unwrap()
+            .abs()
+            .unwrap();
+
+        assert_eq!(out_norm.dims(), &[batch_size, cfg.emb_dim]);
+        assert_eq!(
+            test_utils::to_vec2_round(&mean_minus_zero, 2_i32).unwrap(),
+            [[0.0], [0.0]]
+        );
+        assert_eq!(
+            test_utils::to_vec2_round(&var_minus_one, 2_i32).unwrap(),
+            [[0.0], [0.0]]
+        );
     }
 }
