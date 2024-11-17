@@ -1,4 +1,4 @@
-use candle_core::{Module, Result, Tensor};
+use candle_core::{Module, Result, Tensor, D};
 use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
 
 const EPS: f32 = 1e-5;
@@ -147,6 +147,18 @@ impl LayerNorm {
     }
 }
 
+impl Module for LayerNorm {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let mean = xs.mean_keepdim(D::Minus1)?;
+        let var = xs.var_keepdim(D::Minus1)?;
+        let norm_xs = xs.broadcast_sub(&mean)?.broadcast_div(&var.sqrt()?)?;
+        let out_norm = norm_xs
+            .broadcast_mul(&self.scale)?
+            .broadcast_add(&self.shift)?;
+        Ok(out_norm)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,6 +219,54 @@ mod tests {
         assert_eq!(
             layer_norm.shift.i(..=1).unwrap().to_vec1::<f32>().unwrap(),
             &[0., 0.]
+        );
+    }
+
+    #[rstest]
+    fn test_layer_norm_forward(vb: VarBuilder<'_>) {
+        let cfg = Config::gpt_sm_test();
+        let batch_size = 2_usize;
+        let batch_example =
+            Tensor::rand(0f32, 1f32, (batch_size, cfg.emb_dim), vb.device()).unwrap();
+        let layer_norm = LayerNorm::new(cfg.emb_dim, vb.pp("layer_norm")).unwrap();
+
+        let out_norm = layer_norm.forward(&batch_example).unwrap();
+        let mean = out_norm.mean_keepdim(D::Minus1).unwrap();
+        let var = out_norm.var_keepdim(D::Minus1).unwrap();
+
+        let mean_minus_zero = mean
+            .broadcast_sub(&mean.zeros_like().unwrap())
+            .unwrap()
+            .abs()
+            .unwrap();
+        let var_minus_one = var
+            .broadcast_sub(&var.ones_like().unwrap())
+            .unwrap()
+            .abs()
+            .unwrap();
+        let tol_val: f64 = 1e-5;
+        let tol = (mean.ones_like().unwrap() * tol_val).unwrap();
+
+        assert_eq!(out_norm.dims(), &[batch_size, cfg.emb_dim]);
+        assert_eq!(
+            mean_minus_zero
+                .lt(&tol)
+                .unwrap()
+                .sum_all()
+                .unwrap()
+                .to_scalar::<u8>()
+                .unwrap(),
+            batch_size as u8
+        );
+        assert_eq!(
+            var_minus_one
+                .lt(&tol)
+                .unwrap()
+                .sum_all()
+                .unwrap()
+                .to_scalar::<u8>()
+                .unwrap(),
+            batch_size as u8
         );
     }
 }
