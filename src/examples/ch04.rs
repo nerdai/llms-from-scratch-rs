@@ -92,3 +92,40 @@ impl Example for EG02 {
         println!("variance: {:?}", var.to_vec2::<f32>());
     }
 }
+
+/// Example 04.03
+pub struct EG03;
+
+impl Example for EG03 {
+    fn description(&self) -> String {
+        String::from("Example usage of `LayerNorm`.")
+    }
+
+    fn page_source(&self) -> usize {
+        104_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch04::LayerNorm;
+        use candle_core::{DType, Device, Module, Tensor, D};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+        // create batch
+        let batch_example = Tensor::rand(0f32, 1f32, (2_usize, 5_usize), vb.device()).unwrap();
+
+        // construct layer norm layer
+        let emb_dim = 5_usize;
+        let ln = LayerNorm::new(emb_dim, vb.pp("layer_norm")).unwrap();
+        let out_ln = ln.forward(&batch_example).unwrap();
+
+        // compute stats on out_ln
+        let mean = out_ln.mean_keepdim(D::Minus1).unwrap();
+        let var = out_ln.var_keepdim(D::Minus1).unwrap();
+        println!("mean: {:?}", mean.to_vec2::<f32>());
+        println!("variance: {:?}", var.to_vec2::<f32>());
+    }
+}
