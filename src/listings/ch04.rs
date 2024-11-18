@@ -1,3 +1,5 @@
+use core::f64;
+
 use candle_core::{Module, Result, Tensor, D};
 use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
 
@@ -159,12 +161,28 @@ impl Module for LayerNorm {
     }
 }
 
+/// Listing 4.3
+/// An implementation of GELU activation
+pub struct GELU;
+
+impl Module for GELU {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        (0.5_f64 * xs)?.mul(
+            &((2_f64 / f64::consts::PI).sqrt()
+                * (xs
+                    + (xs.broadcast_pow(&Tensor::new(&[3_f32], xs.device())?)? * 0.044715_f64))?)?
+                .tanh()?
+                .broadcast_add(&Tensor::ones((1,), candle_core::DType::F32, xs.device())?)?,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use candle_core::test_utils;
     use candle_core::{DType, Device, IndexOp, Tensor};
-    use candle_nn::{VarBuilder, VarMap};
+    use candle_nn::{Activation, VarBuilder, VarMap};
     use rstest::*;
 
     #[fixture]
@@ -254,6 +272,30 @@ mod tests {
         assert_eq!(
             test_utils::to_vec2_round(&var_minus_one, 2_i32).unwrap(),
             [[0.0], [0.0]]
+        );
+    }
+
+    #[rstest]
+    fn test_gelu_impl() {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let batch_example = Tensor::rand(0f32, 1f32, (2_usize, 3_usize), &dev).unwrap();
+
+        // testing manual impl
+        let gelu = GELU;
+        let out = gelu.forward(&batch_example);
+
+        // reference impl
+        let candle_gelu = Activation::Gelu;
+        let candle_out = candle_gelu.forward(&batch_example);
+
+        // assert equality
+        assert_eq!(
+            test_utils::to_vec2_round(
+                &(out.unwrap() - candle_out.unwrap()).unwrap().abs().unwrap(),
+                2_i32
+            )
+            .unwrap(),
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
         );
     }
 }
