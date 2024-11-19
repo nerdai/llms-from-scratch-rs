@@ -206,6 +206,21 @@ impl Module for FeedForward {
     }
 }
 
+/// Listing 4.5
+/// ExampleDeepNeuralNetwork
+#[allow(dead_code)]
+pub struct ExampleDeepNeuralNetwork {
+    use_shortcut: bool,
+    layers: Vec<Sequential>,
+}
+
+impl ExampleDeepNeuralNetwork {
+    #[allow(unused_variables)]
+    pub fn new(layer_sizes: Vec<usize>, vb: VarBuilder<'_>) -> Result<Self> {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
