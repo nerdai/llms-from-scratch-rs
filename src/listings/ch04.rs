@@ -1,7 +1,9 @@
 use core::f64;
 
 use candle_core::{Module, Result, Tensor, D};
-use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
+use candle_nn::{
+    embedding, linear_b, seq, Activation, Dropout, Embedding, Linear, Sequential, VarBuilder,
+};
 
 const EPS: f32 = 1e-5;
 
@@ -192,7 +194,7 @@ impl FeedForward {
                 true,
                 vb.pp("first_layer"),
             )?)
-            .add(GELU)
+            .add(Activation::Gelu)
             .add(linear_b(
                 4_usize * cfg.emb_dim,
                 cfg.emb_dim,
