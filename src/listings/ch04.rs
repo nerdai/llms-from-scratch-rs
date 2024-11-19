@@ -1,9 +1,6 @@
-use core::f64;
-
 use candle_core::{Module, Result, Tensor, D};
-use candle_nn::{
-    embedding, linear_b, seq, Activation, Dropout, Embedding, Linear, Sequential, VarBuilder,
-};
+use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
+use core::f64;
 
 const EPS: f32 = 1e-5;
 
@@ -171,9 +168,7 @@ pub struct GELU;
 impl Module for GELU {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         (0.5_f64 * xs)?.mul(
-            &((2_f64 / f64::consts::PI).sqrt()
-                * (xs
-                    + (xs.broadcast_pow(&Tensor::new(&[3_f32], xs.device())?)? * 0.044715_f64))?)?
+            &((2_f64 / f64::consts::PI).sqrt() * (xs + (xs.mul(xs)?.mul(xs)? * 0.044715f64)?)?)?
                 .tanh()?
                 .broadcast_add(&Tensor::ones((1,), candle_core::DType::F32, xs.device())?)?,
         )
@@ -194,7 +189,7 @@ impl FeedForward {
                 true,
                 vb.pp("first_layer"),
             )?)
-            .add(Activation::Gelu)
+            .add(GELU) // you should use Activation::Gelu in actual builds
             .add(linear_b(
                 4_usize * cfg.emb_dim,
                 cfg.emb_dim,
@@ -316,20 +311,24 @@ mod tests {
 
         // testing manual impl
         let gelu = GELU;
-        let out = gelu.forward(&batch_example);
+        let out = gelu.forward(&batch_example).unwrap();
 
         // reference impl
         let candle_gelu = Activation::Gelu;
-        let candle_out = candle_gelu.forward(&batch_example);
+        let candle_out = candle_gelu.forward(&batch_example).unwrap();
 
         // assert equality
+        let tol: f64 = 1e-3;
+        let abs_diff = (out - candle_out).unwrap().abs().unwrap();
         assert_eq!(
-            test_utils::to_vec2_round(
-                &(out.unwrap() - candle_out.unwrap()).unwrap().abs().unwrap(),
-                2_i32
-            )
-            .unwrap(),
-            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+            abs_diff
+                .lt(tol)
+                .unwrap()
+                .sum_all()
+                .unwrap()
+                .to_scalar::<u8>()
+                .unwrap(),
+            (2_usize * 3_usize) as u8
         );
     }
 
@@ -349,7 +348,6 @@ mod tests {
         let (batch_size, seq_len) = (2_usize, 3_usize);
         let batch_example =
             Tensor::rand(0f32, 1f32, (batch_size, seq_len, cfg.emb_dim), vb.device()).unwrap();
-
         let out = ff.forward(&batch_example).unwrap();
 
         assert_eq!(out.dims(), &[batch_size, seq_len, cfg.emb_dim]);
