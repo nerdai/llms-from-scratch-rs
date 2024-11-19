@@ -129,3 +129,39 @@ impl Example for EG03 {
         println!("variance: {:?}", var.to_vec2::<f32>());
     }
 }
+
+/// Example 04.04
+pub struct EG04;
+
+impl Example for EG04 {
+    fn description(&self) -> String {
+        String::from("Sample usage of `FeedForward` Module.")
+    }
+
+    fn page_source(&self) -> usize {
+        108_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch04::{Config, FeedForward};
+        use candle_core::{DType, Device, IndexOp, Module, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let cfg = Config::gpt2_124m();
+
+        // create batch
+        let (batch_size, seq_len) = (2_usize, 3_usize);
+        let x = Tensor::rand(0f32, 1f32, (batch_size, seq_len, cfg.emb_dim), vb.device()).unwrap();
+
+        // feedforward
+        let ffn = FeedForward::new(cfg, vb.pp("ffn")).unwrap();
+        let out = ffn.forward(&x).unwrap();
+
+        println!("{:?}", out);
+        // first 10 hidden states of the embedding for 1st sequence, 1st token
+        println!("{:?}", out.i((0, 0, 0..10)).unwrap().to_vec1::<f32>());
+    }
+}
