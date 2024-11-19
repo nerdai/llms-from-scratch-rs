@@ -144,7 +144,7 @@ impl Example for EG04 {
 
     fn main(&self) {
         use crate::listings::ch04::{Config, FeedForward};
-        use candle_core::{DType, Device, Module, Tensor};
+        use candle_core::{DType, Device, IndexOp, Module, Tensor};
         use candle_nn::{VarBuilder, VarMap};
 
         let dev = Device::cuda_if_available(0).unwrap();
@@ -161,5 +161,7 @@ impl Example for EG04 {
         let out = ffn.forward(&x).unwrap();
 
         println!("{:?}", out);
+        // first 10 hidden states of the embedding for 1st sequence, 1st token
+        println!("{:?}", out.i((0, 0, 0..10)).unwrap().to_vec1::<f32>());
     }
 }
