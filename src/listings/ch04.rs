@@ -179,7 +179,6 @@ impl Module for GELU {
 }
 
 /// Listing 4.4
-#[allow(dead_code)]
 pub struct FeedForward {
     layers: Sequential,
 }
