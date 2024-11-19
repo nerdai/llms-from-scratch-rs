@@ -130,7 +130,6 @@ impl Module for DummyTransformerBlock {
 }
 
 /// Listing 4.2
-#[allow(dead_code)]
 pub struct LayerNorm {
     eps: f32,
     scale: Tensor,
@@ -153,7 +152,9 @@ impl Module for LayerNorm {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let mean = xs.mean_keepdim(D::Minus1)?;
         let var = xs.var_keepdim(D::Minus1)?;
-        let norm_xs = xs.broadcast_sub(&mean)?.broadcast_div(&var.sqrt()?)?;
+        let norm_xs = xs.broadcast_sub(&mean)?.broadcast_div(
+            &(var.broadcast_add(&Tensor::new(&[self.eps], xs.device())?)?).sqrt()?,
+        )?;
         let out_norm = norm_xs
             .broadcast_mul(&self.scale)?
             .broadcast_add(&self.shift)?;
@@ -174,6 +175,32 @@ impl Module for GELU {
                 .tanh()?
                 .broadcast_add(&Tensor::ones((1,), candle_core::DType::F32, xs.device())?)?,
         )
+    }
+}
+
+/// Listing 4.4
+#[allow(dead_code)]
+pub struct FeedForward {
+    layers: Sequential,
+}
+
+impl FeedForward {
+    pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
+        let layers = seq()
+            .add(linear_b(
+                cfg.emb_dim,
+                4_usize * cfg.emb_dim,
+                true,
+                vb.pp("first_layer"),
+            )?)
+            .add(GELU)
+            .add(linear_b(
+                4_usize * cfg.emb_dim,
+                cfg.emb_dim,
+                true,
+                vb.pp("second_layer"),
+            )?);
+        Ok(Self { layers })
     }
 }
 
@@ -297,5 +324,12 @@ mod tests {
             .unwrap(),
             [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
         );
+    }
+
+    #[rstest]
+    fn test_feedforward_init(vb: VarBuilder<'_>) {
+        let ff = FeedForward::new(Config::gpt_sm_test(), vb.pp("ff")).unwrap();
+
+        assert_eq!(ff.layers.len(), 3_i64);
     }
 }
