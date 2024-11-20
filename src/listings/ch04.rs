@@ -463,4 +463,29 @@ mod tests {
         let output = model.forward(&sample_input).unwrap();
         assert_eq!(output.dims(), &[2_usize, 1_usize]);
     }
+
+    #[rstest]
+    fn test_transformer_block_init(vb: VarBuilder<'_>) {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+
+        assert_eq!(transformer_block.att.num_heads(), cfg.n_heads);
+        assert_eq!(transformer_block.att.drop_p(), cfg.drop_rate);
+        assert_eq!(
+            transformer_block.att.w_key().weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block.att.w_query().weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block.att.w_value().weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        assert_eq!(transformer_block.att.head_dim(), cfg.emb_dim / cfg.n_heads);
+        assert_eq!(transformer_block.ff.layers.len(), 3_i64);
+        assert_eq!(transformer_block.norm1.scale.dims(), &[cfg.emb_dim]);
+        assert_eq!(transformer_block.norm1.shift.dims(), &[cfg.emb_dim]);
+    }
 }
