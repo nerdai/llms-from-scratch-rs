@@ -1,4 +1,6 @@
-use crate::Example;
+use candle_core::Tensor;
+
+use crate::{listings::ch04::ExampleDeepNeuralNetwork, Example};
 
 /// Example 04.01
 pub struct EG01;
@@ -169,6 +171,13 @@ impl Example for EG04 {
 /// Example 04.05
 pub struct EG05;
 
+impl EG05 {
+    #[allow(unused_variables, dead_code)]
+    fn print_gradients(model: ExampleDeepNeuralNetwork, x: &Tensor) {
+        todo!()
+    }
+}
+
 impl Example for EG05 {
     fn description(&self) -> String {
         String::from("Comparison of gradients with and without shortcut connections.")
@@ -179,6 +188,24 @@ impl Example for EG05 {
     }
 
     fn main(&self) {
-        todo!()
+        use crate::listings::ch04::ExampleDeepNeuralNetwork;
+        use candle_core::{DType, Device, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+        let layer_sizes = &[3_usize, 3, 3, 3, 3, 1];
+        let sample_input = Tensor::new(&[[1_f32, 0., -1.]], vb.device()).unwrap();
+        let model_without_shortcut =
+            ExampleDeepNeuralNetwork::new(layer_sizes, false, vb.pp("model_wout_shortcut"))
+                .unwrap();
+
+        let model_with_shortcut =
+            ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model_wout_shortcut")).unwrap();
+
+        EG05::print_gradients(model_without_shortcut, &sample_input);
+        EG05::print_gradients(model_with_shortcut, &sample_input);
     }
 }
