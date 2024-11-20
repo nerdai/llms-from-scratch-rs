@@ -2,6 +2,8 @@ use candle_core::{Module, Result, Tensor, TensorId, D};
 use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
 use core::f64;
 
+use super::ch03::MultiHeadAttention;
+
 const EPS: f32 = 1e-5;
 
 #[derive(Debug, Clone, Copy)]
@@ -253,6 +255,58 @@ impl Module for ExampleDeepNeuralNetwork {
     }
 }
 
+/// Listing 4.6
+/// TransformerBlock
+pub struct TransformerBlock {
+    att: MultiHeadAttention,
+    ff: FeedForward,
+    norm1: LayerNorm,
+    norm2: LayerNorm,
+    drop_shortcut: Dropout,
+}
+
+impl TransformerBlock {
+    pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
+        let att = MultiHeadAttention::new(
+            cfg.emb_dim,
+            cfg.emb_dim,
+            cfg.drop_rate,
+            cfg.n_heads,
+            cfg.qkv_bias,
+            vb.pp("mha"),
+        )?;
+        let ff = FeedForward::new(cfg, vb.pp("ff"))?;
+        let norm1 = LayerNorm::new(cfg.emb_dim, vb.pp("norm1"))?;
+        let norm2 = LayerNorm::new(cfg.emb_dim, vb.pp("norm2"))?;
+        let drop_shortcut = Dropout::new(cfg.drop_rate);
+        Ok(Self {
+            att,
+            ff,
+            norm1,
+            norm2,
+            drop_shortcut,
+        })
+    }
+}
+
+impl Module for TransformerBlock {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let shortcut = xs.to_owned();
+        let mut x = xs.to_owned();
+        x = self.norm1.forward(&x)?;
+        x = self.att.forward(&x)?;
+        x = self.drop_shortcut.forward(&x, true)?; // todo: should be configurable
+        x = (x + shortcut)?;
+
+        let shortcut = x.clone();
+        x = self.norm2.forward(&x)?;
+        x = self.ff.forward(&x)?;
+        x = self.drop_shortcut.forward(&x, true)?;
+        x = (x + shortcut)?;
+        Ok(x)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -417,5 +471,49 @@ mod tests {
 
         let output = model.forward(&sample_input).unwrap();
         assert_eq!(output.dims(), &[2_usize, 1_usize]);
+    }
+
+    #[rstest]
+    fn test_transformer_block_init(vb: VarBuilder<'_>) {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+
+        assert_eq!(transformer_block.att.num_heads(), cfg.n_heads);
+        assert_eq!(transformer_block.att.drop_p(), cfg.drop_rate);
+        assert_eq!(
+            transformer_block.att.w_key().weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block.att.w_query().weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block.att.w_value().weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        assert_eq!(transformer_block.att.head_dim(), cfg.emb_dim / cfg.n_heads);
+        assert_eq!(transformer_block.ff.layers.len(), 3_i64);
+        assert_eq!(transformer_block.norm1.scale.dims(), &[cfg.emb_dim]);
+        assert_eq!(transformer_block.norm1.shift.dims(), &[cfg.emb_dim]);
+    }
+
+    #[rstest]
+    fn test_transformer_block(vb: VarBuilder<'_>) {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+
+        let batch_size = 2_usize;
+        let num_tokens = 4_usize;
+        let batch_example = Tensor::rand(
+            0f32,
+            1f32,
+            (batch_size, num_tokens, cfg.emb_dim),
+            vb.device(),
+        )
+        .unwrap();
+
+        let out = transformer_block.forward(&batch_example).unwrap();
+        assert_eq!(out.dims(), batch_example.dims());
     }
 }
