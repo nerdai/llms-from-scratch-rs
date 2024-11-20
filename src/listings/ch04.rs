@@ -206,6 +206,53 @@ impl Module for FeedForward {
     }
 }
 
+/// Listing 4.5
+/// ExampleDeepNeuralNetwork
+#[allow(dead_code)]
+pub struct ExampleDeepNeuralNetwork {
+    use_shortcut: bool,
+    layers: Vec<Sequential>,
+}
+
+impl ExampleDeepNeuralNetwork {
+    #[allow(unused_variables)]
+    pub fn new(layer_sizes: &[usize], use_shortcut: bool, vb: VarBuilder<'_>) -> Result<Self> {
+        let mut layers: Vec<Sequential> = Vec::new();
+        for i in 0..layer_sizes.len() - 1_usize {
+            layers.push(
+                seq()
+                    .add(linear_b(
+                        layer_sizes[i],
+                        layer_sizes[i + 1],
+                        true,
+                        vb.pp(format!("layer-{}", i)),
+                    )?)
+                    .add(GELU),
+            )
+        }
+
+        Ok(Self {
+            use_shortcut,
+            layers,
+        })
+    }
+}
+
+impl Module for ExampleDeepNeuralNetwork {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let mut x = xs.to_owned();
+        for layer in self.layers.iter() {
+            let layer_output = layer.forward(&x).unwrap();
+            if (self.use_shortcut) && (xs.dims() == layer_output.dims()) {
+                x = (xs + layer_output).unwrap();
+            } else {
+                x = layer_output;
+            }
+        }
+        Ok(x)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -351,5 +398,24 @@ mod tests {
         let out = ff.forward(&batch_example).unwrap();
 
         assert_eq!(out.dims(), &[batch_size, seq_len, cfg.emb_dim]);
+    }
+
+    #[rstest]
+    fn test_example_deep_neural_network_init(vb: VarBuilder<'_>) {
+        let layer_sizes = &[3_usize, 2, 2, 1];
+        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb).unwrap();
+
+        assert_eq!(model.layers.len(), layer_sizes.len() - 1usize);
+        assert_eq!(model.use_shortcut, true);
+    }
+
+    #[rstest]
+    fn test_example_deep_neural_network_forward(vb: VarBuilder) {
+        let layer_sizes = &[3_usize, 2, 2, 1];
+        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model")).unwrap();
+        let sample_input = Tensor::new(&[[1f32, 0., 1.], [0., 1., 0.]], vb.device()).unwrap();
+
+        let output = model.forward(&sample_input).unwrap();
+        assert_eq!(output.dims(), &[2_usize, 1_usize]);
     }
 }
