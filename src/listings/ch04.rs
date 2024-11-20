@@ -257,7 +257,6 @@ impl Module for ExampleDeepNeuralNetwork {
 
 /// Listing 4.6
 /// TransformerBlock
-#[allow(dead_code)]
 pub struct TransformerBlock {
     att: MultiHeadAttention,
     ff: FeedForward,
@@ -267,7 +266,6 @@ pub struct TransformerBlock {
 }
 
 impl TransformerBlock {
-    #[allow(unused_variables)]
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let att = MultiHeadAttention::new(
             cfg.emb_dim,
@@ -292,7 +290,6 @@ impl TransformerBlock {
 }
 
 impl Module for TransformerBlock {
-    #[allow(unused_variables)]
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let shortcut = xs.to_owned();
         let mut x = xs.to_owned();
@@ -499,5 +496,24 @@ mod tests {
         assert_eq!(transformer_block.ff.layers.len(), 3_i64);
         assert_eq!(transformer_block.norm1.scale.dims(), &[cfg.emb_dim]);
         assert_eq!(transformer_block.norm1.shift.dims(), &[cfg.emb_dim]);
+    }
+
+    #[rstest]
+    fn test_transformer_block(vb: VarBuilder<'_>) {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+
+        let batch_size = 2_usize;
+        let num_tokens = 4_usize;
+        let batch_example = Tensor::rand(
+            0f32,
+            1f32,
+            (batch_size, num_tokens, cfg.emb_dim),
+            vb.device(),
+        )
+        .unwrap();
+
+        let out = transformer_block.forward(&batch_example).unwrap();
+        assert_eq!(out.dims(), batch_example.dims());
     }
 }
