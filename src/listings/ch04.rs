@@ -294,7 +294,19 @@ impl TransformerBlock {
 impl Module for TransformerBlock {
     #[allow(unused_variables)]
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        todo!()
+        let shortcut = xs.to_owned();
+        let mut x = xs.to_owned();
+        x = self.norm1.forward(&x)?;
+        x = self.att.forward(&x)?;
+        x = self.drop_shortcut.forward(&x, true)?; // todo: should be configurable
+        x = (x + shortcut)?;
+
+        let shortcut = x.clone();
+        x = self.norm2.forward(&x)?;
+        x = self.ff.forward(&x)?;
+        x = self.drop_shortcut.forward(&x, true)?;
+        x = (x + shortcut)?;
+        Ok(x)
     }
 }
 
