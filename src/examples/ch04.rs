@@ -232,3 +232,51 @@ impl Example for EG05 {
         EG05::print_gradients(model_with_shortcut, &sample_input);
     }
 }
+
+/// Example 04.06
+pub struct EG06;
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        String::from("Sample usage of `TransformerBlock`.")
+    }
+
+    fn page_source(&self) -> usize {
+        116_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch04::{Config, TransformerBlock};
+        use candle_core::{DType, Device, IndexOp, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // construct transformer block
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let cfg = Config::gpt2_124m();
+        let block = TransformerBlock::new(cfg, vb.pp("block")).unwrap();
+
+        // create sample input
+        let (batch_size, num_tokens) = (2_usize, 4_usize);
+        let x = Tensor::rand(
+            0f32,
+            1f32,
+            (batch_size, num_tokens, cfg.emb_dim),
+            vb.device(),
+        )
+        .unwrap();
+
+        // execute forward pass
+        let output = block.forward(&x).unwrap();
+
+        println!("Input shape: {:?}", x.shape());
+        println!("Output shape: {:?}", output.shape());
+
+        // print the first 10 features of all tokens of the first input
+        println!(
+            "Output: {:?}",
+            output.i((0..1, .., 0..10)).unwrap().to_vec3::<f32>()
+        );
+    }
+}
