@@ -1,4 +1,5 @@
-use crate::Example;
+use crate::{listings::ch04::ExampleDeepNeuralNetwork, Example};
+use candle_core::{Module, Tensor};
 
 /// Example 04.01
 pub struct EG01;
@@ -163,5 +164,71 @@ impl Example for EG04 {
         println!("{:?}", out);
         // first 10 hidden states of the embedding for 1st sequence, 1st token
         println!("{:?}", out.i((0, 0, 0..10)).unwrap().to_vec1::<f32>());
+    }
+}
+
+/// Example 04.05
+pub struct EG05;
+
+impl EG05 {
+    #[allow(unused_variables, dead_code)]
+    fn print_gradients(model: ExampleDeepNeuralNetwork, x: &Tensor) {
+        use candle_nn::loss::mse;
+
+        let output = model.forward(x).unwrap();
+        let target = Tensor::new(&[[0_f32]], x.device()).unwrap();
+
+        let loss = mse(&output, &target).unwrap();
+        let grads = loss.backward().unwrap();
+
+        for (ix, tensor_id) in model.tensor_ids.iter().enumerate() {
+            let grad_tensor = grads.get_id(tensor_id.to_owned()).unwrap();
+            println!(
+                "layer.{}.weight has gradient mean of {:?}",
+                ix,
+                grad_tensor
+                    .abs()
+                    .unwrap()
+                    .mean_all()
+                    .unwrap()
+                    .to_scalar::<f32>()
+                    .unwrap()
+            );
+        }
+        println!("\n");
+    }
+}
+
+impl Example for EG05 {
+    fn description(&self) -> String {
+        String::from("Comparison of gradients with and without shortcut connections.")
+    }
+
+    fn page_source(&self) -> usize {
+        111_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch04::ExampleDeepNeuralNetwork;
+        use candle_core::{DType, Device, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+        let layer_sizes = &[3_usize, 3, 3, 3, 3, 1];
+        let sample_input = Tensor::new(&[[1_f32, 0., -1.]], vb.device()).unwrap();
+        let model_without_shortcut =
+            ExampleDeepNeuralNetwork::new(layer_sizes, false, vb.pp("model_wout_shortcut"))
+                .unwrap();
+
+        let model_with_shortcut =
+            ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model_wout_shortcut")).unwrap();
+
+        println!("model_without_shorcut gradients:");
+        EG05::print_gradients(model_without_shortcut, &sample_input);
+        println!("model_with_shorcut gradients:");
+        EG05::print_gradients(model_with_shortcut, &sample_input);
     }
 }
