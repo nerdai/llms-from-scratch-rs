@@ -238,6 +238,21 @@ impl ExampleDeepNeuralNetwork {
     }
 }
 
+impl Module for ExampleDeepNeuralNetwork {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let mut x = xs.to_owned();
+        for layer in self.layers.iter() {
+            let layer_output = layer.forward(&x).unwrap();
+            if (self.use_shortcut) && (xs.dims() == layer_output.dims()) {
+                x = (xs + layer_output).unwrap();
+            } else {
+                x = layer_output;
+            }
+        }
+        Ok(x)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -392,5 +407,15 @@ mod tests {
 
         assert_eq!(model.layers.len(), layer_sizes.len() - 1usize);
         assert_eq!(model.use_shortcut, true);
+    }
+
+    #[rstest]
+    fn test_example_deep_neural_network_forward(vb: VarBuilder) {
+        let layer_sizes = &[3_usize, 2, 2, 1];
+        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model")).unwrap();
+        let sample_input = Tensor::new(&[[1f32, 0., 1.], [0., 1., 0.]], vb.device()).unwrap();
+
+        let output = model.forward(&sample_input).unwrap();
+        assert_eq!(output.dims(), &[2_usize, 1_usize]);
     }
 }
