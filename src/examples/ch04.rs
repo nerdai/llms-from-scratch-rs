@@ -226,9 +226,9 @@ impl Example for EG05 {
         let model_with_shortcut =
             ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model_wout_shortcut")).unwrap();
 
-        println!("model_without_shorcut gradients:");
+        println!("model_without_shortcut gradients:");
         EG05::print_gradients(model_without_shortcut, &sample_input);
-        println!("model_with_shorcut gradients:");
+        println!("model_with_shortcut gradients:");
         EG05::print_gradients(model_with_shortcut, &sample_input);
     }
 }
