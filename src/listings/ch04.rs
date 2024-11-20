@@ -208,11 +208,10 @@ impl Module for FeedForward {
 
 /// Listing 4.5
 /// ExampleDeepNeuralNetwork
-#[allow(dead_code)]
 pub struct ExampleDeepNeuralNetwork {
     use_shortcut: bool,
     pub layers: Vec<Sequential>,
-    pub tensor_ids: Vec<TensorId>,
+    pub tensor_ids: Vec<TensorId>, // to be able to print gradients from GradStore
 }
 
 impl ExampleDeepNeuralNetwork {
