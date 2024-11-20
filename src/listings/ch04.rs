@@ -216,8 +216,25 @@ pub struct ExampleDeepNeuralNetwork {
 
 impl ExampleDeepNeuralNetwork {
     #[allow(unused_variables)]
-    pub fn new(layer_sizes: Vec<usize>, vb: VarBuilder<'_>) -> Result<Self> {
-        todo!()
+    pub fn new(layer_sizes: &[usize], use_shortcut: bool, vb: VarBuilder<'_>) -> Result<Self> {
+        let mut layers: Vec<Sequential> = Vec::new();
+        for i in 0..layer_sizes.len() - 1_usize {
+            layers.push(
+                seq()
+                    .add(linear_b(
+                        layer_sizes[i],
+                        layer_sizes[i + 1],
+                        true,
+                        vb.pp(format!("layer-{}", i)),
+                    )?)
+                    .add(GELU),
+            )
+        }
+
+        Ok(Self {
+            use_shortcut,
+            layers,
+        })
     }
 }
 
@@ -366,5 +383,13 @@ mod tests {
         let out = ff.forward(&batch_example).unwrap();
 
         assert_eq!(out.dims(), &[batch_size, seq_len, cfg.emb_dim]);
+    }
+
+    #[rstest]
+    fn test_example_deep_neural_network_init(vb: VarBuilder<'_>) {
+        let layer_sizes = &[3_usize, 2, 2, 1];
+        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb).unwrap();
+
+        assert_eq!(model.layers.len(), layer_sizes.len() - 1usize);
     }
 }
