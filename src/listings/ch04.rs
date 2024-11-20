@@ -1,4 +1,4 @@
-use candle_core::{Module, Result, Tensor, D};
+use candle_core::{Module, Result, Tensor, TensorId, D};
 use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
 use core::f64;
 
@@ -211,29 +211,30 @@ impl Module for FeedForward {
 #[allow(dead_code)]
 pub struct ExampleDeepNeuralNetwork {
     use_shortcut: bool,
-    layers: Vec<Sequential>,
+    pub layers: Vec<Sequential>,
+    pub tensor_ids: Vec<TensorId>,
 }
 
 impl ExampleDeepNeuralNetwork {
     #[allow(unused_variables)]
     pub fn new(layer_sizes: &[usize], use_shortcut: bool, vb: VarBuilder<'_>) -> Result<Self> {
         let mut layers: Vec<Sequential> = Vec::new();
+        let mut tensor_ids: Vec<TensorId> = Vec::new();
         for i in 0..layer_sizes.len() - 1_usize {
-            layers.push(
-                seq()
-                    .add(linear_b(
-                        layer_sizes[i],
-                        layer_sizes[i + 1],
-                        true,
-                        vb.pp(format!("layer-{}", i)),
-                    )?)
-                    .add(GELU),
-            )
+            let linear = linear_b(
+                layer_sizes[i],
+                layer_sizes[i + 1],
+                true,
+                vb.pp(format!("layer-{}", i)),
+            )?;
+            tensor_ids.push(linear.weight().id());
+            layers.push(seq().add(linear).add(GELU))
         }
 
         Ok(Self {
             use_shortcut,
             layers,
+            tensor_ids,
         })
     }
 }
