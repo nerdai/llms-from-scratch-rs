@@ -391,5 +391,6 @@ mod tests {
         let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb).unwrap();
 
         assert_eq!(model.layers.len(), layer_sizes.len() - 1usize);
+        assert_eq!(model.use_shortcut, true);
     }
 }
