@@ -165,3 +165,20 @@ impl Example for EG04 {
         println!("{:?}", out.i((0, 0, 0..10)).unwrap().to_vec1::<f32>());
     }
 }
+
+/// Example 04.05
+pub struct EG05;
+
+impl Example for EG05 {
+    fn description(&self) -> String {
+        String::from("Comparison of gradients with and without shortcut connections.")
+    }
+
+    fn page_source(&self) -> usize {
+        111_usize
+    }
+
+    fn main(&self) {
+        todo!()
+    }
+}
