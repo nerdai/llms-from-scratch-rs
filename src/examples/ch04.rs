@@ -1,5 +1,18 @@
 use crate::{listings::ch04::ExampleDeepNeuralNetwork, Example};
-use candle_core::{Module, Tensor};
+use candle_core::{Device, Module, Tensor};
+use tiktoken_rs::get_bpe_from_model;
+
+fn get_batch_for_gpts() -> Tensor {
+    let dev = Device::cuda_if_available(0).unwrap();
+
+    // create batch
+    let mut batch_tokens: Vec<u32> = Vec::new();
+    let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every effort moves you"));
+    batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every day holds a"));
+
+    Tensor::from_vec(batch_tokens, (2_usize, 4_usize), &dev).unwrap()
+}
 
 /// Example 04.01
 pub struct EG01;
@@ -15,30 +28,26 @@ impl Example for EG01 {
 
     fn main(&self) {
         use crate::listings::ch04::{Config, DummyGPTModel};
-        use candle_core::{DType, Device, Module, Tensor};
+        use candle_core::{DType, IndexOp, Module};
         use candle_nn::{VarBuilder, VarMap};
-        use tiktoken_rs::get_bpe_from_model;
 
-        let dev = Device::cuda_if_available(0).unwrap();
-
-        // create batch
-        let mut batch_tokens: Vec<u32> = Vec::new();
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
-        batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every effort moves you"));
-        batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every day holds a"));
-
-        let batch = Tensor::from_vec(batch_tokens, (2_usize, 4_usize), &dev).unwrap();
+        let batch = get_batch_for_gpts();
         println!("batch: {:?}", batch.to_vec2::<u32>());
 
         // create model
         let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, batch.device());
         let model = DummyGPTModel::new(Config::gpt2_124m(), vb).unwrap();
 
         // get logits
         let logits = model.forward(&batch).unwrap();
-        println!("logits: {:?}", logits.to_vec3::<f32>());
         println!("output shape: {:?}", logits.shape());
+
+        // print first 10 next-token logits for each token of every input sequence
+        println!(
+            "logits: {:?}",
+            logits.i((.., .., 0..10)).unwrap().to_vec3::<f32>()
+        );
     }
 }
 
@@ -47,7 +56,7 @@ pub struct EG02;
 
 impl Example for EG02 {
     fn description(&self) -> String {
-        String::from("Manual computation of layern normalization.")
+        String::from("Manual computation of layer normalization.")
     }
 
     fn page_source(&self) -> usize {
@@ -278,5 +287,73 @@ impl Example for EG06 {
             "Output: {:?}",
             output.i((0..1, .., 0..10)).unwrap().to_vec3::<f32>()
         );
+    }
+}
+
+/// EG 04.07
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        String::from("Sample usage of GPTModel.")
+    }
+
+    fn page_source(&self) -> usize {
+        120_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch04::{Config, GPTModel};
+        use candle_core::{DType, IndexOp, Module};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let batch = get_batch_for_gpts();
+        println!("batch: {:?}", batch.to_vec2::<u32>());
+
+        // create model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, batch.device());
+        let model = GPTModel::new(Config::gpt2_124m(), vb).unwrap();
+
+        // get logits
+        let logits = model.forward(&batch).unwrap();
+        println!("output shape: {:?}", logits.shape());
+
+        // print first 10 next-token logits for each token of every input sequence
+        println!(
+            "logits: {:?}",
+            logits.i((.., .., 0..10)).unwrap().to_vec3::<f32>()
+        );
+
+        // get total number of params from the VarMap (todo: turn this into a util)
+        let mut total_params = 0_usize;
+        for t in varmap.all_vars().iter() {
+            let this_tensor_params = match *t.dims() {
+                [d1] => d1,
+                [d1, d2] => d1 * d2,
+                _ => panic!("Variable with more than 2 dimensions."),
+            };
+            total_params += this_tensor_params;
+        }
+        println!("Total number of parameters: {}", total_params);
+
+        // Get token embedding and output layer shapes
+        let varmap_binding = varmap.data().lock().unwrap();
+        let tok_emb_dims = varmap_binding.get("tok_emb.weight").unwrap().dims();
+        println!("Token embedding layer shape {:?}", tok_emb_dims);
+        let out_head_dims = varmap_binding.get("out_head.weight").unwrap().dims();
+        println!("Output layer shape {:?}", out_head_dims);
+
+        // total number of params if weight tying with token emb and output layer shapes
+        let total_params_gpt2 = total_params - (out_head_dims[0] * out_head_dims[1]);
+        println!(
+            "Number of trainable parameters considering weight tying {}",
+            total_params_gpt2
+        );
+
+        // memory requirements
+        let total_size_bytes = total_params * 4;
+        let total_size_mb = total_size_bytes as f32 / (1024_f32 * 1024.);
+        println!("Total size of the model: {} MB", total_size_mb);
     }
 }
