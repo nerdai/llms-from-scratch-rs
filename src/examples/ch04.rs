@@ -350,5 +350,10 @@ impl Example for EG07 {
             "Number of trainable parameters considering weight tying {}",
             total_params_gpt2
         );
+
+        // memory requirements
+        let total_size_bytes = total_params * 4;
+        let total_size_mb = total_size_bytes as f32 / (1024_f32 * 1024.);
+        println!("Total size of the model: {} MB", total_size_mb);
     }
 }
