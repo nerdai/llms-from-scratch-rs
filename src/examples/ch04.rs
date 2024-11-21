@@ -47,7 +47,7 @@ pub struct EG02;
 
 impl Example for EG02 {
     fn description(&self) -> String {
-        String::from("Manual computation of layern normalization.")
+        String::from("Manual computation of layer normalization.")
     }
 
     fn page_source(&self) -> usize {
@@ -277,6 +277,52 @@ impl Example for EG06 {
         println!(
             "Output: {:?}",
             output.i((0..1, .., 0..10)).unwrap().to_vec3::<f32>()
+        );
+    }
+}
+
+/// EG 04.07
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        String::from("Sample usage of GPTModel.")
+    }
+
+    fn page_source(&self) -> usize {
+        120_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch04::{Config, GPTModel};
+        use candle_core::{DType, Device, IndexOp, Module, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
+
+        let dev = Device::cuda_if_available(0).unwrap();
+
+        // create batch
+        let mut batch_tokens: Vec<u32> = Vec::new();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every effort moves you"));
+        batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every day holds a"));
+
+        let batch = Tensor::from_vec(batch_tokens, (2_usize, 4_usize), &dev).unwrap();
+        println!("batch: {:?}", batch.to_vec2::<u32>());
+
+        // create model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let model = GPTModel::new(Config::gpt2_124m(), vb).unwrap();
+
+        // get logits
+        let logits = model.forward(&batch).unwrap();
+        println!("output shape: {:?}", logits.shape());
+
+        // print first 10 next-token logits for each token of every input sequence
+        println!(
+            "logits: {:?}",
+            logits.i((.., .., 0..10)).unwrap().to_vec3::<f32>()
         );
     }
 }
