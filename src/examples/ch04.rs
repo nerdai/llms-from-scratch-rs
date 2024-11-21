@@ -325,7 +325,7 @@ impl Example for EG07 {
             logits.i((.., .., 0..10)).unwrap().to_vec3::<f32>()
         );
 
-        // get total number of params from the VarMap
+        // get total number of params from the VarMap (todo: turn this into a util)
         let mut total_params = 0_usize;
         for t in varmap.all_vars().iter() {
             let this_tensor_params = match *t.dims() {
