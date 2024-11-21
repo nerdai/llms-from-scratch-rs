@@ -324,5 +324,31 @@ impl Example for EG07 {
             "logits: {:?}",
             logits.i((.., .., 0..10)).unwrap().to_vec3::<f32>()
         );
+
+        // get total number of params from the VarMap
+        let mut total_params = 0_usize;
+        for t in varmap.all_vars().iter() {
+            let this_tensor_params = match *t.dims() {
+                [d1] => d1,
+                [d1, d2] => d1 * d2,
+                _ => panic!("Variable with more than 2 dimensions."),
+            };
+            total_params += this_tensor_params;
+        }
+        println!("Total number of parameters: {}", total_params);
+
+        // Get token embedding and output layer shapes
+        let varmap_binding = varmap.data().lock().unwrap();
+        let tok_emb_dims = varmap_binding.get("tok_emb.weight").unwrap().dims();
+        println!("Token embedding layer shape {:?}", tok_emb_dims);
+        let out_head_dims = varmap_binding.get("out_head.weight").unwrap().dims();
+        println!("Output layer shape {:?}", out_head_dims);
+
+        // total number of params if weight tying with token emb and output layer shapes
+        let total_params_gpt2 = total_params - (out_head_dims[0] * out_head_dims[1]);
+        println!(
+            "Number of trainable parameters considering weight tying {}",
+            total_params_gpt2
+        );
     }
 }
