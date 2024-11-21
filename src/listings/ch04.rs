@@ -306,7 +306,7 @@ impl Module for TransformerBlock {
     }
 }
 
-/// Listing 4.1
+/// Listing 4.7
 /// GPTModel
 pub struct GPTModel {
     tok_emb: Embedding,
