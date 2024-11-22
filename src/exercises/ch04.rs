@@ -83,6 +83,25 @@ impl Exercise for X4P2 {
                 total_params += this_tensor_params;
             }
             println!("{} number of parameters: {}", mdl_name, total_params);
+
+            // Get token embedding and output layer shapes
+            let varmap_data = varmap.data().lock().unwrap();
+            let tok_emb_dims = varmap_data.get("tok_emb.weight").unwrap().dims();
+            println!("Token embedding layer shape {:?}", tok_emb_dims);
+            let out_head_dims = varmap_data.get("out_head.weight").unwrap().dims();
+            println!("Output layer shape {:?}", out_head_dims);
+
+            // total number of params if weight tying with token emb and output layer shapes
+            let total_params_gpt2 = total_params - (out_head_dims[0] * out_head_dims[1]);
+            println!(
+                "Number of trainable parameters considering weight tying {}",
+                total_params_gpt2
+            );
+
+            // memory requirements (todo: build this out as a util)
+            let total_size_bytes = total_params * 4;
+            let total_size_mb = total_size_bytes as f32 / (1024_f32 * 1024.);
+            println!("Total size of the model: {} MB\n", total_size_mb);
         }
     }
 }
