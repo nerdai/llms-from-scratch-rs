@@ -396,6 +396,17 @@ impl Module for GPTModel {
     }
 }
 
+/// Listing 4.8
+#[allow(unused_variables)]
+pub fn generate_text_simple(
+    model: GPTModel,
+    idx: Tensor,
+    max_new_tokens: usize,
+    context_size: usize,
+) -> Result<Tensor> {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
