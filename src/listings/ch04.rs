@@ -32,6 +32,45 @@ impl Config {
     }
 
     #[allow(dead_code)]
+    pub fn gpt2_medium() -> Self {
+        Self {
+            vocab_size: 50_257,
+            context_length: 1_024,
+            emb_dim: 1_024,
+            n_heads: 16,
+            n_layers: 24,
+            drop_rate: 0.1,
+            qkv_bias: false,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn gpt2_large() -> Self {
+        Self {
+            vocab_size: 50_257,
+            context_length: 1_024,
+            emb_dim: 1_280,
+            n_heads: 20,
+            n_layers: 36,
+            drop_rate: 0.1,
+            qkv_bias: false,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn gpt2_xlarge() -> Self {
+        Self {
+            vocab_size: 50_257,
+            context_length: 1_024,
+            emb_dim: 1_600,
+            n_heads: 25,
+            n_layers: 48,
+            drop_rate: 0.1,
+            qkv_bias: false,
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn gpt_sm_test() -> Self {
         Self {
             vocab_size: 500,
