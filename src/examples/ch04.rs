@@ -398,5 +398,14 @@ impl Example for EG08 {
         let out = generate_text_simple(model, encoded_tensor, 6_usize, cfg.context_length).unwrap();
         println!("Output: {:?}", out.to_vec2::<u32>());
         println!("Output length: {}", out.dims()[1]);
+
+        // decode with tokenizer
+        let decoded_text = tokenizer.decode(
+            out.reshape(out.dims()[1])
+                .unwrap()
+                .to_vec1::<u32>()
+                .unwrap(),
+        );
+        println!("{:?}", decoded_text);
     }
 }
