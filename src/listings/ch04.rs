@@ -419,6 +419,7 @@ pub fn generate_text_simple(
     Ok(idx)
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     use candle_core::test_utils;
