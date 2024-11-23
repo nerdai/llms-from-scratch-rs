@@ -409,7 +409,8 @@ pub fn generate_text_simple(
     let mut idx = idx.clone();
     for _ in 0..max_new_tokens {
         let (_b, seq_len) = idx.dims2()?;
-        let idx_cond = idx.i((.., cmp::max(0usize, seq_len - context_size)..seq_len))?;
+        let start_token_index = cmp::max(0isize, seq_len as isize - context_size as isize) as usize;
+        let idx_cond = idx.i((.., start_token_index..seq_len))?;
         let logits = model.forward_t(&idx_cond, false)?;
         let (_b, c, _vocab_size) = logits.dims3()?;
         let logits = logits.i((.., c - 1, ..))?;

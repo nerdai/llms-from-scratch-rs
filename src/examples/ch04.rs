@@ -1,4 +1,7 @@
-use crate::{listings::ch04::ExampleDeepNeuralNetwork, Example};
+use crate::{
+    listings::ch04::{generate_text_simple, ExampleDeepNeuralNetwork},
+    Example,
+};
 use candle_core::{Device, Module, Tensor};
 use tiktoken_rs::get_bpe_from_model;
 
@@ -295,7 +298,7 @@ pub struct EG07;
 
 impl Example for EG07 {
     fn description(&self) -> String {
-        String::from("Sample usage of GPTModel.")
+        String::from("Example usage of GPTModel.")
     }
 
     fn page_source(&self) -> usize {
@@ -355,5 +358,54 @@ impl Example for EG07 {
         let total_size_bytes = total_params * 4;
         let total_size_mb = total_size_bytes as f32 / (1024_f32 * 1024.);
         println!("Total size of the model: {} MB", total_size_mb);
+    }
+}
+
+/// Example 04.08
+pub struct EG08;
+
+impl Example for EG08 {
+    fn description(&self) -> String {
+        String::from("Example usage of `generate_text_simple`.")
+    }
+
+    fn page_source(&self) -> usize {
+        125_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::ch04::{Config, GPTModel};
+        use candle_core::DType;
+        use candle_nn::{VarBuilder, VarMap};
+
+        // get starting context
+        let dev = Device::cuda_if_available(0).unwrap();
+        let start_context = "Hello, I am";
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let encoded = tokenizer.encode_with_special_tokens(start_context);
+        let num_tokens = encoded.len();
+        println!("encoded: {:?}", encoded);
+        let encoded_tensor = Tensor::from_vec(encoded, (1_usize, num_tokens), &dev).unwrap();
+        println!("encoded_tensor.shape {:?}", encoded_tensor);
+
+        // construct model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let cfg = Config::gpt2_124m();
+        let model = GPTModel::new(cfg, vb).unwrap();
+
+        // run inference
+        let out = generate_text_simple(model, encoded_tensor, 6_usize, cfg.context_length).unwrap();
+        println!("Output: {:?}", out.to_vec2::<u32>());
+        println!("Output length: {}", out.dims()[1]);
+
+        // decode with tokenizer
+        let decoded_text = tokenizer.decode(
+            out.reshape(out.dims()[1])
+                .unwrap()
+                .to_vec1::<u32>()
+                .unwrap(),
+        );
+        println!("{:?}", decoded_text);
     }
 }
