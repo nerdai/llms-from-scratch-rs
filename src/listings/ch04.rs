@@ -411,7 +411,8 @@ pub fn generate_text_simple(
         let (_b, seq_len) = idx.dims2()?;
         let idx_cond = idx.i((.., cmp::max(0usize, seq_len - context_size)..seq_len))?;
         let logits = model.forward_t(&idx_cond, false)?;
-        let logits = logits.i((.., seq_len, ..))?;
+        let (_b, c, _vocab_size) = logits.dims3()?;
+        let logits = logits.i((.., c - 1, ..))?;
         let probas = softmax(&logits, 1)?;
         let idx_next = probas.argmax_keepdim(D::Minus1)?;
         idx = Tensor::cat(&[&idx, &idx_next], D::Minus1)?;
@@ -653,5 +654,19 @@ mod tests {
         let logits = model.forward(&batch_token_ids).unwrap();
 
         assert_eq!(logits.dims(), &[batch_size, seq_len, cfg.vocab_size]);
+    }
+
+    #[rstest]
+    fn test_generate_text_simple(vb: VarBuilder<'_>, batch_token_ids: Tensor) {
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb).unwrap();
+
+        // create sample idx
+        let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
+        let (context_size, max_new_tokens) = (2_usize, 3_usize);
+        let idx =
+            generate_text_simple(model, batch_token_ids, max_new_tokens, context_size).unwrap();
+
+        assert_eq!(idx.dims(), &[batch_size, seq_len + max_new_tokens]);
     }
 }
