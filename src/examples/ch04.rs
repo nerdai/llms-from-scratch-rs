@@ -1,4 +1,7 @@
-use crate::{listings::ch04::ExampleDeepNeuralNetwork, Example};
+use crate::{
+    listings::ch04::{generate_text_simple, ExampleDeepNeuralNetwork},
+    Example,
+};
 use candle_core::{Device, Module, Tensor};
 use tiktoken_rs::get_bpe_from_model;
 
@@ -388,6 +391,12 @@ impl Example for EG08 {
         // construct model
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-        let _model = GPTModel::new(Config::gpt2_124m(), vb).unwrap();
+        let cfg = Config::gpt2_124m();
+        let model = GPTModel::new(cfg, vb).unwrap();
+
+        // run inference
+        let out = generate_text_simple(model, encoded_tensor, 6_usize, cfg.context_length).unwrap();
+        println!("Output: {:?}", out.to_vec2::<u32>());
+        println!("Output length: {}", out.dims()[1]);
     }
 }
