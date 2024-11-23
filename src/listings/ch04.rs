@@ -1,8 +1,11 @@
-use candle_core::{Module, Result, Tensor, TensorId, D};
-use candle_nn::{embedding, linear_b, seq, Dropout, Embedding, Linear, Sequential, VarBuilder};
-use core::f64;
-
 use super::ch03::MultiHeadAttention;
+use candle_core::{IndexOp, Module, Result, Tensor, TensorId, D};
+use candle_nn::{
+    embedding, linear_b, ops::softmax, seq, Dropout, Embedding, Linear, ModuleT, Sequential,
+    VarBuilder,
+};
+use core::f64;
+use std::cmp;
 
 const EPS: f32 = 1e-5;
 
@@ -397,17 +400,25 @@ impl Module for GPTModel {
 }
 
 /// Listing 4.8
-#[allow(unused_variables)]
 pub fn generate_text_simple(
     model: GPTModel,
     idx: Tensor,
     max_new_tokens: usize,
     context_size: usize,
 ) -> Result<Tensor> {
-    todo!()
+    let mut idx = idx.clone();
+    for _ in 0..max_new_tokens {
+        let (_b, seq_len) = idx.dims2()?;
+        let idx_cond = idx.i((.., cmp::max(0usize, seq_len - context_size)..seq_len))?;
+        let logits = model.forward_t(&idx_cond, false)?;
+        let logits = logits.i((.., seq_len, ..))?;
+        let probas = softmax(&logits, 1)?;
+        let idx_next = probas.argmax_keepdim(D::Minus1)?;
+        idx = Tensor::cat(&[&idx, &idx_next], D::Minus1)?;
+    }
+    Ok(idx)
 }
 
-#[cfg(test)]
 mod tests {
     use super::*;
     use candle_core::test_utils;
