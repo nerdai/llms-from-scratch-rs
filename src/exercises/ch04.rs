@@ -125,6 +125,7 @@ pub struct ConfigV2 {
     pub qkv_bias: bool,
 }
 
+/// Exercise 4.3
 impl ConfigV2 {
     fn gpt_config_124m() -> Self {
         Self {
@@ -141,6 +142,7 @@ impl ConfigV2 {
     }
 }
 
+/// Exercise 4.3
 impl FeedForward {
     fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
         let layers = seq()
@@ -161,6 +163,7 @@ impl FeedForward {
     }
 }
 
+/// Exercise 4.3
 impl TransformerBlock {
     fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
         let att = MultiHeadAttention::new(
@@ -179,6 +182,7 @@ impl TransformerBlock {
     }
 }
 
+/// Exercise 4.3
 impl GPTModel {
     pub fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
         let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
@@ -195,6 +199,7 @@ impl GPTModel {
     }
 }
 
+/// Exercise 4.3
 pub struct X4P3;
 
 impl Exercise for X4P3 {
