@@ -1,8 +1,10 @@
-use crate::listings::{
-    ch03::MultiHeadAttention,
-    ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+use crate::{
+    listings::{
+        ch03::MultiHeadAttention,
+        ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+    },
+    Exercise,
 };
-use crate::Exercise;
 use candle_core::{Result, Var};
 use candle_nn::{embedding, linear_b, seq, Dropout, VarBuilder};
 
