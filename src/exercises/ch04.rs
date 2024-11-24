@@ -1,5 +1,10 @@
+use crate::listings::{
+    ch03::MultiHeadAttention,
+    ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+};
 use crate::Exercise;
-use candle_core::Var;
+use candle_core::{Result, Var};
+use candle_nn::{embedding, linear_b, seq, Dropout, VarBuilder};
 
 fn get_var_params(t: &Var) -> usize {
     match *t.dims() {
@@ -103,5 +108,85 @@ impl Exercise for X4P2 {
             let total_size_mb = total_size_bytes as f32 / (1024_f32 * 1024.);
             println!("Total size of the model: {} MB\n", total_size_mb);
         }
+    }
+}
+
+/// Exercise 4.3
+#[derive(Debug, Clone, Copy)]
+pub struct ConfigV2 {
+    pub vocab_size: usize,
+    pub context_length: usize,
+    pub emb_dim: usize,
+    pub n_heads: usize,
+    pub n_layers: usize,
+    pub drop_rate_attn: f32,
+    pub drop_rate_emb: f32,
+    pub drop_rate_shortcut: f32,
+    pub qkv_bias: bool,
+}
+
+impl FeedForward {
+    fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
+        let layers = seq()
+            .add(linear_b(
+                cfg.emb_dim,
+                4_usize * cfg.emb_dim,
+                true,
+                vb.pp("first_layer"),
+            )?)
+            .add(GELU) // you should use Activation::Gelu in actual builds
+            .add(linear_b(
+                4_usize * cfg.emb_dim,
+                cfg.emb_dim,
+                true,
+                vb.pp("second_layer"),
+            )?);
+        FeedForward::from_fields(layers)
+    }
+}
+
+impl TransformerBlock {
+    fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
+        let att = MultiHeadAttention::new(
+            cfg.emb_dim,
+            cfg.emb_dim,
+            cfg.drop_rate_attn,
+            cfg.n_heads,
+            cfg.qkv_bias,
+            vb.pp("mha"),
+        )?;
+        let ff = FeedForward::new_v2(cfg, vb.pp("ff"))?;
+        let norm1 = LayerNorm::new(cfg.emb_dim, vb.pp("norm1"))?;
+        let norm2 = LayerNorm::new(cfg.emb_dim, vb.pp("norm2"))?;
+        let drop_shortcut = Dropout::new(cfg.drop_rate_shortcut);
+        TransformerBlock::from_fields(att, ff, norm1, norm2, drop_shortcut)
+    }
+}
+
+impl GPTModel {
+    pub fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
+        let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
+        let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
+        let drop_emb = Dropout::new(cfg.drop_rate_emb);
+        let mut trf_blocks = seq();
+        for ix in 0..cfg.n_layers {
+            trf_blocks = trf_blocks
+                .add(TransformerBlock::new_v2(cfg, vb.pp(format!("trf-{}", ix))).unwrap());
+        }
+        let final_norm = LayerNorm::new(cfg.emb_dim, vb.pp("final_norm"))?;
+        let out_head = linear_b(cfg.emb_dim, cfg.vocab_size, false, vb.pp("out_head"))?;
+        GPTModel::from_fields(tok_emb, pos_emb, drop_emb, trf_blocks, final_norm, out_head)
+    }
+}
+
+pub struct X4P3;
+
+impl Exercise for X4P3 {
+    fn name(&self) -> String {
+        String::from("4.3")
+    }
+
+    fn main(&self) {
+        todo!()
     }
 }
