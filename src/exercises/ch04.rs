@@ -125,6 +125,22 @@ pub struct ConfigV2 {
     pub qkv_bias: bool,
 }
 
+impl ConfigV2 {
+    fn gpt_config_124m() -> Self {
+        Self {
+            vocab_size: 50_257,
+            context_length: 1_024,
+            emb_dim: 768,
+            n_heads: 12,
+            n_layers: 12,
+            drop_rate_attn: 0.1,
+            drop_rate_emb: 0.1,
+            drop_rate_shortcut: 0.1,
+            qkv_bias: false,
+        }
+    }
+}
+
 impl FeedForward {
     fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
         let layers = seq()
@@ -187,6 +203,27 @@ impl Exercise for X4P3 {
     }
 
     fn main(&self) {
-        todo!()
+        use candle_core::{DType, Device, IndexOp, Module, Tensor};
+        use candle_nn::VarMap;
+
+        // create model
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let model = GPTModel::new_v2(ConfigV2::gpt_config_124m(), vb).unwrap();
+
+        // create batch inputs
+        let batch = Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev).unwrap();
+
+        // run model forward
+        let logits = model.forward(&batch).unwrap();
+
+        // print first ten logits of vocabular for all batch inputs, and tokens
+        let (_b, c, _vocab_size) = logits.dims3().unwrap();
+        let last_tokens_logits = logits.i((.., c - 1, ..)).unwrap();
+        println!(
+            "first 10 logits of last vector: {:?}",
+            last_tokens_logits.i((.., 0..10)).unwrap().to_vec2::<f32>()
+        );
     }
 }
