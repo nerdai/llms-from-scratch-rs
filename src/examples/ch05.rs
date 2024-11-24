@@ -1,3 +1,5 @@
+use candle_nn::Module;
+
 use crate::Example;
 
 /// Example 05.01
@@ -64,6 +66,29 @@ impl Example for EG02 {
     }
 
     fn main(&self) {
-        todo!()
+        use crate::listings::ch04::{Config, GPTModel};
+        use candle_core::{DType, Device, Tensor, D};
+        use candle_nn::{ops::softmax, VarBuilder, VarMap};
+
+        // construct model
+        let varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let cfg = Config::gpt2_124m();
+        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+
+        // inputs and target tensors
+        let inputs = Tensor::new(&[[16833_u32, 3626, 6100], [40, 1107, 588]], vb.device()).unwrap();
+        let _targets =
+            Tensor::new(&[[3626_u32, 6100, 345], [1107, 588, 11311]], vb.device()).unwrap();
+
+        // logits and probas
+        let logits = model.forward(&inputs).unwrap();
+        let probas = softmax(&logits, 1).unwrap();
+        println!("{:?}", probas);
+
+        // get next token id from probas
+        let token_ids = probas.argmax_keepdim(D::Minus1).unwrap();
+        println!("Token IDs:\n{:?}", token_ids.to_vec3::<u32>());
     }
 }
