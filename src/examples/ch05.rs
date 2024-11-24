@@ -41,6 +41,7 @@ impl Example for EG01 {
         )
         .unwrap();
 
+        // decode the token ids to print the output text
         println!(
             "Output text:\n{:?}",
             token_ids_to_text(token_ids, &tokenizer)
