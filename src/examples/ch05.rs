@@ -66,9 +66,13 @@ impl Example for EG02 {
     }
 
     fn main(&self) {
-        use crate::listings::ch04::{Config, GPTModel};
-        use candle_core::{DType, Device, Tensor, D};
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch05::token_ids_to_text,
+        };
+        use candle_core::{DType, Device, IndexOp, Tensor, D};
         use candle_nn::{ops::softmax, VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
 
         // construct model
         let varmap = VarMap::new();
@@ -79,7 +83,7 @@ impl Example for EG02 {
 
         // inputs and target tensors
         let inputs = Tensor::new(&[[16833_u32, 3626, 6100], [40, 1107, 588]], vb.device()).unwrap();
-        let _targets =
+        let targets =
             Tensor::new(&[[3626_u32, 6100, 345], [1107, 588, 11311]], vb.device()).unwrap();
 
         // logits and probas
@@ -90,5 +94,12 @@ impl Example for EG02 {
         // get next token id from probas
         let token_ids = probas.argmax_keepdim(D::Minus1).unwrap();
         println!("Token IDs:\n{:?}", token_ids.to_vec3::<u32>());
+
+        // compare predictions to targets
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        println!(
+            "Targets batch 1: {:?}",
+            token_ids_to_text(targets.i(0).unwrap(), &tokenizer)
+        )
     }
 }
