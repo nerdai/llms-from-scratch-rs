@@ -1,5 +1,6 @@
 use crate::Example;
 
+/// Example 05.01
 pub struct EG01;
 
 impl Example for EG01 {
@@ -46,5 +47,23 @@ impl Example for EG01 {
             "Output text:\n{:?}",
             token_ids_to_text(token_ids, &tokenizer)
         )
+    }
+}
+
+/// Example 05.02
+pub struct EG02;
+
+impl Example for EG02 {
+    fn description(&self) -> String {
+        let desc = "Example computation of cross-entropy and perplexity.";
+        String::from(desc)
+    }
+
+    fn page_source(&self) -> usize {
+        133_usize
+    }
+
+    fn main(&self) {
+        todo!()
     }
 }
