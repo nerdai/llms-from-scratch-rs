@@ -11,3 +11,9 @@ pub fn text_to_token_ids(text: &str, tokenizer: CoreBPE, dev: &Device) -> Result
     // encoded tensor
     Tensor::from_vec(encoded, (1_usize, num_tokens), dev)
 }
+
+/// Listing 5.1
+pub fn token_ids_to_text(token_ids: Tensor, tokenizer: CoreBPE) -> anyhow::Result<String> {
+    let flat = token_ids.squeeze(0)?;
+    tokenizer.decode(flat.to_vec1::<u32>()?)
+}
