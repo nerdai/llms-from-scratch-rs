@@ -241,6 +241,10 @@ impl FeedForward {
             )?);
         Ok(Self { layers })
     }
+
+    pub fn from_fields(layers: Sequential) -> Result<Self> {
+        Ok(Self { layers })
+    }
 }
 
 impl Module for FeedForward {
@@ -328,6 +332,22 @@ impl TransformerBlock {
             drop_shortcut,
         })
     }
+
+    pub fn from_fields(
+        att: MultiHeadAttention,
+        ff: FeedForward,
+        norm1: LayerNorm,
+        norm2: LayerNorm,
+        drop_shortcut: Dropout,
+    ) -> Result<Self> {
+        Ok(Self {
+            att,
+            ff,
+            norm1,
+            norm2,
+            drop_shortcut,
+        })
+    }
 }
 
 impl Module for TransformerBlock {
@@ -371,6 +391,24 @@ impl GPTModel {
         }
         let final_norm = LayerNorm::new(cfg.emb_dim, vb.pp("final_norm"))?;
         let out_head = linear_b(cfg.emb_dim, cfg.vocab_size, false, vb.pp("out_head"))?;
+        Ok(Self {
+            tok_emb,
+            pos_emb,
+            drop_emb,
+            trf_blocks,
+            final_norm,
+            out_head,
+        })
+    }
+
+    pub fn from_fields(
+        tok_emb: Embedding,
+        pos_emb: Embedding,
+        drop_emb: Dropout,
+        trf_blocks: Sequential,
+        final_norm: LayerNorm,
+        out_head: Linear,
+    ) -> Result<Self> {
         Ok(Self {
             tok_emb,
             pos_emb,
