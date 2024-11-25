@@ -179,19 +179,17 @@ impl GPTDatasetV1 {
 /// batches of examples.
 pub struct GPTDatasetIter {
     dataset: GPTDatasetV1,
-    device: Device,
     remaining_indices: Vec<usize>,
 }
 
 impl GPTDatasetIter {
-    pub fn new(dataset: GPTDatasetV1, device: Device, shuffle: bool) -> Self {
+    pub fn new(dataset: GPTDatasetV1, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
             remaining_indices.shuffle(&mut thread_rng());
         }
         Self {
             dataset,
-            device,
             remaining_indices,
         }
     }
@@ -205,8 +203,9 @@ impl Iterator for GPTDatasetIter {
             let (input_ids, target_ids) = self.dataset.get_pair_at_index(idx);
 
             // turn into Tensors and return
-            let input_tensor = Tensor::new(&input_ids[..], &self.device);
-            let target_tensor = Tensor::new(&target_ids[..], &self.device);
+            let dev = Device::cuda_if_available(0).unwrap();
+            let input_tensor = Tensor::new(&input_ids[..], &dev);
+            let target_tensor = Tensor::new(&target_ids[..], &dev);
             Some(candle_core::error::zip(input_tensor, target_tensor))
         } else {
             None
@@ -327,19 +326,11 @@ mod tests {
     }
 
     #[rstest]
-    fn test_gpt_dataset_v1_iter(
-        #[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE),
-        #[values(
-                Device::Cpu,
-                Device::cuda_if_available(0).unwrap()
-            )
-        ]
-        dev: Device,
-    ) {
+    fn test_gpt_dataset_v1_iter(#[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE)) {
         let stride = 1_usize;
         let max_length = 3_usize;
         let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
-        let mut iter = GPTDatasetIter::new(dataset.clone(), dev, false);
+        let mut iter = GPTDatasetIter::new(dataset.clone(), false);
         let mut count = 0_usize;
 
         // user iter to sequentially get next pair checking equality with dataset
@@ -363,17 +354,9 @@ mod tests {
     }
 
     #[rstest]
-    fn test_gpt_dataset_with_batch(
-        #[from(gpt_dataset)] dataset: GPTDatasetV1,
-        #[values(
-                Device::Cpu,
-                // Device::cuda_if_available(0).unwrap()
-            )
-        ]
-        dev: Device,
-    ) {
+    fn test_gpt_dataset_with_batch(#[from(gpt_dataset)] dataset: GPTDatasetV1) {
         // let dev = Device::cuda_if_available(0).unwrap();
-        let iter = GPTDatasetIter::new(dataset.clone(), dev, false);
+        let iter = GPTDatasetIter::new(dataset.clone(), false);
         let batch_size = 2_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
 

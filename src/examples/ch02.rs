@@ -50,7 +50,7 @@ impl Example for EG02 {
 
     fn main(&self) {
         use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
-        use candle_core::{DType, Device, Tensor};
+        use candle_core::{DType, Tensor};
         use candle_datasets::Batcher;
         use candle_nn::{embedding, VarBuilder, VarMap};
         use std::fs;
@@ -62,8 +62,7 @@ impl Example for EG02 {
         let max_length = 4_usize;
         let stride = max_length;
         let dataset = GPTDatasetV1::new(&raw_text[..], tokenizer, max_length, stride);
-        let device = Device::cuda_if_available(0).unwrap();
-        let iter = GPTDatasetIter::new(dataset.clone(), device, false);
+        let iter = GPTDatasetIter::new(dataset.clone(), false);
         let batch_size = 8_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
 
