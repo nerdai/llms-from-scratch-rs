@@ -152,6 +152,23 @@ impl Example for EG02 {
     }
 }
 
+/// Example 05.03
+pub struct EG03;
+
+impl Example for EG03 {
+    fn description(&self) -> String {
+        String::from("Split text into train and validation datasets and loaders.")
+    }
+
+    fn page_source(&self) -> usize {
+        141_usize
+    }
+
+    fn main(&self) {
+        todo!()
+    }
+}
+
 mod addons {
     use candle_core::{Device, IndexOp, Result, Tensor};
 
