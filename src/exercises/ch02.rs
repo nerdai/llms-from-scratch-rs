@@ -30,7 +30,6 @@ impl Exercise for X2P2 {
 
     fn main(&self) {
         use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
-        use candle_core::Device;
         use candle_datasets::Batcher;
         use std::fs;
         use tiktoken_rs::get_bpe_from_model;
@@ -40,8 +39,7 @@ impl Exercise for X2P2 {
         let max_length = 4_usize;
         let stride = 2_usize;
         let dataset = GPTDatasetV1::new(&raw_text[..], tokenizer, max_length, stride);
-        let device = Device::Cpu;
-        let iter = GPTDatasetIter::new(dataset.clone(), device, false);
+        let iter = GPTDatasetIter::new(dataset.clone(), false);
         let batch_size = 2_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
 
