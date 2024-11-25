@@ -88,7 +88,7 @@ impl Example for EG02 {
 
         // logits and probas
         let logits = model.forward(&inputs).unwrap();
-        let probas = softmax(&logits, 1).unwrap();
+        let probas = softmax(&logits, D::Minus1).unwrap();
         println!("{:?}", probas);
 
         // get next token id from probas
@@ -105,5 +105,22 @@ impl Example for EG02 {
             "Outputs batch 1: {:?}",
             token_ids_to_text(token_ids.i(0).unwrap().flatten_all().unwrap(), &tokenizer)
         );
+
+        // let's see the predicted probas for the target tokens
+        let text_idx = 0_usize;
+        let target_tokens_1 = targets.i(text_idx).unwrap().to_vec1::<u32>().unwrap();
+        let mut target_probas_1: Vec<f32> = vec![];
+        for (i, target_token) in target_tokens_1.iter().enumerate() {
+            let target_proba = probas
+                .i((text_idx, i, *target_token as usize))
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap();
+            target_probas_1.push(target_proba);
+        }
+        let target_probas_1 =
+            Tensor::from_vec(target_probas_1, target_tokens_1.len(), vb.device()).unwrap();
+
+        println!("Text 1: {:?}", target_probas_1);
     }
 }
