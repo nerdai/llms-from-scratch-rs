@@ -118,6 +118,21 @@ impl Example for EG02 {
                 .unwrap();
 
         println!("Text 2: {:?}", target_probas_2);
+
+        // compute log probas
+        let log_probas = Tensor::cat(&[&target_probas_1, &target_probas_2], 0)
+            .unwrap()
+            .log()
+            .unwrap();
+        println!("Log probas: {:?}", log_probas);
+
+        // compute average
+        let avg_log_probas = log_probas.mean(0).unwrap();
+        println!("Avg log probbas: {:?}", avg_log_probas);
+
+        // compute negative average log probas or cross-entropy
+        let neg_avg_log_probas = (log_probas.mean(0).unwrap() * -1_f64).unwrap();
+        println!("Neg avg log probbas: {:?}", neg_avg_log_probas);
     }
 }
 
