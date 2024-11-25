@@ -1,5 +1,3 @@
-use candle_nn::Module;
-
 use crate::Example;
 
 /// Example 05.01
@@ -70,7 +68,7 @@ impl Example for EG02 {
             ch04::{Config, GPTModel},
             ch05::token_ids_to_text,
         };
-        use candle_core::{DType, Device, IndexOp, Tensor, D};
+        use candle_core::{DType, Device, IndexOp, Module, Tensor, D};
         use candle_nn::{ops::softmax, VarBuilder, VarMap};
         use tiktoken_rs::get_bpe_from_model;
 
@@ -108,6 +106,23 @@ impl Example for EG02 {
 
         // let's see the predicted probas for the target tokens
         let text_idx = 0_usize;
+        let target_probas_1 =
+            addons::get_target_token_probas_helper(text_idx, &targets, &probas, vb.device())
+                .unwrap();
+
+        println!("Text 1: {:?}", target_probas_1);
+    }
+}
+
+mod addons {
+    use candle_core::{Device, IndexOp, Result, Tensor};
+
+    pub fn get_target_token_probas_helper(
+        text_idx: usize,
+        targets: &Tensor,
+        probas: &Tensor,
+        dev: &Device,
+    ) -> Result<Tensor> {
         let target_tokens_1 = targets.i(text_idx).unwrap().to_vec1::<u32>().unwrap();
         let mut target_probas_1: Vec<f32> = vec![];
         for (i, target_token) in target_tokens_1.iter().enumerate() {
@@ -118,9 +133,6 @@ impl Example for EG02 {
                 .unwrap();
             target_probas_1.push(target_proba);
         }
-        let target_probas_1 =
-            Tensor::from_vec(target_probas_1, target_tokens_1.len(), vb.device()).unwrap();
-
-        println!("Text 1: {:?}", target_probas_1);
+        Tensor::from_vec(target_probas_1, target_tokens_1.len(), dev)
     }
 }
