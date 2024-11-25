@@ -69,7 +69,7 @@ impl Example for EG02 {
             ch05::token_ids_to_text,
         };
         use candle_core::{DType, Device, IndexOp, Module, Tensor, D};
-        use candle_nn::{ops::softmax, VarBuilder, VarMap};
+        use candle_nn::{loss::cross_entropy, ops::softmax, VarBuilder, VarMap};
         use tiktoken_rs::get_bpe_from_model;
 
         // construct model
@@ -133,6 +133,18 @@ impl Example for EG02 {
         // compute negative average log probas or cross-entropy
         let neg_avg_log_probas = (log_probas.mean(0).unwrap() * -1_f64).unwrap();
         println!("Neg avg log probbas: {:?}", neg_avg_log_probas);
+
+        // compute cross entropy with candle_nn::ops::loss::cross_entropy
+        println!("Logits shape: {:?}", logits);
+        println!("Targets shape: {:?}", targets);
+
+        let logits_flat = logits.flatten(0, 1).unwrap();
+        let targets_flat = targets.flatten_all().unwrap();
+        println!("Flattened logits: {:?}", logits_flat.shape());
+        println!("Flattened targets: {:?}", targets_flat.shape());
+
+        let loss = cross_entropy(&logits_flat, &targets_flat).unwrap();
+        println!("loss: {:?}", loss);
     }
 }
 
