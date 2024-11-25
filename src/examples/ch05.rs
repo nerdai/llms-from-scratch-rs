@@ -100,6 +100,10 @@ impl Example for EG02 {
         println!(
             "Targets batch 1: {:?}",
             token_ids_to_text(targets.i(0).unwrap(), &tokenizer)
-        )
+        );
+        println!(
+            "Outputs batch 1: {:?}",
+            token_ids_to_text(token_ids.i(0).unwrap().flatten_all().unwrap(), &tokenizer)
+        );
     }
 }
