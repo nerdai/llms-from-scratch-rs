@@ -111,6 +111,13 @@ impl Example for EG02 {
                 .unwrap();
 
         println!("Text 1: {:?}", target_probas_1);
+
+        let text_idx = 1_usize;
+        let target_probas_2 =
+            addons::get_target_token_probas_helper(text_idx, &targets, &probas, vb.device())
+                .unwrap();
+
+        println!("Text 2: {:?}", target_probas_2);
     }
 }
 
