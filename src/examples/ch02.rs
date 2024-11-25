@@ -63,7 +63,7 @@ impl Example for EG02 {
         let stride = max_length;
         let dataset = GPTDatasetV1::new(&raw_text[..], tokenizer, max_length, stride);
         let device = Device::cuda_if_available(0).unwrap();
-        let iter = GPTDatasetIter::new(&dataset, device, false);
+        let iter = GPTDatasetIter::new(dataset.clone(), device, false);
         let batch_size = 8_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
 
