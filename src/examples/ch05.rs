@@ -145,6 +145,10 @@ impl Example for EG02 {
 
         let loss = cross_entropy(&logits_flat, &targets_flat).unwrap();
         println!("loss: {:?}", loss);
+
+        // perplexity
+        let perplexity = loss.exp().unwrap();
+        println!("perplexity: {:?}", perplexity);
     }
 }
 
