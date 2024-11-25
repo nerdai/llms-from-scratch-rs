@@ -41,7 +41,7 @@ impl Exercise for X2P2 {
         let stride = 2_usize;
         let dataset = GPTDatasetV1::new(&raw_text[..], tokenizer, max_length, stride);
         let device = Device::Cpu;
-        let iter = GPTDatasetIter::new(&dataset, device, false);
+        let iter = GPTDatasetIter::new(dataset.clone(), device, false);
         let batch_size = 2_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
 

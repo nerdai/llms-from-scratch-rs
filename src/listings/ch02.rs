@@ -2,6 +2,7 @@ use candle_core::{Device, Result, Tensor};
 use fancy_regex::{Captures, Regex};
 use rand::{seq::SliceRandom, thread_rng};
 use std::collections::HashMap;
+use std::rc::Rc;
 use tiktoken_rs::CoreBPE;
 
 /// Listing 2.3
@@ -106,9 +107,28 @@ impl SimpleTokenizerV2 {
 }
 
 /// Listing 2.5 A dataset for batched inputs and targets
-pub struct GPTDatasetV1 {
+pub struct GPTDatasetV1_ {
     input_ids: Vec<Vec<u32>>,
     target_ids: Vec<Vec<u32>>,
+}
+
+/// GPTDatasetV1
+/// These are refcounted so cloning is cheap.
+#[derive(Clone)]
+pub struct GPTDatasetV1(Rc<GPTDatasetV1_>);
+
+impl AsRef<GPTDatasetV1> for GPTDatasetV1 {
+    fn as_ref(&self) -> &GPTDatasetV1 {
+        self
+    }
+}
+
+impl std::ops::Deref for GPTDatasetV1 {
+    type Target = GPTDatasetV1_;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
 }
 
 impl GPTDatasetV1 {
@@ -125,10 +145,12 @@ impl GPTDatasetV1 {
             target_ids.push(target_chunk.to_vec());
         }
 
-        Self {
+        let dataset_ = GPTDatasetV1_ {
             input_ids,
             target_ids,
-        }
+        };
+
+        Self(Rc::new(dataset_))
     }
 
     pub fn len(&self) -> usize {
@@ -155,14 +177,14 @@ impl GPTDatasetV1 {
 /// Listing 2.6 A data loader to generate batches with input-target pairs
 /// We can use `GPTDatasetIter` with `candle_datasets::Batcher` to get desired
 /// batches of examples.
-pub struct GPTDatasetIter<'a> {
-    dataset: &'a GPTDatasetV1,
+pub struct GPTDatasetIter {
+    dataset: GPTDatasetV1,
     device: Device,
     remaining_indices: Vec<usize>,
 }
 
-impl<'a> GPTDatasetIter<'a> {
-    pub fn new(dataset: &'a GPTDatasetV1, device: Device, shuffle: bool) -> Self {
+impl GPTDatasetIter {
+    pub fn new(dataset: GPTDatasetV1, device: Device, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
             remaining_indices.shuffle(&mut thread_rng());
@@ -175,7 +197,7 @@ impl<'a> GPTDatasetIter<'a> {
     }
 }
 
-impl<'a> Iterator for GPTDatasetIter<'a> {
+impl Iterator for GPTDatasetIter {
     type Item = Result<(Tensor, Tensor)>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -317,7 +339,7 @@ mod tests {
         let stride = 1_usize;
         let max_length = 3_usize;
         let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
-        let mut iter = GPTDatasetIter::new(&dataset, dev, false);
+        let mut iter = GPTDatasetIter::new(dataset.clone(), dev, false);
         let mut count = 0_usize;
 
         // user iter to sequentially get next pair checking equality with dataset
@@ -351,7 +373,7 @@ mod tests {
         dev: Device,
     ) {
         // let dev = Device::cuda_if_available(0).unwrap();
-        let iter = GPTDatasetIter::new(&dataset, dev, false);
+        let iter = GPTDatasetIter::new(dataset.clone(), dev, false);
         let batch_size = 2_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
 
