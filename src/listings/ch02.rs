@@ -1,4 +1,5 @@
 use candle_core::{Device, Result, Tensor};
+use candle_datasets::{batcher::IterResult2, Batcher};
 use fancy_regex::{Captures, Regex};
 use rand::{seq::SliceRandom, thread_rng};
 use std::collections::HashMap;
@@ -213,6 +214,21 @@ impl Iterator for GPTDatasetIter {
     }
 }
 
+pub fn create_dataloader_v1(
+    txt: &str,
+    batch_size: usize,
+    max_length: usize,
+    stride: usize,
+    shuffle: bool,
+    _drop_last: bool,
+) -> (GPTDatasetV1, Batcher<IterResult2<GPTDatasetIter>>) {
+    let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
+    let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
+    let iter = GPTDatasetIter::new(dataset.clone(), shuffle);
+    let batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
+    (dataset, batch_iter)
+}
+
 #[cfg(test)]
 mod tests {
     use core::panic;
@@ -355,10 +371,30 @@ mod tests {
 
     #[rstest]
     fn test_gpt_dataset_with_batch(#[from(gpt_dataset)] dataset: GPTDatasetV1) {
-        // let dev = Device::cuda_if_available(0).unwrap();
         let iter = GPTDatasetIter::new(dataset.clone(), false);
         let batch_size = 2_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
+
+        match batch_iter.next() {
+            Some(Ok((inputs, targets))) => {
+                assert_eq!(inputs.dims(), targets.dims());
+                assert_eq!(inputs.dims()[0], batch_size);
+            }
+            Some(Err(err)) => panic!("{}", err),
+            None => panic!("None"),
+        }
+    }
+
+    #[rstest]
+    fn test_create_dataloader_v1() {
+        let txt = "In the heart of the city";
+        let batch_size = 2_usize;
+        let stride = 1_usize;
+        let max_length = 3_usize;
+        let shuffle = false;
+        let drop_last = false; // unused
+        let (_dataset, mut batch_iter) =
+            create_dataloader_v1(txt, batch_size, max_length, stride, shuffle, drop_last);
 
         match batch_iter.next() {
             Some(Ok((inputs, targets))) => {
