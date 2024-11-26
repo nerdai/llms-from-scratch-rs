@@ -181,6 +181,12 @@ impl Example for EG03 {
             .len();
         println!("Characters: {:?}", total_characters);
         println!("Tokens: {:?}", total_tokens);
+
+        // establish train and val data
+        let train_ratio = 0.90_f32;
+        let split_idx = (train_ratio * text_data.len() as f32) as usize;
+        let train_data = &text_data[..split_idx];
+        let val_data = &text_data[split_idx..];
     }
 }
 
