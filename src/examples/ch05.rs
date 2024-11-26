@@ -165,9 +165,7 @@ impl Example for EG03 {
     }
 
     fn main(&self) {
-        use crate::listings::ch02::create_dataloader_v1;
-        use candle_core::{DType, Tensor};
-        use candle_nn::{embedding, VarBuilder, VarMap};
+        use crate::listings::{ch02::create_dataloader_v1, ch04::Config};
         use std::fs;
         use tiktoken_rs::get_bpe_from_model;
 
@@ -177,7 +175,7 @@ impl Example for EG03 {
         let total_characters = text_data.len();
         let tokenizer = get_bpe_from_model("gpt2").unwrap();
         let total_tokens = tokenizer
-            .encode_with_special_tokens(&text_data.as_str())
+            .encode_with_special_tokens(text_data.as_str())
             .len();
         println!("Characters: {:?}", total_characters);
         println!("Tokens: {:?}", total_tokens);
@@ -187,6 +185,29 @@ impl Example for EG03 {
         let split_idx = (train_ratio * text_data.len() as f32) as usize;
         let train_data = &text_data[..split_idx];
         let val_data = &text_data[split_idx..];
+
+        // build train and val GPTDatasetV1 and batchers
+        let mut cfg = Config::gpt2_124m();
+        cfg.context_length = 256_usize;
+
+        let batch_size = 2_usize;
+        let max_length = cfg.context_length;
+        let stride = cfg.context_length;
+
+        let (_train_dataset, mut train_loader) =
+            create_dataloader_v1(train_data, batch_size, max_length, stride, true, true);
+        let (_val_dataset, mut val_loader) =
+            create_dataloader_v1(val_data, batch_size, max_length, stride, false, false);
+
+        println!("Train loader:");
+        while let Some(Ok((x, y))) = train_loader.next() {
+            println!("{:?}, {:?}", x.shape(), y.shape())
+        }
+
+        println!("Valdiation loader:");
+        while let Some(Ok((x, y))) = val_loader.next() {
+            println!("{:?}, {:?}", x.shape(), y.shape())
+        }
     }
 }
 
