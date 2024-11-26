@@ -139,12 +139,21 @@ impl GPTDatasetV1 {
         let mut input_ids: Vec<Vec<u32>> = Vec::default();
         let mut target_ids: Vec<Vec<u32>> = Vec::default();
         // get input_ids and target_ids
-        for i in (0..token_ids.len() - max_length).step_by(stride) {
+        let mut i = 0_usize;
+
+        while i + max_length < token_ids.len() {
             let input_chunk = &token_ids[i..(i + max_length)];
             let target_chunk = &token_ids[(i + 1_usize)..(i + max_length + 1_usize)];
             input_ids.push(input_chunk.to_vec());
             target_ids.push(target_chunk.to_vec());
+            i += stride;
         }
+
+        // get last chunk
+        let input_chunk = &token_ids[i..token_ids.len() - 1];
+        let target_chunk = &token_ids[(i + 1_usize)..];
+        input_ids.push(input_chunk.to_vec());
+        target_ids.push(target_chunk.to_vec());
 
         let dataset_ = GPTDatasetV1_ {
             input_ids,
@@ -335,7 +344,7 @@ mod tests {
 
         for ix in 1..dataset.input_ids.len() {
             // test max length per input
-            assert_eq!(dataset.input_ids[ix].len(), max_length);
+            assert!(dataset.input_ids[ix].len() <= max_length);
             // test stride alignments
             assert_eq!(dataset.input_ids[ix][0], token_ids[ix * stride]);
         }
@@ -354,8 +363,8 @@ mod tests {
             let this_inputs_vec: Vec<u32> = this_inputs.to_vec1::<u32>().unwrap();
             let this_targets_vec: Vec<u32> = this_targets.to_vec1::<u32>().unwrap();
 
-            assert_eq!(this_inputs.shape().dims()[0], max_length);
-            assert_eq!(this_targets.shape().dims()[0], max_length);
+            assert!(this_inputs.shape().dims()[0] <= max_length);
+            assert!(this_targets.shape().dims()[0] <= max_length);
 
             for (idx, token_id) in this_inputs_vec.iter().enumerate() {
                 assert_eq!(*token_id, dataset.input_ids[count][idx]);
