@@ -20,6 +20,24 @@ pub fn token_ids_to_text(token_ids: Tensor, tokenizer: &CoreBPE) -> anyhow::Resu
     tokenizer.decode(flat.to_vec1::<u32>()?)
 }
 
+pub fn calc_loss_batch(
+    input_batch: &Tensor,
+    target_batch: &Tensor,
+    model: &GPTModel,
+    device: &Device,
+) -> Result<Tensor> {
+    let input_batch = input_batch.to_device(device)?;
+    let target_batch = target_batch.to_device(device)?;
+    let logits = model.forward(&input_batch)?;
+
+    // flatten
+    let logits_flat = logits.flatten(0, 1)?;
+    let targets_flat = target_batch.flatten_all()?;
+
+    let loss = candle_nn::loss::cross_entropy(&logits_flat, &targets_flat)?;
+    Ok(loss)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -44,22 +62,4 @@ mod tests {
         let decoded_text = token_ids_to_text(token_ids, &tokenizer).unwrap();
         assert_eq!(decoded_text, txt);
     }
-}
-
-pub fn calc_loss_batch(
-    input_batch: &Tensor,
-    target_batch: &Tensor,
-    model: &GPTModel,
-    device: &Device,
-) -> Result<Tensor> {
-    let input_batch = input_batch.to_device(device)?;
-    let target_batch = target_batch.to_device(device)?;
-    let logits = model.forward(&input_batch)?;
-
-    // flatten
-    let logits_flat = logits.flatten(0, 1)?;
-    let targets_flat = target_batch.flatten_all()?;
-
-    let loss = candle_nn::loss::cross_entropy(&logits_flat, &targets_flat)?;
-    Ok(loss)
 }
