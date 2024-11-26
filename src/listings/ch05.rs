@@ -41,7 +41,9 @@ pub fn calc_loss_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use candle_core::Device;
+    use crate::listings::ch04::Config;
+    use candle_core::{DType, Device};
+    use candle_nn::{VarBuilder, VarMap};
     use rstest::*;
     use tiktoken_rs::get_bpe_from_model;
 
@@ -61,5 +63,23 @@ mod tests {
                 .unwrap();
         let decoded_text = token_ids_to_text(token_ids, &tokenizer).unwrap();
         assert_eq!(decoded_text, txt);
+    }
+
+    #[rstest]
+    fn test_calc_loss_batch() {
+        // create model
+        let varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+
+        // create sample inputs
+        let inputs = todo!();
+        let targets = todo!();
+
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device()).unwrap();
+
+        assert_eq!(loss.dims(), &[1_usize]);
     }
 }
