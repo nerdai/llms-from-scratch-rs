@@ -165,7 +165,22 @@ impl Example for EG03 {
     }
 
     fn main(&self) {
-        todo!()
+        use crate::listings::ch02::create_dataloader_v1;
+        use candle_core::{DType, Tensor};
+        use candle_nn::{embedding, VarBuilder, VarMap};
+        use std::fs;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // load the verdict short story and compute stats
+        let text_data =
+            fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
+        let total_characters = text_data.len();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let total_tokens = tokenizer
+            .encode_with_special_tokens(&text_data.as_str())
+            .len();
+        println!("Characters: {:?}", total_characters);
+        println!("Tokens: {:?}", total_tokens);
     }
 }
 
