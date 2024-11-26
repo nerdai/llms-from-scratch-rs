@@ -2,7 +2,6 @@ use candle_core::{Device, Result, Tensor};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use fancy_regex::{Captures, Regex};
 use rand::{seq::SliceRandom, thread_rng};
-use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
 use tiktoken_rs::CoreBPE;
@@ -140,8 +139,7 @@ impl GPTDatasetV1 {
         let mut input_ids: Vec<Vec<u32>> = Vec::default();
         let mut target_ids: Vec<Vec<u32>> = Vec::default();
         // get input_ids and target_ids
-        let upper = cmp::max(0_isize, token_ids.len() as isize - max_length as isize) as usize;
-        for i in (0..upper).step_by(stride) {
+        for i in (0..token_ids.len() - max_length).step_by(stride) {
             let input_chunk = &token_ids[i..(i + max_length)];
             let target_chunk = &token_ids[(i + 1_usize)..(i + max_length + 1_usize)];
             input_ids.push(input_chunk.to_vec());
