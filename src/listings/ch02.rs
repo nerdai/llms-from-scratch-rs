@@ -229,12 +229,14 @@ pub fn create_dataloader_v1(
     max_length: usize,
     stride: usize,
     shuffle: bool,
-    _drop_last: bool,
+    drop_last: bool,
 ) -> (GPTDatasetV1, Batcher<IterResult2<GPTDatasetIter>>) {
     let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
     let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
     let iter = GPTDatasetIter::new(dataset.clone(), shuffle);
-    let batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
+    let batch_iter = Batcher::new_r2(iter)
+        .batch_size(batch_size)
+        .return_last_incomplete_batch(drop_last);
     (dataset, batch_iter)
 }
 
