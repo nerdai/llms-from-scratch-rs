@@ -152,6 +152,65 @@ impl Example for EG02 {
     }
 }
 
+/// Example 05.03
+pub struct EG03;
+
+impl Example for EG03 {
+    fn description(&self) -> String {
+        String::from("Split text into train and validation datasets and loaders.")
+    }
+
+    fn page_source(&self) -> usize {
+        141_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::{ch02::create_dataloader_v1, ch04::Config};
+        use std::fs;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // load the verdict short story and compute stats
+        let text_data =
+            fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
+        let total_characters = text_data.len();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let total_tokens = tokenizer
+            .encode_with_special_tokens(text_data.as_str())
+            .len();
+        println!("Characters: {:?}", total_characters);
+        println!("Tokens: {:?}", total_tokens);
+
+        // establish train and val data
+        let train_ratio = 0.90_f32;
+        let split_idx = (train_ratio * text_data.len() as f32) as usize;
+        let train_data = &text_data[..split_idx];
+        let val_data = &text_data[split_idx..];
+
+        // build train and val GPTDatasetV1 and batchers
+        let mut cfg = Config::gpt2_124m();
+        cfg.context_length = 256_usize;
+
+        let batch_size = 2_usize;
+        let max_length = cfg.context_length;
+        let stride = cfg.context_length;
+
+        let (_train_dataset, mut train_loader) =
+            create_dataloader_v1(train_data, batch_size, max_length, stride, true, true);
+        let (_val_dataset, mut val_loader) =
+            create_dataloader_v1(val_data, batch_size, max_length, stride, false, false);
+
+        println!("Train loader:");
+        while let Some(Ok((x, y))) = train_loader.next() {
+            println!("{:?}, {:?}", x.shape(), y.shape())
+        }
+
+        println!("Valdiation loader:");
+        while let Some(Ok((x, y))) = val_loader.next() {
+            println!("{:?}, {:?}", x.shape(), y.shape())
+        }
+    }
+}
+
 mod addons {
     use candle_core::{Device, IndexOp, Result, Tensor};
 
