@@ -165,16 +165,18 @@ impl Example for EG03 {
     }
 
     fn main(&self) {
-        let (_train_dataset, mut train_loader, _val_dataset, mut val_loader) =
-            addons::get_train_val_data_loaders(true);
+        let (train_loader, val_loader) = addons::get_train_val_data_loaders(true);
+
+        let mut train_batcher = train_loader.batcher();
+        let mut val_batcher = val_loader.batcher();
 
         println!("Train loader:");
-        while let Some(Ok((x, y))) = train_loader.next() {
+        while let Some(Ok((x, y))) = train_batcher.next() {
             println!("{:?}, {:?}", x.shape(), y.shape())
         }
 
         println!("Valdiation loader:");
-        while let Some(Ok((x, y))) = val_loader.next() {
+        while let Some(Ok((x, y))) = val_batcher.next() {
             println!("{:?}, {:?}", x.shape(), y.shape())
         }
     }
@@ -208,12 +210,11 @@ impl Example for EG04 {
         let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
 
         // build train and val loaders with utility function from addons module
-        let (_train_dataset, mut train_loader, _val_dataset, mut val_loader) =
-            addons::get_train_val_data_loaders(false);
+        let (train_loader, val_loader) = addons::get_train_val_data_loaders(false);
 
         // compute train and val loss
-        let train_loss = calc_loss_loader(&mut train_loader, &model, vb.device(), None).unwrap();
-        let val_loss = calc_loss_loader(&mut val_loader, &model, vb.device(), None).unwrap();
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), None).unwrap();
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), None).unwrap();
 
         println!("Training loss {:?}", train_loss);
         println!("Validation loss {:?}", val_loss);
@@ -221,7 +222,7 @@ impl Example for EG04 {
 }
 
 mod addons {
-    use crate::listings::ch02::{GPTDataLoader, GPTDatasetV1};
+    use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
 
     pub fn get_target_token_probas_helper(
@@ -243,9 +244,7 @@ mod addons {
         Tensor::from_vec(target_probas_1, target_tokens_1.len(), dev)
     }
 
-    pub fn get_train_val_data_loaders(
-        verbose: bool,
-    ) -> (GPTDatasetV1, GPTDataLoader, GPTDatasetV1, GPTDataLoader) {
+    pub fn get_train_val_data_loaders(verbose: bool) -> (GPTDataLoader, GPTDataLoader) {
         use crate::listings::{ch02::create_dataloader_v1, ch04::Config};
         use std::fs;
         use tiktoken_rs::get_bpe_from_model;
@@ -277,11 +276,11 @@ mod addons {
         let max_length = cfg.context_length;
         let stride = cfg.context_length;
 
-        let (train_dataset, train_loader) =
+        let train_loader =
             create_dataloader_v1(train_data, batch_size, max_length, stride, true, true);
-        let (val_dataset, val_loader) =
+        let val_loader =
             create_dataloader_v1(val_data, batch_size, max_length, stride, false, false);
 
-        (train_dataset, train_loader, val_dataset, val_loader)
+        (train_loader, val_loader)
     }
 }

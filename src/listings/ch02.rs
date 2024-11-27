@@ -214,7 +214,31 @@ impl Iterator for GPTDatasetIter {
     }
 }
 
-pub type GPTDataLoader = Batcher<IterResult2<GPTDatasetIter>>;
+pub type GPTDataBatcher = Batcher<IterResult2<GPTDatasetIter>>;
+pub struct GPTDataLoader {
+    dataset: GPTDatasetV1,
+    batch_size: usize,
+    shuffle: bool,
+    drop_last: bool,
+}
+
+impl GPTDataLoader {
+    pub fn new(dataset: GPTDatasetV1, batch_size: usize, shuffle: bool, drop_last: bool) -> Self {
+        Self {
+            dataset,
+            batch_size,
+            shuffle,
+            drop_last,
+        }
+    }
+
+    pub fn batcher(&self) -> GPTDataBatcher {
+        let iter = GPTDatasetIter::new(self.dataset.clone(), self.shuffle);
+        Batcher::new_r2(iter)
+            .batch_size(self.batch_size)
+            .return_last_incomplete_batch(self.drop_last)
+    }
+}
 
 pub fn create_dataloader_v1(
     txt: &str,
@@ -223,14 +247,10 @@ pub fn create_dataloader_v1(
     stride: usize,
     shuffle: bool,
     drop_last: bool,
-) -> (GPTDatasetV1, GPTDataLoader) {
+) -> GPTDataLoader {
     let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
     let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
-    let iter = GPTDatasetIter::new(dataset.clone(), shuffle);
-    let batch_iter = Batcher::new_r2(iter)
-        .batch_size(batch_size)
-        .return_last_incomplete_batch(drop_last);
-    (dataset, batch_iter)
+    GPTDataLoader::new(dataset, batch_size, shuffle, drop_last)
 }
 
 #[cfg(test)]
@@ -397,10 +417,11 @@ mod tests {
         let max_length = 3_usize;
         let shuffle = false;
         let drop_last = false; // unused
-        let (_dataset, mut batch_iter) =
+        let data_loader =
             create_dataloader_v1(txt, batch_size, max_length, stride, shuffle, drop_last);
 
-        match batch_iter.next() {
+        let mut batcher = data_loader.batcher();
+        match batcher.next() {
             Some(Ok((inputs, targets))) => {
                 assert_eq!(inputs.dims(), targets.dims());
                 assert_eq!(inputs.dims()[0], batch_size);

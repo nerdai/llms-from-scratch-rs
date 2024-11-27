@@ -40,7 +40,7 @@ pub fn calc_loss_batch(
 
 /// Listing 5.2
 pub fn calc_loss_loader(
-    data_loader: &mut GPTDataLoader,
+    data_loader: &GPTDataLoader,
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
@@ -48,9 +48,11 @@ pub fn calc_loss_loader(
     // todo: ensure these calcs are done without gradient tracking
     let mut total_loss = 0_f32;
     let mut count = 0_usize;
+
+    let mut data_batcher = data_loader.batcher();
     match num_batches {
         None => {
-            while let Some(Ok((input_batch, target_batch))) = data_loader.next() {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
                 let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
@@ -58,7 +60,7 @@ pub fn calc_loss_loader(
             Ok(total_loss / count as f32)
         }
         Some(n) => {
-            while let Some(Ok((input_batch, target_batch))) = data_loader.next() {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
                 if count > n {
                     break;
                 }
@@ -84,8 +86,20 @@ pub fn train_model_simple<T: Optimizer>(
     eval_iter: usize,
     start_context: &str,
     tokenizer: CoreBPE,
-) -> (Vec<f32>, Vec<f32>, Vec<u32>) {
-    todo!()
+) -> Result<(Vec<f32>, Vec<f32>, Vec<u32>)> {
+    // retvals
+    let train_losses: Vec<f32> = vec![];
+    let val_losses: Vec<f32> = vec![];
+    let track_tokens_seen: Vec<u32> = vec![];
+
+    let (tokens_seen, global_step) = (0u32, 0usize);
+
+    for epoch in 0..num_epochs {
+        let mut train_batcher = train_loader.batcher();
+        while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {}
+    }
+
+    Ok((train_losses, val_losses, track_tokens_seen))
 }
 
 #[cfg(test)]
