@@ -75,11 +75,10 @@ mod tests {
         let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
 
         // create sample inputs
-        let inputs = todo!();
-        let targets = todo!();
+        let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device()).unwrap();
+        let targets = Tensor::new(&[[1_u32, 2, 3], [4, 5, 9]], vb.device()).unwrap();
 
         let loss = calc_loss_batch(&inputs, &targets, &model, vb.device()).unwrap();
-
-        assert_eq!(loss.dims(), &[1_usize]);
+        assert_eq!(loss.elem_count(), 1);
     }
 }
