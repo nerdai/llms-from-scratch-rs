@@ -165,39 +165,8 @@ impl Example for EG03 {
     }
 
     fn main(&self) {
-        use crate::listings::{ch02::create_dataloader_v1, ch04::Config};
-        use std::fs;
-        use tiktoken_rs::get_bpe_from_model;
-
-        // load the verdict short story and compute stats
-        let text_data =
-            fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
-        let total_characters = text_data.len();
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
-        let total_tokens = tokenizer
-            .encode_with_special_tokens(text_data.as_str())
-            .len();
-        println!("Characters: {:?}", total_characters);
-        println!("Tokens: {:?}", total_tokens);
-
-        // establish train and val data
-        let train_ratio = 0.90_f32;
-        let split_idx = (train_ratio * text_data.len() as f32) as usize;
-        let train_data = &text_data[..split_idx];
-        let val_data = &text_data[split_idx..];
-
-        // build train and val GPTDatasetV1 and batchers
-        let mut cfg = Config::gpt2_124m();
-        cfg.context_length = 256_usize;
-
-        let batch_size = 2_usize;
-        let max_length = cfg.context_length;
-        let stride = cfg.context_length;
-
-        let (_train_dataset, mut train_loader) =
-            create_dataloader_v1(train_data, batch_size, max_length, stride, true, true);
-        let (_val_dataset, mut val_loader) =
-            create_dataloader_v1(val_data, batch_size, max_length, stride, false, false);
+        let (_train_dataset, mut train_loader, _val_dataset, mut val_loader) =
+            addons::get_train_val_data_loaders(true);
 
         println!("Train loader:");
         while let Some(Ok((x, y))) = train_loader.next() {
@@ -212,7 +181,9 @@ impl Example for EG03 {
 }
 
 mod addons {
+    use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
     use candle_core::{Device, IndexOp, Result, Tensor};
+    use candle_datasets::{batcher::IterResult2, Batcher};
 
     pub fn get_target_token_probas_helper(
         text_idx: usize,
@@ -231,5 +202,52 @@ mod addons {
             target_probas_1.push(target_proba);
         }
         Tensor::from_vec(target_probas_1, target_tokens_1.len(), dev)
+    }
+
+    pub fn get_train_val_data_loaders(
+        verbose: bool,
+    ) -> (
+        GPTDatasetV1,
+        Batcher<IterResult2<GPTDatasetIter>>,
+        GPTDatasetV1,
+        Batcher<IterResult2<GPTDatasetIter>>,
+    ) {
+        use crate::listings::{ch02::create_dataloader_v1, ch04::Config};
+        use std::fs;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // load the verdict short story and compute stats
+        let text_data =
+            fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
+        let total_characters = text_data.len();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let total_tokens = tokenizer
+            .encode_with_special_tokens(text_data.as_str())
+            .len();
+        if verbose {
+            println!("Characters: {:?}", total_characters);
+            println!("Tokens: {:?}", total_tokens);
+        }
+
+        // establish train and val data
+        let train_ratio = 0.90_f32;
+        let split_idx = (train_ratio * text_data.len() as f32) as usize;
+        let train_data = &text_data[..split_idx];
+        let val_data = &text_data[split_idx..];
+
+        // build train and val GPTDatasetV1 and batchers
+        let mut cfg = Config::gpt2_124m();
+        cfg.context_length = 256_usize;
+
+        let batch_size = 2_usize;
+        let max_length = cfg.context_length;
+        let stride = cfg.context_length;
+
+        let (train_dataset, train_loader) =
+            create_dataloader_v1(train_data, batch_size, max_length, stride, true, true);
+        let (val_dataset, val_loader) =
+            create_dataloader_v1(val_data, batch_size, max_length, stride, false, false);
+
+        (train_dataset, train_loader, val_dataset, val_loader)
     }
 }
