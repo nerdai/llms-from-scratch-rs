@@ -180,6 +180,46 @@ impl Example for EG03 {
     }
 }
 
+/// Example 05.04
+pub struct EG04;
+
+impl Example for EG04 {
+    fn description(&self) -> String {
+        String::from("Example usage of `calc_loss_loader`.")
+    }
+
+    fn page_source(&self) -> usize {
+        145_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch05::calc_loss_loader,
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // construct model
+        let varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let cfg = Config::gpt2_124m();
+        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+
+        // build train and val loaders with utility function from addons module
+        let (_train_dataset, mut train_loader, _val_dataset, mut val_loader) =
+            addons::get_train_val_data_loaders(false);
+
+        // compute train and val loss
+        let train_loss = calc_loss_loader(&mut train_loader, &model, vb.device(), None).unwrap();
+        let val_loss = calc_loss_loader(&mut val_loader, &model, vb.device(), None).unwrap();
+
+        println!("Training loss {:?}", train_loss);
+        println!("Validation loss {:?}", val_loss);
+    }
+}
+
 mod addons {
     use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
     use candle_core::{Device, IndexOp, Result, Tensor};
