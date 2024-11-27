@@ -35,7 +35,7 @@ impl Example for EG01 {
         // generate next tokens with model
         let max_new_tokens = 10_usize;
         let token_ids = generate_text_simple(
-            model,
+            &model,
             text_to_token_ids(start_context, &tokenizer, vb.device()).unwrap(),
             max_new_tokens,
             cfg.context_length,

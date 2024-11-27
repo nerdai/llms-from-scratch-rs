@@ -418,6 +418,10 @@ impl GPTModel {
             out_head,
         })
     }
+
+    pub fn pos_emb(&self) -> &Embedding {
+        &self.pos_emb
+    }
 }
 
 impl Module for GPTModel {
@@ -439,7 +443,7 @@ impl Module for GPTModel {
 
 /// Listing 4.8
 pub fn generate_text_simple(
-    model: GPTModel,
+    model: &GPTModel,
     idx: Tensor,
     max_new_tokens: usize,
     context_size: usize,
@@ -704,7 +708,7 @@ mod tests {
         let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
         let (context_size, max_new_tokens) = (2_usize, 3_usize);
         let idx =
-            generate_text_simple(model, batch_token_ids, max_new_tokens, context_size).unwrap();
+            generate_text_simple(&model, batch_token_ids, max_new_tokens, context_size).unwrap();
 
         assert_eq!(idx.dims(), &[batch_size, seq_len + max_new_tokens]);
     }

@@ -1,3 +1,4 @@
+use super::ch04::generate_text_simple;
 use super::{ch02::GPTDataLoader, ch04::GPTModel};
 use candle_core::Device;
 use candle_core::{Module, Result, Tensor};
@@ -86,11 +87,11 @@ pub fn train_model_simple<T: Optimizer>(
     eval_iter: usize,
     start_context: &str,
     tokenizer: &CoreBPE,
-) -> Result<(Vec<f32>, Vec<f32>, Vec<u32>)> {
+) -> Result<(Vec<f32>, Vec<f32>, Vec<usize>)> {
     // retvals
-    let train_losses: Vec<f32> = vec![];
-    let val_losses: Vec<f32> = vec![];
-    let track_tokens_seen: Vec<u32> = vec![];
+    let mut train_losses: Vec<f32> = vec![];
+    let mut val_losses: Vec<f32> = vec![];
+    let mut track_tokens_seen: Vec<usize> = vec![];
 
     let (mut tokens_seen, mut global_step) = (0usize, 0_usize);
 
@@ -104,7 +105,7 @@ pub fn train_model_simple<T: Optimizer>(
 
             if (global_step - 1) & eval_freq == 0 {
                 let (train_loss, val_loss) =
-                    evaluate_model(model, train_loader, val_loader, device, eval_iter);
+                    evaluate_model(model, train_loader, val_loader, device, eval_iter)?;
                 train_losses.push(train_loss);
                 val_losses.push(val_loss);
                 track_tokens_seen.push(tokens_seen);
@@ -119,11 +120,37 @@ pub fn train_model_simple<T: Optimizer>(
                 );
             }
 
-            generate_and_print_sample(model, tokenizer, device, start_context)
+            generate_and_print_sample(model, tokenizer, device, start_context)?
         }
     }
 
     Ok((train_losses, val_losses, track_tokens_seen))
+}
+
+pub fn evaluate_model(
+    model: &GPTModel,
+    train_loader: &GPTDataLoader,
+    val_loader: &GPTDataLoader,
+    device: &Device,
+    eval_iter: usize,
+) -> Result<(f32, f32)> {
+    let train_loss = calc_loss_loader(train_loader, model, device, Some(eval_iter))?;
+    let val_loss = calc_loss_loader(val_loader, model, device, Some(eval_iter))?;
+    Ok((train_loss, val_loss))
+}
+
+pub fn generate_and_print_sample(
+    model: &GPTModel,
+    tokenizer: &CoreBPE,
+    device: &Device,
+    start_context: &str,
+) -> Result<()> {
+    let context_size = model.pos_emb().embeddings().dims()[0];
+    let encoded = text_to_token_ids(start_context, tokenizer, device)?;
+    let token_ids = generate_text_simple(model, encoded, 50, context_size)?;
+    let decoded_text = token_ids_to_text(token_ids, tokenizer).unwrap();
+    println!("{}", decoded_text.replace("\n", " "));
+    Ok(())
 }
 
 #[cfg(test)]
