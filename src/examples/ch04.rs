@@ -331,12 +331,7 @@ impl Example for EG07 {
         // get total number of params from the VarMap (todo: turn this into a util)
         let mut total_params = 0_usize;
         for t in varmap.all_vars().iter() {
-            let this_tensor_params = match *t.dims() {
-                [d1] => d1,
-                [d1, d2] => d1 * d2,
-                _ => panic!("Variable with more than 2 dimensions."),
-            };
-            total_params += this_tensor_params;
+            total_params += t.elem_count();
         }
         println!("Total number of parameters: {}", total_params);
 
