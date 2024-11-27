@@ -221,9 +221,8 @@ impl Example for EG04 {
 }
 
 mod addons {
-    use crate::listings::ch02::{GPTDatasetIter, GPTDatasetV1};
+    use crate::listings::ch02::{GPTDataLoader, GPTDatasetV1};
     use candle_core::{Device, IndexOp, Result, Tensor};
-    use candle_datasets::{batcher::IterResult2, Batcher};
 
     pub fn get_target_token_probas_helper(
         text_idx: usize,
@@ -246,12 +245,7 @@ mod addons {
 
     pub fn get_train_val_data_loaders(
         verbose: bool,
-    ) -> (
-        GPTDatasetV1,
-        Batcher<IterResult2<GPTDatasetIter>>,
-        GPTDatasetV1,
-        Batcher<IterResult2<GPTDatasetIter>>,
-    ) {
+    ) -> (GPTDatasetV1, GPTDataLoader, GPTDatasetV1, GPTDataLoader) {
         use crate::listings::{ch02::create_dataloader_v1, ch04::Config};
         use std::fs;
         use tiktoken_rs::get_bpe_from_model;

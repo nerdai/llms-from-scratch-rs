@@ -1,10 +1,8 @@
+use super::{ch02::GPTDataLoader, ch04::GPTModel};
 use candle_core::Device;
 use candle_core::{Module, Result, Tensor};
-use candle_datasets::{batcher::IterResult2, Batcher};
 use std::collections::HashSet;
 use tiktoken_rs::CoreBPE;
-
-use super::{ch02::GPTDatasetIter, ch04::GPTModel};
 
 /// Listing 5.1
 pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Result<Tensor> {
@@ -41,7 +39,7 @@ pub fn calc_loss_batch(
 
 /// Listing 5.2
 pub fn calc_loss_loader(
-    data_loader: &mut Batcher<IterResult2<GPTDatasetIter>>,
+    data_loader: &mut GPTDataLoader,
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
@@ -71,6 +69,7 @@ pub fn calc_loss_loader(
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

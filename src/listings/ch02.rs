@@ -214,6 +214,8 @@ impl Iterator for GPTDatasetIter {
     }
 }
 
+pub type GPTDataLoader = Batcher<IterResult2<GPTDatasetIter>>;
+
 pub fn create_dataloader_v1(
     txt: &str,
     batch_size: usize,
@@ -221,7 +223,7 @@ pub fn create_dataloader_v1(
     stride: usize,
     shuffle: bool,
     drop_last: bool,
-) -> (GPTDatasetV1, Batcher<IterResult2<GPTDatasetIter>>) {
+) -> (GPTDatasetV1, GPTDataLoader) {
     let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
     let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
     let iter = GPTDatasetIter::new(dataset.clone(), shuffle);
