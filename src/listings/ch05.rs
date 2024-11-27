@@ -46,6 +46,7 @@ pub fn calc_loss_loader(
     device: &Device,
     num_batches: Option<usize>,
 ) -> Result<f32> {
+    // todo: ensure these calcs are done without gradient tracking
     let mut total_loss = 0_f32;
     let mut count = 0_usize;
     match num_batches {
