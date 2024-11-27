@@ -1,9 +1,10 @@
 use candle_core::Device;
 use candle_core::{Module, Result, Tensor};
+use candle_datasets::{batcher::IterResult2, Batcher};
 use std::collections::HashSet;
 use tiktoken_rs::CoreBPE;
 
-use super::ch04::GPTModel;
+use super::{ch02::GPTDatasetIter, ch04::GPTModel};
 
 /// Listing 5.1
 pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Result<Tensor> {
@@ -38,6 +39,37 @@ pub fn calc_loss_batch(
     Ok(loss)
 }
 
+/// Listing 5.2
+pub fn calc_loss_loader(
+    data_loader: &mut Batcher<IterResult2<GPTDatasetIter>>,
+    model: &GPTModel,
+    device: &Device,
+    num_batches: Option<usize>,
+) -> Result<f32> {
+    let mut total_loss = 0_f32;
+    let mut count = 0_usize;
+    match num_batches {
+        None => {
+            while let Some(Ok((input_batch, target_batch))) = data_loader.next() {
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+                total_loss += loss.to_scalar::<f32>()?;
+                count += 1_usize;
+            }
+            Ok(total_loss / count as f32)
+        }
+        Some(n) => {
+            while let Some(Ok((input_batch, target_batch))) = data_loader.next() {
+                if count > n {
+                    break;
+                }
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+                total_loss += loss.to_scalar::<f32>()?;
+                count += 1_usize;
+            }
+            Ok(total_loss / n as f32)
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,8 +109,8 @@ mod tests {
         // create sample inputs
         let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device()).unwrap();
         let targets = Tensor::new(&[[1_u32, 2, 3], [4, 5, 9]], vb.device()).unwrap();
-
         let loss = calc_loss_batch(&inputs, &targets, &model, vb.device()).unwrap();
+
         assert_eq!(loss.elem_count(), 1);
     }
 }
