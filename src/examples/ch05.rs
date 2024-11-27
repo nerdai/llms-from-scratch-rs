@@ -221,6 +221,23 @@ impl Example for EG04 {
     }
 }
 
+/// Example 05.05
+pub struct EG05;
+
+impl Example for EG05 {
+    fn description(&self) -> String {
+        String::from("Sample usage of `train_model_simple` function.")
+    }
+
+    fn page_source(&self) -> usize {
+        149_usize
+    }
+
+    fn main(&self) {
+        todo!()
+    }
+}
+
 mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
