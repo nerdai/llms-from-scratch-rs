@@ -1,5 +1,7 @@
-use super::ch04::generate_text_simple;
-use super::{ch02::GPTDataLoader, ch04::GPTModel};
+use super::{
+    ch02::GPTDataLoader,
+    ch04::{generate_text_simple, GPTModel},
+};
 use candle_core::Device;
 use candle_core::{Module, Result, Tensor};
 use candle_nn::Optimizer;
