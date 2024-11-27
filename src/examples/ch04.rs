@@ -390,7 +390,8 @@ impl Example for EG08 {
         let model = GPTModel::new(cfg, vb).unwrap();
 
         // run inference
-        let out = generate_text_simple(model, encoded_tensor, 6_usize, cfg.context_length).unwrap();
+        let out =
+            generate_text_simple(&model, encoded_tensor, 6_usize, cfg.context_length).unwrap();
         println!("Output: {:?}", out.to_vec2::<u32>());
         println!("Output length: {}", out.dims()[1]);
 

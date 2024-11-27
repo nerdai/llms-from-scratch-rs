@@ -38,7 +38,7 @@ impl Exercise for X2P2 {
         let shuffle = false;
         let drop_last = false;
         let batch_size = 2_usize;
-        let (_dataset, mut batch_iter) = create_dataloader_v1(
+        let data_loader = create_dataloader_v1(
             &raw_text[..],
             batch_size,
             max_length,
@@ -47,6 +47,7 @@ impl Exercise for X2P2 {
             drop_last,
         );
 
+        let mut batch_iter = data_loader.batcher();
         match batch_iter.next() {
             Some(Ok((inputs, targets))) => {
                 println!(

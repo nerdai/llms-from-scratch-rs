@@ -1,10 +1,12 @@
+use super::{
+    ch02::GPTDataLoader,
+    ch04::{generate_text_simple, GPTModel},
+};
 use candle_core::Device;
 use candle_core::{Module, Result, Tensor};
-use candle_datasets::{batcher::IterResult2, Batcher};
+use candle_nn::Optimizer;
 use std::collections::HashSet;
 use tiktoken_rs::CoreBPE;
-
-use super::{ch02::GPTDatasetIter, ch04::GPTModel};
 
 /// Listing 5.1
 pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Result<Tensor> {
@@ -41,7 +43,7 @@ pub fn calc_loss_batch(
 
 /// Listing 5.2
 pub fn calc_loss_loader(
-    data_loader: &mut Batcher<IterResult2<GPTDatasetIter>>,
+    data_loader: &GPTDataLoader,
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
@@ -49,9 +51,11 @@ pub fn calc_loss_loader(
     // todo: ensure these calcs are done without gradient tracking
     let mut total_loss = 0_f32;
     let mut count = 0_usize;
+
+    let mut data_batcher = data_loader.batcher();
     match num_batches {
         None => {
-            while let Some(Ok((input_batch, target_batch))) = data_loader.next() {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
                 let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
@@ -59,7 +63,7 @@ pub fn calc_loss_loader(
             Ok(total_loss / count as f32)
         }
         Some(n) => {
-            while let Some(Ok((input_batch, target_batch))) = data_loader.next() {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
                 if count > n {
                     break;
                 }
@@ -71,6 +75,86 @@ pub fn calc_loss_loader(
         }
     }
 }
+
+/// Listing 5.3
+#[allow(clippy::too_many_arguments)]
+pub fn train_model_simple<T: Optimizer>(
+    model: &GPTModel,
+    train_loader: &GPTDataLoader,
+    val_loader: &GPTDataLoader,
+    mut optimizer: T,
+    device: &Device,
+    num_epochs: usize,
+    eval_freq: usize,
+    eval_iter: usize,
+    start_context: &str,
+    tokenizer: &CoreBPE,
+) -> Result<(Vec<f32>, Vec<f32>, Vec<usize>)> {
+    // retvals
+    let mut train_losses: Vec<f32> = vec![];
+    let mut val_losses: Vec<f32> = vec![];
+    let mut track_tokens_seen: Vec<usize> = vec![];
+
+    let (mut tokens_seen, mut global_step) = (0usize, 0_usize);
+
+    for epoch in 0..num_epochs {
+        let mut train_batcher = train_loader.batcher();
+        while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
+            let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+            optimizer.backward_step(&loss)?;
+            tokens_seen += input_batch.elem_count();
+            global_step += 1;
+
+            if (global_step - 1) & eval_freq == 0 {
+                let (train_loss, val_loss) =
+                    evaluate_model(model, train_loader, val_loader, device, eval_iter)?;
+                train_losses.push(train_loss);
+                val_losses.push(val_loss);
+                track_tokens_seen.push(tokens_seen);
+                println!(
+                    "Ep {} (Step {}) \
+                    Train loss: {}, \
+                    Val loss: {}",
+                    epoch + 1,
+                    global_step - 1,
+                    train_loss,
+                    val_loss
+                );
+            }
+
+            generate_and_print_sample(model, tokenizer, device, start_context)?
+        }
+    }
+
+    Ok((train_losses, val_losses, track_tokens_seen))
+}
+
+pub fn evaluate_model(
+    model: &GPTModel,
+    train_loader: &GPTDataLoader,
+    val_loader: &GPTDataLoader,
+    device: &Device,
+    eval_iter: usize,
+) -> Result<(f32, f32)> {
+    let train_loss = calc_loss_loader(train_loader, model, device, Some(eval_iter))?;
+    let val_loss = calc_loss_loader(val_loader, model, device, Some(eval_iter))?;
+    Ok((train_loss, val_loss))
+}
+
+pub fn generate_and_print_sample(
+    model: &GPTModel,
+    tokenizer: &CoreBPE,
+    device: &Device,
+    start_context: &str,
+) -> Result<()> {
+    let context_size = model.pos_emb().embeddings().dims()[0];
+    let encoded = text_to_token_ids(start_context, tokenizer, device)?;
+    let token_ids = generate_text_simple(model, encoded, 50, context_size)?;
+    let decoded_text = token_ids_to_text(token_ids, tokenizer).unwrap();
+    println!("{}", decoded_text.replace("\n", " "));
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
