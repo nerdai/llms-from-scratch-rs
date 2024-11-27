@@ -1,6 +1,7 @@
 use super::{ch02::GPTDataLoader, ch04::GPTModel};
 use candle_core::Device;
 use candle_core::{Module, Result, Tensor};
+use candle_nn::Optimizer;
 use std::collections::HashSet;
 use tiktoken_rs::CoreBPE;
 
@@ -68,6 +69,23 @@ pub fn calc_loss_loader(
             Ok(total_loss / n as f32)
         }
     }
+}
+
+/// Listing 5.3
+#[allow(unused_variables, clippy::too_many_arguments)]
+pub fn train_model_simple<T: Optimizer>(
+    model: &GPTModel,
+    train_loader: &GPTDataLoader,
+    val_loader: &GPTDataLoader,
+    optimizer: T,
+    device: &Device,
+    num_epochs: usize,
+    eval_freq: usize,
+    eval_iter: usize,
+    start_context: &str,
+    tokenizer: CoreBPE,
+) -> (Vec<f32>, Vec<f32>, Vec<u32>) {
+    todo!()
 }
 
 #[cfg(test)]
