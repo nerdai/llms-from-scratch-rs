@@ -75,7 +75,7 @@ pub fn calc_loss_loader(
 }
 
 /// Listing 5.3
-#[allow(unused_variables, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn train_model_simple<T: Optimizer>(
     model: &GPTModel,
     train_loader: &GPTDataLoader,
