@@ -114,9 +114,4 @@ mod tests {
 
         assert_eq!(loss.elem_count(), 1);
     }
-
-    #[rstest]
-    fn test_calc_loss_loader() {
-        todo!()
-    }
 }
