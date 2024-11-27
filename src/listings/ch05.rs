@@ -79,24 +79,48 @@ pub fn train_model_simple<T: Optimizer>(
     model: &GPTModel,
     train_loader: &GPTDataLoader,
     val_loader: &GPTDataLoader,
-    optimizer: T,
+    mut optimizer: T,
     device: &Device,
     num_epochs: usize,
     eval_freq: usize,
     eval_iter: usize,
     start_context: &str,
-    tokenizer: CoreBPE,
+    tokenizer: &CoreBPE,
 ) -> Result<(Vec<f32>, Vec<f32>, Vec<u32>)> {
     // retvals
     let train_losses: Vec<f32> = vec![];
     let val_losses: Vec<f32> = vec![];
     let track_tokens_seen: Vec<u32> = vec![];
 
-    let (tokens_seen, global_step) = (0u32, 0usize);
+    let (mut tokens_seen, mut global_step) = (0usize, 0_usize);
 
     for epoch in 0..num_epochs {
         let mut train_batcher = train_loader.batcher();
-        while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {}
+        while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
+            let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+            optimizer.backward_step(&loss)?;
+            tokens_seen += input_batch.elem_count();
+            global_step += 1;
+
+            if (global_step - 1) & eval_freq == 0 {
+                let (train_loss, val_loss) =
+                    evaluate_model(model, train_loader, val_loader, device, eval_iter);
+                train_losses.push(train_loss);
+                val_losses.push(val_loss);
+                track_tokens_seen.push(tokens_seen);
+                println!(
+                    "Ep {} (Step {}) \
+                    Train loss: {}, \
+                    Val loss: {}",
+                    epoch + 1,
+                    global_step - 1,
+                    train_loss,
+                    val_loss
+                );
+            }
+
+            generate_and_print_sample(model, tokenizer, device, start_context)
+        }
     }
 
     Ok((train_losses, val_losses, track_tokens_seen))
