@@ -25,10 +25,11 @@ impl Exercise for X4P1 {
         // Count params for ff and mha modules
         let (mut ff_params, mut mha_params) = (0_usize, 0_usize);
         for (var_name, var) in varmap_data.iter() {
+            let num_params = var.elem_count();
             if var_name.starts_with("ff.") {
-                ff_params += addons::get_var_params(var);
+                ff_params += num_params;
             } else if var_name.starts_with("mha.") {
-                mha_params += addons::get_var_params(var);
+                mha_params += num_params;
             }
         }
         println!("Ff number of parameters: {}", ff_params);
@@ -66,12 +67,7 @@ impl Exercise for X4P2 {
             // compute number of params (todo build utility func for this)
             let mut total_params = 0_usize;
             for t in varmap.all_vars().iter() {
-                let this_tensor_params = match *t.dims() {
-                    [d1] => d1,
-                    [d1, d2] => d1 * d2,
-                    _ => panic!("Variable with more than 2 dimensions."),
-                };
-                total_params += this_tensor_params;
+                total_params += t.elem_count();
             }
             println!("{} number of parameters: {}", mdl_name, total_params);
 
@@ -137,16 +133,8 @@ mod addons {
         ch03::MultiHeadAttention,
         ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
     };
-    use candle_core::{Result, Var};
+    use candle_core::Result;
     use candle_nn::{embedding, linear_b, seq, Dropout, VarBuilder};
-
-    pub fn get_var_params(t: &Var) -> usize {
-        match *t.dims() {
-            [d1] => d1,
-            [d1, d2] => d1 * d2,
-            _ => panic!("Variable with more than 2 dimensions."),
-        }
-    }
 
     // For Exercise 4.3
     #[derive(Debug, Clone, Copy)]
