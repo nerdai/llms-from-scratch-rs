@@ -158,9 +158,9 @@ pub fn generate_and_print_sample(
 }
 
 pub fn sample_multinomial(rng: &mut StdRng, prs: &Vec<f32>) -> Result<u32> {
-    let distr = WeightedIndex::new(prs).map_err(candle_core::Error::wrap)?;
-    let next_token = distr.sample(rng) as u32;
-    Ok(next_token)
+    let dist = WeightedIndex::new(prs).map_err(candle_core::Error::wrap)?;
+    let sample = dist.sample(rng) as u32;
+    Ok(sample)
 }
 
 #[cfg(test)]
