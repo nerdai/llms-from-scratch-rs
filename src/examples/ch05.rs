@@ -1,5 +1,3 @@
-use candle_core::Device;
-
 use crate::Example;
 
 /// Example 05.01
@@ -306,36 +304,13 @@ impl Example for EG06 {
 
     #[allow(unused_variables)]
     fn main(&self) {
-        #![allow(clippy::approx_constant)]
         use crate::listings::ch05::{print_sampled_tokens, sample_multinomial};
-        use candle_core::{Tensor, D};
+        use candle_core::D;
         use candle_nn::ops::softmax;
         use rand::{rngs::StdRng, SeedableRng};
-        use std::collections::HashMap;
 
-        let vocab = HashMap::from([
-            ("closer", 0_u32),
-            ("every", 1),
-            ("effort", 2),
-            ("forward", 3),
-            ("inches", 4),
-            ("moves", 5),
-            ("pizza", 6),
-            ("toward", 7),
-            ("you", 8),
-        ]);
-        let inverse_vocab = vocab
-            .iter()
-            .map(|(k, v)| (*v, *k))
-            .collect::<HashMap<u32, &str>>();
-
-        let dev = Device::cuda_if_available(0).unwrap();
-
-        let next_token_logits = Tensor::new(
-            &[4.51_f32, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79],
-            &dev,
-        )
-        .unwrap();
+        let (vocab, inverse_vocab) = addons::get_vocab_and_inversed_vocab();
+        let next_token_logits = addons::get_next_token_logits().unwrap();
 
         let probas = softmax(&next_token_logits, D::Minus1).unwrap();
 
@@ -371,9 +346,10 @@ impl Example for EG06 {
     }
 }
 
-mod addons {
+pub mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
+    use std::collections::HashMap;
 
     pub fn get_target_token_probas_helper(
         text_idx: usize,
@@ -432,5 +408,34 @@ mod addons {
             create_dataloader_v1(val_data, batch_size, max_length, stride, false, false);
 
         (train_loader, val_loader)
+    }
+
+    pub fn get_vocab_and_inversed_vocab() -> (HashMap<&'static str, u32>, HashMap<u32, &'static str>)
+    {
+        let vocab = HashMap::from([
+            ("closer", 0_u32),
+            ("every", 1),
+            ("effort", 2),
+            ("forward", 3),
+            ("inches", 4),
+            ("moves", 5),
+            ("pizza", 6),
+            ("toward", 7),
+            ("you", 8),
+        ]);
+        let inverse_vocab = vocab
+            .iter()
+            .map(|(k, v)| (*v, *k))
+            .collect::<HashMap<u32, &str>>();
+        (vocab, inverse_vocab)
+    }
+
+    pub fn get_next_token_logits() -> Result<Tensor> {
+        #![allow(clippy::approx_constant)]
+        let dev = Device::cuda_if_available(0)?;
+        Tensor::new(
+            &[4.51_f32, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79],
+            &dev,
+        )
     }
 }
