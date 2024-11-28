@@ -259,7 +259,7 @@ impl Example for EG05 {
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 10_usize);
         let (train_loader, val_loader) = addons::get_train_val_data_loaders(false);
         let start_context = "Every effort moves you";
-        let _ = train_model_simple::<AdamW>(
+        let _ = train_model_simple(
             &model,
             &train_loader,
             &val_loader,
