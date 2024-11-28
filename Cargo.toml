@@ -10,6 +10,7 @@ candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.
 candle-datasets = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
 fancy-regex = "0.14.0"
+itertools = "0.13.0"
 phf = { version = "0.11.2", features = ["macros"] }
 rand = "0.8.5"
 rstest = "0.23.0"
