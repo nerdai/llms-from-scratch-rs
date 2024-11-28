@@ -234,7 +234,43 @@ impl Example for EG05 {
     }
 
     fn main(&self) {
-        todo!()
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch05::train_model_simple,
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
+
+        let varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let model = GPTModel::new(Config::gpt2_124m(), vb.pp("model")).unwrap();
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.0004,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 10_usize);
+        let (train_loader, val_loader) = addons::get_train_val_data_loaders(false);
+        let start_context = "Every effort moves you";
+        let _ = train_model_simple::<AdamW>(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context,
+            &tokenizer,
+        );
     }
 }
 
