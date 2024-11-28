@@ -235,8 +235,8 @@ impl Example for EG05 {
 
     fn main(&self) {
         use crate::listings::{
-            ch04::{Config, GPTModel},
-            ch05::train_model_simple,
+            ch04::{generate_text_simple, Config, GPTModel},
+            ch05::{text_to_token_ids, token_ids_to_text, train_model_simple},
         };
         use candle_core::{DType, Device};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
@@ -245,6 +245,7 @@ impl Example for EG05 {
         let varmap = VarMap::new();
         let vb =
             VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let cfg = Config::gpt2_124m();
         let model = GPTModel::new(Config::gpt2_124m(), vb.pp("model")).unwrap();
         let optimizer = AdamW::new(
             varmap.all_vars(),
@@ -271,6 +272,21 @@ impl Example for EG05 {
             start_context,
             &tokenizer,
         );
+
+        // run inference with trained model using deterministic decoding
+        let token_ids = generate_text_simple(
+            &model,
+            text_to_token_ids(start_context, &tokenizer, vb.device()).unwrap(),
+            25,
+            cfg.context_length,
+        )
+        .unwrap();
+
+        // should be the same as the last output generation during training
+        println!(
+            "Output text:\n{:?}",
+            token_ids_to_text(token_ids, &tokenizer)
+        )
     }
 }
 
