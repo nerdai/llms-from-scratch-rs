@@ -290,6 +290,39 @@ impl Example for EG05 {
     }
 }
 
+/// Example 05.06
+pub struct EG06;
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        String::from("Manual temperature scaling and multinomial decoding example.")
+    }
+
+    fn page_source(&self) -> usize {
+        152_usize
+    }
+
+    #[allow(unused_variables)]
+    fn main(&self) {
+        // let vocab = ...;
+        // let inverse_vocab = ...;
+        // let next_token_logits = ...;
+        // let probas = ...;
+
+        // // greedy sampling
+        // let next_token_id = ...;
+        // println!("{:?}", inverse_vocab.get(&next_token_id));
+
+        // // multinomial sampling
+        // let mut rng = StdRng::seed_from_u64(123_u64);
+        // let next_token_id = sample_multinomial(&mut rng, probas).unwrap();
+        // println!("{:?}", inverse_vocab.get(&next_token_id));
+
+        // // generate multinomial random sample
+        todo!()
+    }
+}
+
 mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
