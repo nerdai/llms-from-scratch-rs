@@ -165,14 +165,33 @@ pub fn sample_multinomial(rng: &mut StdRng, prs: &Vec<f32>) -> Result<u32> {
     Ok(sample)
 }
 
-pub fn print_sampled_tokens(probas: &Vec<f32>, inverse_vocab: &HashMap<u32, &str>) -> Result<()> {
+pub fn print_sampled_tokens(
+    probas: &Vec<f32>,
+    inverse_vocab: &HashMap<u32, &str>,
+    with_expected_values: bool,
+) -> Result<()> {
     let mut rng = StdRng::seed_from_u64(123_u64);
-    let sample = (0..1000_usize)
+    let sample_size = 1000_usize;
+    let sample = (0..sample_size)
         .map(|_| sample_multinomial(&mut rng, probas))
         .collect::<Result<Vec<u32>>>()?;
     let sample_ids = sample.into_iter().counts();
+
     for (i, freq) in sample_ids.into_iter() {
-        println!("{:?} x {:?}", freq, inverse_vocab.get(&i));
+        if with_expected_values {
+            let expected_values = probas
+                .iter()
+                .map(|p| p * sample_size as f32)
+                .collect::<Vec<f32>>();
+            println!(
+                "{:?} x {:?} with expected val {:.2}",
+                freq,
+                inverse_vocab.get(&i),
+                expected_values[i as usize]
+            );
+        } else {
+            println!("{:?} x {:?}", freq, inverse_vocab.get(&i));
+        }
     }
     Ok(())
 }
