@@ -332,9 +332,9 @@ impl Example for EG06 {
 
         // temperature scaling
         let temp = 0.1;
-        let scaled_logits = (next_token_logits * temp).unwrap();
+        let scaled_logits = (next_token_logits / temp).unwrap();
         let scaled_probas = softmax(&scaled_logits, D::Minus1).unwrap();
-        let next_token_id = probas.argmax(D::Minus1).unwrap();
+        let next_token_id = scaled_probas.argmax(D::Minus1).unwrap();
         println!(
             "Temp (temp=0.1) scaled multinomial sampling next token: {:?}",
             inverse_vocab.get(&next_token_id.to_scalar::<u32>().unwrap())
