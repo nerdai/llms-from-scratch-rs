@@ -297,7 +297,7 @@ pub struct EG06;
 
 impl Example for EG06 {
     fn description(&self) -> String {
-        String::from("Manual temperature scaling and multinomial decoding example.")
+        String::from("Manual multinomial with/without temperature scaling decoding example.")
     }
 
     fn page_source(&self) -> usize {
@@ -307,7 +307,7 @@ impl Example for EG06 {
     #[allow(unused_variables)]
     fn main(&self) {
         #![allow(clippy::approx_constant)]
-        use crate::listings::ch05::sample_multinomial;
+        use crate::listings::ch05::{print_sampled_tokens, sample_multinomial};
         use candle_core::{Tensor, D};
         use candle_nn::ops::softmax;
         use rand::{rngs::StdRng, SeedableRng};
@@ -355,7 +355,9 @@ impl Example for EG06 {
             inverse_vocab.get(&next_token_id)
         );
 
-        // // generate multinomial random sample
+        // generate multinomial random sample
+        println!("Multinomial sampling conducted 1000 times:");
+        print_sampled_tokens(&probas.to_vec1::<f32>().unwrap(), &inverse_vocab).unwrap();
     }
 }
 
