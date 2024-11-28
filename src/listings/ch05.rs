@@ -64,14 +64,14 @@ pub fn calc_loss_loader(
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                if count > n {
-                    break;
-                }
                 let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
+                if count >= n {
+                    break;
+                }
             }
-            Ok(total_loss / n as f32)
+            Ok(total_loss / std::cmp::min(n, count) as f32)
         }
     }
 }
@@ -103,9 +103,8 @@ pub fn train_model_simple<T: Optimizer>(
             let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
             optimizer.backward_step(&loss)?;
             tokens_seen += input_batch.elem_count();
-            global_step += 1;
 
-            if (global_step - 1) & eval_freq == 0 {
+            if global_step % eval_freq == 0 {
                 let (train_loss, val_loss) =
                     evaluate_model(model, train_loader, val_loader, device, eval_iter)?;
                 train_losses.push(train_loss);
@@ -116,14 +115,14 @@ pub fn train_model_simple<T: Optimizer>(
                     Train loss: {}, \
                     Val loss: {}",
                     epoch + 1,
-                    global_step - 1,
+                    global_step,
                     train_loss,
                     val_loss
                 );
             }
-
-            generate_and_print_sample(model, tokenizer, device, start_context)?
+            global_step += 1;
         }
+        generate_and_print_sample(model, tokenizer, device, start_context)?
     }
 
     Ok((train_losses, val_losses, track_tokens_seen))
