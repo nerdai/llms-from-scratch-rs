@@ -1,3 +1,5 @@
+use candle_core::Device;
+
 use crate::Example;
 
 /// Example 05.01
@@ -287,6 +289,85 @@ impl Example for EG05 {
             "Output text:\n{:?}",
             token_ids_to_text(token_ids, &tokenizer)
         )
+    }
+}
+
+/// Example 05.06
+pub struct EG06;
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        String::from("Manual multinomial with/without temperature scaling decoding example.")
+    }
+
+    fn page_source(&self) -> usize {
+        152_usize
+    }
+
+    #[allow(unused_variables)]
+    fn main(&self) {
+        #![allow(clippy::approx_constant)]
+        use crate::listings::ch05::{print_sampled_tokens, sample_multinomial};
+        use candle_core::{Tensor, D};
+        use candle_nn::ops::softmax;
+        use rand::{rngs::StdRng, SeedableRng};
+        use std::collections::HashMap;
+
+        let vocab = HashMap::from([
+            ("closer", 0_u32),
+            ("every", 1),
+            ("effort", 2),
+            ("forward", 3),
+            ("inches", 4),
+            ("moves", 5),
+            ("pizza", 6),
+            ("toward", 7),
+            ("you", 8),
+        ]);
+        let inverse_vocab = vocab
+            .iter()
+            .map(|(k, v)| (*v, *k))
+            .collect::<HashMap<u32, &str>>();
+
+        let dev = Device::cuda_if_available(0).unwrap();
+
+        let next_token_logits = Tensor::new(
+            &[4.51_f32, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79],
+            &dev,
+        )
+        .unwrap();
+
+        let probas = softmax(&next_token_logits, D::Minus1).unwrap();
+
+        // greedy sampling
+        let next_token_id = probas.argmax(D::Minus1).unwrap();
+        println!(
+            "Greedy sampling next token: {:?}",
+            inverse_vocab.get(&next_token_id.to_scalar::<u32>().unwrap())
+        );
+
+        // multinomial sampling
+        let mut rng = StdRng::seed_from_u64(123_u64);
+        let next_token_id =
+            sample_multinomial(&mut rng, &probas.to_vec1::<f32>().unwrap()).unwrap();
+        println!(
+            "Multinomial samping next token: {:?}",
+            inverse_vocab.get(&next_token_id)
+        );
+
+        // temperature scaling
+        let temp = 0.1;
+        let scaled_logits = (next_token_logits * temp).unwrap();
+        let scaled_probas = softmax(&scaled_logits, D::Minus1).unwrap();
+        let next_token_id = probas.argmax(D::Minus1).unwrap();
+        println!(
+            "Temp (temp=0.1) scaled multinomial sampling next token: {:?}",
+            inverse_vocab.get(&next_token_id.to_scalar::<u32>().unwrap())
+        );
+
+        // generate multinomial random sample
+        println!("Temp (temp=1.0) scaling sampling conducted 1000 times:");
+        print_sampled_tokens(&probas.to_vec1::<f32>().unwrap(), &inverse_vocab).unwrap();
     }
 }
 

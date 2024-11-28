@@ -2,10 +2,15 @@ use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
 };
-use candle_core::Device;
-use candle_core::{Module, Result, Tensor};
+use candle_core::{Device, Module, Result, Tensor};
 use candle_nn::Optimizer;
-use std::collections::HashSet;
+use itertools::Itertools;
+use rand::{
+    distributions::{Distribution, WeightedIndex},
+    rngs::StdRng,
+    SeedableRng,
+};
+use std::collections::{HashMap, HashSet};
 use tiktoken_rs::CoreBPE;
 
 /// Listing 5.1
@@ -154,12 +159,31 @@ pub fn generate_and_print_sample(
     Ok(())
 }
 
+pub fn sample_multinomial(rng: &mut StdRng, prs: &Vec<f32>) -> Result<u32> {
+    let dist = WeightedIndex::new(prs).map_err(candle_core::Error::wrap)?;
+    let sample = dist.sample(rng) as u32;
+    Ok(sample)
+}
+
+pub fn print_sampled_tokens(probas: &Vec<f32>, inverse_vocab: &HashMap<u32, &str>) -> Result<()> {
+    let mut rng = StdRng::seed_from_u64(123_u64);
+    let sample = (0..1000_usize)
+        .map(|_| sample_multinomial(&mut rng, probas))
+        .collect::<Result<Vec<u32>>>()?;
+    let sample_ids = sample.into_iter().counts();
+    for (i, freq) in sample_ids.into_iter() {
+        println!("{:?} x {:?}", freq, inverse_vocab.get(&i));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::listings::ch04::Config;
     use candle_core::{DType, Device};
     use candle_nn::{VarBuilder, VarMap};
+    use rand::SeedableRng;
     use rstest::*;
     use tiktoken_rs::get_bpe_from_model;
 
@@ -196,5 +220,14 @@ mod tests {
         let loss = calc_loss_batch(&inputs, &targets, &model, vb.device()).unwrap();
 
         assert_eq!(loss.elem_count(), 1);
+    }
+
+    #[rstest]
+    #[case(vec![0_f32, 1_f32], 1_u32)]
+    #[case(vec![1_f32, 0_f32], 0_u32)]
+    fn test_sample_multinomial(#[case] prs: Vec<f32>, #[case] expected: u32) {
+        let mut rng = StdRng::seed_from_u64(1234_u64);
+        let token = sample_multinomial(&mut rng, &prs).unwrap();
+        assert_eq!(token, expected);
     }
 }
