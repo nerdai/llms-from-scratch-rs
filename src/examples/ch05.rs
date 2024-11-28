@@ -1,3 +1,5 @@
+use candle_core::Device;
+
 use crate::Example;
 
 /// Example 05.01
@@ -304,22 +306,56 @@ impl Example for EG06 {
 
     #[allow(unused_variables)]
     fn main(&self) {
-        // let vocab = ...;
-        // let inverse_vocab = ...;
-        // let next_token_logits = ...;
-        // let probas = ...;
+        #![allow(clippy::approx_constant)]
+        use crate::listings::ch05::sample_multinomial;
+        use candle_core::{Tensor, D};
+        use candle_nn::ops::softmax;
+        use rand::{rngs::StdRng, SeedableRng};
+        use std::collections::HashMap;
 
-        // // greedy sampling
-        // let next_token_id = ...;
-        // println!("{:?}", inverse_vocab.get(&next_token_id));
+        let vocab = HashMap::from([
+            ("closer", 0_u32),
+            ("every", 1),
+            ("effort", 2),
+            ("forward", 3),
+            ("inches", 4),
+            ("moves", 5),
+            ("pizza", 6),
+            ("toward", 7),
+            ("you", 8),
+        ]);
+        let inverse_vocab = vocab
+            .iter()
+            .map(|(k, v)| (*v, *k))
+            .collect::<HashMap<u32, &str>>();
 
-        // // multinomial sampling
-        // let mut rng = StdRng::seed_from_u64(123_u64);
-        // let next_token_id = sample_multinomial(&mut rng, probas).unwrap();
-        // println!("{:?}", inverse_vocab.get(&next_token_id));
+        let dev = Device::cuda_if_available(0).unwrap();
+
+        let next_token_logits = Tensor::new(
+            &[4.51_f32, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79],
+            &dev,
+        )
+        .unwrap();
+
+        let probas = softmax(&next_token_logits, D::Minus1).unwrap();
+
+        // greedy sampling
+        let next_token_id = probas.argmax(D::Minus1).unwrap();
+        println!(
+            "Greedy sampling next token: {:?}",
+            inverse_vocab.get(&next_token_id.to_scalar::<u32>().unwrap())
+        );
+
+        // multinomial sampling
+        let mut rng = StdRng::seed_from_u64(123_u64);
+        let next_token_id =
+            sample_multinomial(&mut rng, &probas.to_vec1::<f32>().unwrap()).unwrap();
+        println!(
+            "Multinomial samping next token: {:?}",
+            inverse_vocab.get(&next_token_id)
+        );
 
         // // generate multinomial random sample
-        todo!()
     }
 }
 
