@@ -64,14 +64,14 @@ pub fn calc_loss_loader(
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                if count > n {
-                    break;
-                }
                 let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
+                if count >= n {
+                    break;
+                }
             }
-            Ok(total_loss / n as f32)
+            Ok(total_loss / std::cmp::min(n, count) as f32)
         }
     }
 }
