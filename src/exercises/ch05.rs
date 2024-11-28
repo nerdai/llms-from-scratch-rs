@@ -24,7 +24,12 @@ impl Exercise for X5P1 {
             );
             let scaled_logits = (&next_token_logits / temp.to_owned()).unwrap();
             let scaled_probas = softmax(&scaled_logits, D::Minus1).unwrap();
-            print_sampled_tokens(&scaled_probas.to_vec1::<f32>().unwrap(), &inverse_vocab).unwrap();
+            print_sampled_tokens(
+                &scaled_probas.to_vec1::<f32>().unwrap(),
+                &inverse_vocab,
+                true,
+            )
+            .unwrap();
             println!("\n");
         }
     }

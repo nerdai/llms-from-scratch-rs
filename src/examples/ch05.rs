@@ -342,7 +342,13 @@ impl Example for EG06 {
 
         // generate multinomial random sample
         println!("Temp (temp=1.0) scaling sampling conducted 1000 times:");
-        print_sampled_tokens(&probas.to_vec1::<f32>().unwrap(), &inverse_vocab).unwrap();
+        let with_expected_vals = false;
+        print_sampled_tokens(
+            &probas.to_vec1::<f32>().unwrap(),
+            &inverse_vocab,
+            with_expected_vals, // this is set in Exercise 5.1
+        )
+        .unwrap();
     }
 }
 
