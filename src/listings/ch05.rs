@@ -3,14 +3,17 @@ use super::{
     ch04::{generate_text_simple, GPTModel},
 };
 use candle_core::{Device, IndexOp, Module, ModuleT, Result, Tensor, D};
-use candle_nn::{op::softmax, Optimizer};
+use candle_nn::{ops::softmax, Optimizer};
 use itertools::Itertools;
 use rand::{
     distributions::{Distribution, WeightedIndex},
     rngs::StdRng,
     SeedableRng,
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 use tiktoken_rs::CoreBPE;
 
 /// Listing 5.1
@@ -247,6 +250,7 @@ pub fn generate(
             let probas = softmax(&logits, D::Minus1)?;
             let next_token_id =
                 sample_multinomial(&mut rng, &probas.to_vec1::<f32>().unwrap()).unwrap();
+            probas.argmax_keepdim(D::Minus1)?
         } else {
             let probas = softmax(&logits, 1)?;
             probas.argmax_keepdim(D::Minus1)?
