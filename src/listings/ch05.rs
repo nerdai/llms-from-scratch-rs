@@ -265,16 +265,17 @@ mod tests {
     }
 
     #[rstest]
-    #[case(&[-3_i64, -2, -1, 0, 1, 2, 3], &[3_i64, 2, 1], &[6_u32, 5, 4])]
+    #[case(&[-3_f32, -2., -1., 0., 1., 2., 3.], &[3_f32, 2., 1.], &[6_u32, 5, 4])]
+    #[case(&[10.1_f32, -1.6, 5., 0., 1., -2., 11.], &[11_f32, 10.1, 5.], &[6_u32, 0, 2])]
     fn test_topk_last_dim(
-        #[case] logits: &[i64; 7],
-        #[case] expected_top_log: &[i64; 3],
+        #[case] logits: &[f32; 7],
+        #[case] expected_top_log: &[f32; 3],
         #[case] expected_top_pos: &[u32; 3],
     ) {
         let dev = Device::cuda_if_available(0).unwrap();
         let logits = Tensor::new(logits, &dev).unwrap();
         let (top_logits, top_pos) = logits.topk_last_dim(3_usize).unwrap();
-        assert_eq!(top_logits.to_vec1::<i64>().unwrap(), expected_top_log);
+        assert_eq!(top_logits.to_vec1::<f32>().unwrap(), expected_top_log);
         assert_eq!(top_pos.to_vec1::<u32>().unwrap(), expected_top_pos);
     }
 }
