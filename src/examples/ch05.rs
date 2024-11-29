@@ -357,7 +357,7 @@ pub struct EG07;
 
 impl Example for EG07 {
     fn description(&self) -> String {
-        String::from("Example of top-k sampling.")
+        String::from("Example of extracting topk probas.")
     }
 
     fn page_source(&self) -> usize {
@@ -366,10 +366,9 @@ impl Example for EG07 {
 
     #[allow(dead_code, unused_variables)]
     fn main(&self) {
-        use crate::listings::ch05::{print_sampled_tokens, sample_multinomial, TopK};
+        use crate::listings::ch05::TopK;
         use candle_core::{Tensor, D};
         use candle_nn::ops::softmax;
-        use rand::{rngs::StdRng, SeedableRng};
 
         let (vocab, inverse_vocab) = addons::get_vocab_and_inversed_vocab();
         let next_token_logits = addons::get_next_token_logits().unwrap();
@@ -392,9 +391,10 @@ impl Example for EG07 {
         let new_logits = mask.where_cond(&on_true, &next_token_logits).unwrap();
         println!("mask: {:?}", mask);
         println!("new_logits: {:?}", new_logits);
-        // let new_logits =
 
-        // let probas = softmax(&next_token_logits, D::Minus1).unwrap();
+        // get top-k probas
+        let topk_probas = softmax(&new_logits, D::Minus1).unwrap();
+        println!("probas: {:?}", topk_probas);
     }
 }
 
