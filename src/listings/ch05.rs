@@ -2,7 +2,7 @@ use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
 };
-use candle_core::{Device, Module, Result, Tensor};
+use candle_core::{Device, IndexOp, Module, Result, Tensor};
 use candle_nn::Optimizer;
 use itertools::Itertools;
 use rand::{
@@ -159,10 +159,24 @@ pub fn generate_and_print_sample(
     Ok(())
 }
 
+// Can also use candle_transformers::LogitProcessor
 pub fn sample_multinomial(rng: &mut StdRng, prs: &Vec<f32>) -> Result<u32> {
     let dist = WeightedIndex::new(prs).map_err(candle_core::Error::wrap)?;
     let sample = dist.sample(rng) as u32;
     Ok(sample)
+}
+
+pub trait TopK {
+    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
+}
+
+impl TopK for Tensor {
+    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
+        let top_pos = self.arg_sort_last_dim(false)?;
+        let top_pos = top_pos.i(..top_k)?;
+        let top_els = self.i(top_pos.to_vec1::<u32>()?)?;
+        Ok((top_els, top_pos))
+    }
 }
 
 pub fn print_sampled_tokens(
@@ -248,5 +262,20 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(1234_u64);
         let token = sample_multinomial(&mut rng, &prs).unwrap();
         assert_eq!(token, expected);
+    }
+
+    #[rstest]
+    #[case(&[-3_f32, -2., -1., 0., 1., 2., 3.], &[3_f32, 2., 1.], &[6_u32, 5, 4])]
+    #[case(&[10.1_f32, -1.6, 5., 0., 1., -2., 11.], &[11_f32, 10.1, 5.], &[6_u32, 0, 2])]
+    fn test_topk_last_dim(
+        #[case] logits: &[f32; 7],
+        #[case] expected_top_log: &[f32; 3],
+        #[case] expected_top_pos: &[u32; 3],
+    ) {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let logits = Tensor::new(logits, &dev).unwrap();
+        let (top_logits, top_pos) = logits.topk_last_dim(3_usize).unwrap();
+        assert_eq!(top_logits.to_vec1::<f32>().unwrap(), expected_top_log);
+        assert_eq!(top_pos.to_vec1::<u32>().unwrap(), expected_top_pos);
     }
 }

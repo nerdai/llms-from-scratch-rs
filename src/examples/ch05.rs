@@ -352,6 +352,52 @@ impl Example for EG06 {
     }
 }
 
+/// Example 05.07
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        String::from("Example of extracting topk probas.")
+    }
+
+    fn page_source(&self) -> usize {
+        156_usize
+    }
+
+    #[allow(dead_code, unused_variables)]
+    fn main(&self) {
+        use crate::listings::ch05::TopK;
+        use candle_core::{Tensor, D};
+        use candle_nn::ops::softmax;
+
+        let (vocab, inverse_vocab) = addons::get_vocab_and_inversed_vocab();
+        let next_token_logits = addons::get_next_token_logits().unwrap();
+
+        // top-k logits
+        let top_k = 3_usize;
+        let (top_logits, top_pos) = next_token_logits.topk_last_dim(top_k).unwrap();
+        println!("Top logits: {:?}", top_logits.to_vec1::<f32>());
+        println!("Top pos: {:?}", top_pos.to_vec1::<u32>());
+
+        // masking to get new logits
+        let mask = next_token_logits
+            .broadcast_lt(&top_logits.min(D::Minus1).unwrap())
+            .unwrap();
+        let on_true = next_token_logits
+            .ones_like()
+            .unwrap()
+            .broadcast_mul(&Tensor::new(f32::NEG_INFINITY, next_token_logits.device()).unwrap())
+            .unwrap();
+        let new_logits = mask.where_cond(&on_true, &next_token_logits).unwrap();
+        println!("mask: {:?}", mask);
+        println!("new_logits: {:?}", new_logits);
+
+        // get top-k probas
+        let topk_probas = softmax(&new_logits, D::Minus1).unwrap();
+        println!("probas: {:?}", topk_probas);
+    }
+}
+
 pub mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
