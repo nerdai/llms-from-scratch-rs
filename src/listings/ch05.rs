@@ -166,19 +166,6 @@ pub fn sample_multinomial(rng: &mut StdRng, prs: &Vec<f32>) -> Result<u32> {
     Ok(sample)
 }
 
-pub trait TopK {
-    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
-}
-
-impl TopK for Tensor {
-    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
-        let top_pos = self.arg_sort_last_dim(false)?;
-        let top_pos = top_pos.i(..top_k)?;
-        let top_els = self.i(top_pos.to_vec1::<u32>()?)?;
-        Ok((top_els, top_pos))
-    }
-}
-
 pub fn print_sampled_tokens(
     probas: &Vec<f32>,
     inverse_vocab: &HashMap<u32, &str>,
@@ -208,6 +195,33 @@ pub fn print_sampled_tokens(
         }
     }
     Ok(())
+}
+
+pub trait TopK {
+    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
+}
+
+impl TopK for Tensor {
+    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
+        let top_pos = self.arg_sort_last_dim(false)?;
+        let top_pos = top_pos.i(..top_k)?;
+        let top_els = self.i(top_pos.to_vec1::<u32>()?)?;
+        Ok((top_els, top_pos))
+    }
+}
+
+/// Listing 5.4
+#[allow(unused_variables)]
+pub fn generate(
+    model: &GPTModel,
+    idx: Tensor,
+    max_new_tokens: usize,
+    context_size: usize,
+    temperature: f64,
+    top_k: Option<usize>,
+    eos_id: Option<u32>,
+) -> Result<Tensor> {
+    todo!()
 }
 
 #[cfg(test)]
