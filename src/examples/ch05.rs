@@ -366,19 +366,21 @@ impl Example for EG07 {
 
     #[allow(dead_code, unused_variables)]
     fn main(&self) {
-        // use crate::listings::ch05::{print_sampled_tokens, sample_multinomial};
+        use crate::listings::ch05::{print_sampled_tokens, sample_multinomial, TopK};
         use candle_core::D;
         use candle_nn::ops::softmax;
-        // use rand::{rngs::StdRng, SeedableRng};
+        use rand::{rngs::StdRng, SeedableRng};
 
         let (vocab, inverse_vocab) = addons::get_vocab_and_inversed_vocab();
         let next_token_logits = addons::get_next_token_logits().unwrap();
 
         // top-k logits
         let top_k = 3_usize;
+        let (top_logits, top_pos) = next_token_logits.topk_last_dim(top_k).unwrap();
+        println!("Top logits: {:?}", top_logits.to_vec1::<f32>());
+        println!("Top pos: {:?}", top_pos.to_vec1::<u32>());
 
-        let probas = softmax(&next_token_logits, D::Minus1).unwrap();
-        todo!()
+        // let probas = softmax(&next_token_logits, D::Minus1).unwrap();
     }
 }
 
