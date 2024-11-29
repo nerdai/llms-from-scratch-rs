@@ -2,8 +2,8 @@ use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
 };
-use candle_core::{Device, IndexOp, Module, Result, Tensor};
-use candle_nn::Optimizer;
+use candle_core::{Device, IndexOp, Module, ModuleT, Result, Tensor, D};
+use candle_nn::{op::softmax, Optimizer};
 use itertools::Itertools;
 use rand::{
     distributions::{Distribution, WeightedIndex},
@@ -217,11 +217,44 @@ pub fn generate(
     idx: Tensor,
     max_new_tokens: usize,
     context_size: usize,
-    temperature: f64,
+    temperature: Option<f64>,
     top_k: Option<usize>,
     eos_id: Option<u32>,
+    rng: &mut StdRng,
 ) -> Result<Tensor> {
-    todo!()
+    let mut idx = idx.clone();
+    for _ in 0..max_new_tokens {
+        let (_b, seq_len) = idx.dims2()?;
+        let start_token_index = cmp::max(0isize, seq_len as isize - context_size as isize) as usize;
+        let idx_cond = idx.i((.., start_token_index..seq_len))?;
+        let logits = model.forward_t(&idx_cond, false)?;
+        let (_b, c, _vocab_size) = logits.dims3()?;
+        let logits = logits.i((.., c - 1, ..))?;
+
+        let logits = if let Some(top_k) = top_k {
+            let (top_logits, top_pos) = logits.topk_last_dim(top_k)?;
+            let mask = logits.broadcast_lt(&top_logits.min(D::Minus1)?)?;
+            let on_true = logits
+                .ones_like()?
+                .broadcast_mul(&Tensor::new(f32::NEG_INFINITY, logits.device())?)?;
+            mask.where_cond(&on_true, &logits)?
+        } else {
+            logits
+        };
+
+        let idx_next = if let Some(temp) = temperature {
+            let logits = (logits / temp)?;
+            let probas = softmax(&logits, D::Minus1)?;
+            let next_token_id =
+                sample_multinomial(&mut rng, &probas.to_vec1::<f32>().unwrap()).unwrap();
+        } else {
+            let probas = softmax(&logits, 1)?;
+            probas.argmax_keepdim(D::Minus1)?
+        };
+
+        idx = Tensor::cat(&[&idx, &idx_next], D::Minus1)?;
+    }
+    Ok(idx)
 }
 
 #[cfg(test)]
