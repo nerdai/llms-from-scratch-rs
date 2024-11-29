@@ -352,6 +352,36 @@ impl Example for EG06 {
     }
 }
 
+/// Example 05.07
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        String::from("Example of top-k sampling.")
+    }
+
+    fn page_source(&self) -> usize {
+        156_usize
+    }
+
+    #[allow(dead_code, unused_variables)]
+    fn main(&self) {
+        // use crate::listings::ch05::{print_sampled_tokens, sample_multinomial};
+        use candle_core::D;
+        use candle_nn::ops::softmax;
+        // use rand::{rngs::StdRng, SeedableRng};
+
+        let (vocab, inverse_vocab) = addons::get_vocab_and_inversed_vocab();
+        let next_token_logits = addons::get_next_token_logits().unwrap();
+
+        // top-k logits
+        let top_k = 3_usize;
+
+        let probas = softmax(&next_token_logits, D::Minus1).unwrap();
+        todo!()
+    }
+}
+
 pub mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
