@@ -376,7 +376,7 @@ impl Example for EG07 {
 
         // top-k logits
         let top_k = 3_usize;
-        let (top_logits, top_pos) = next_token_logits.topk_last_dim(top_k).unwrap();
+        let (top_logits, top_pos) = next_token_logits.topk_last_dim0(top_k).unwrap();
         println!("Top logits: {:?}", top_logits.to_vec1::<f32>());
         println!("Top pos: {:?}", top_pos.to_vec1::<u32>());
 
