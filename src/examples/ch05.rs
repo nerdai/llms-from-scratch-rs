@@ -433,7 +433,7 @@ impl Example for EG08 {
         let tokenizer = get_bpe_from_model("gpt2").unwrap();
 
         // generate next tokens with model
-        let mut rng = StdRng::seed_from_u64(123_u64);
+        let mut rng = StdRng::seed_from_u64(42_u64);
         let token_ids = generate(
             &model,
             text_to_token_ids(start_context, &tokenizer, vb.device()).unwrap(),
@@ -445,8 +445,6 @@ impl Example for EG08 {
             &mut rng,
         )
         .unwrap();
-
-        println!("token ids: {:?}", token_ids);
 
         // decode the token ids to print the output text
         println!(
