@@ -215,7 +215,8 @@ impl TopK for Tensor {
     }
 
     fn topk_last_dim1(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
-        let top_pos = self.arg_sort_last_dim(false)?;
+        let top_pos = self.to_device(&Device::Cpu)?.arg_sort_last_dim(false)?;
+        let top_pos = top_pos.to_device(&Device::cuda_if_available(0)?)?;
         let (batch_size, vocab_size) = top_pos.dims2()?;
         let top_pos = top_pos.i((.., ..top_k))?.flatten_all()?;
 
@@ -255,7 +256,7 @@ pub fn generate(
         let logits = logits.i((.., c - 1, ..))?;
 
         let logits = if let Some(top_k) = top_k {
-            let (top_logits, _top_pos) = logits.contiguous().unwrap().topk_last_dim1(top_k)?;
+            let (top_logits, _top_pos) = logits.contiguous()?.topk_last_dim1(top_k)?;
             let mask = logits.broadcast_lt(&top_logits.min_keepdim(D::Minus1)?)?;
             let on_true = logits
                 .ones_like()?
@@ -415,5 +416,15 @@ mod tests {
         .unwrap();
 
         assert_eq!(idx.dims(), &[batch_size, seq_len + max_new_tokens]);
+    }
+
+    #[rstest]
+    #[should_panic(
+        expected = "called `Result::unwrap()` on an `Err` value: Unable to decode into a valid UTF-8 string: incomplete utf-8 byte sequence from index 0"
+    )]
+    fn test_decode_panics_due_token_id() {
+        let token_ids = Tensor::new(&[[49426_u32]], &Device::Cpu).unwrap();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        token_ids_to_text(token_ids, &tokenizer).unwrap();
     }
 }
