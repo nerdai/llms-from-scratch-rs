@@ -215,20 +215,22 @@ impl TopK for Tensor {
     }
 
     fn topk_last_dim1(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
-        let top_pos = self.arg_sort_last_dim(false)?;
+        // get CUDA error sometimes when using `.arg_sort_last_dim`
+        // moving to CPU to carry out the op
+        let top_pos = self.to_device(&Device::Cpu)?.arg_sort_last_dim(false)?;
+        let top_pos = top_pos.to_device(&Device::cuda_if_available(0)?)?;
         let (batch_size, vocab_size) = top_pos.dims2()?;
         let top_pos = top_pos.i((.., ..top_k))?.flatten_all()?;
 
         // get appropriate sum starting index
         let aux = Tensor::arange(0u32, batch_size as u32, self.device())?;
         let aux = (vocab_size as f64 * aux.broadcast_left(top_k)?.t()?.flatten_all()?)?;
-        let top_pos_flattened_shifted = (&top_pos + aux)?;
-        let top_els = self
-            .flatten_all()?
-            .i(top_pos_flattened_shifted.to_vec1::<u32>()?)?;
+        let top_pos = (top_pos + &aux)?;
+        let top_els = self.flatten_all()?.i(top_pos.to_vec1::<u32>()?)?;
 
         // reshape
         let top_els = top_els.reshape((batch_size, top_k))?;
+        let top_pos = (top_pos - &aux)?;
         let top_pos = top_pos.reshape((batch_size, top_k))?;
         Ok((top_els, top_pos))
     }
@@ -256,7 +258,7 @@ pub fn generate(
         let logits = logits.i((.., c - 1, ..))?;
 
         let logits = if let Some(top_k) = top_k {
-            let (top_logits, _top_pos) = logits.contiguous().unwrap().topk_last_dim1(top_k)?;
+            let (top_logits, _top_pos) = logits.contiguous()?.topk_last_dim1(top_k)?;
             let mask = logits.broadcast_lt(&top_logits.min_keepdim(D::Minus1)?)?;
             let on_true = logits
                 .ones_like()?
@@ -416,5 +418,16 @@ mod tests {
         .unwrap();
 
         assert_eq!(idx.dims(), &[batch_size, seq_len + max_new_tokens]);
+    }
+
+    #[rstest]
+    #[should_panic(
+        expected = "called `Result::unwrap()` on an `Err` value: Unable to decode into a valid UTF-8 string: incomplete utf-8 byte sequence from index 0"
+    )]
+    fn test_decode_panics_due_token_id() {
+        let bad_token_id = 49426_u32; // not sure why this results in an error when decoding
+        let token_ids = Tensor::new(&[[bad_token_id]], &Device::Cpu).unwrap();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        token_ids_to_text(token_ids, &tokenizer).unwrap();
     }
 }
