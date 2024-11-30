@@ -222,8 +222,10 @@ impl TopK for Tensor {
         // get appropriate sum startind index
         let aux = Tensor::arange(0u32, batch_size as u32, self.device())?;
         let aux = (vocab_size as f64 * aux.broadcast_left(top_k)?.t()?.flatten_all()?)?;
-        let top_pos = (top_pos + aux)?;
-        let top_els = self.flatten_all()?.i(top_pos.to_vec1::<u32>()?)?;
+        let top_pos_flattened_shifted = (&top_pos + aux)?;
+        let top_els = self
+            .flatten_all()?
+            .i(top_pos_flattened_shifted.to_vec1::<u32>()?)?;
 
         // reshape
         let top_els = top_els.reshape((batch_size, top_k))?;
@@ -368,6 +370,22 @@ mod tests {
         let (top_logits, top_pos) = logits.topk_last_dim0(3_usize).unwrap();
         assert_eq!(top_logits.to_vec1::<f32>().unwrap(), expected_top_log);
         assert_eq!(top_pos.to_vec1::<u32>().unwrap(), expected_top_pos);
+    }
+
+    #[rstest]
+    #[case(&[[-3_f32, -2., -1.], [0., 1., 2.]], &[[-1_f32, -2.], [2_f32, 1.]], &[[2_u32, 1], [2_u32, 1]])]
+    #[case(&[[10.1_f32, -1.6, 5.], [1_f32, -2., 11.]], &[[10.1_f32, 5.], [11_f32, 1.]], &[[0_u32, 2],[2_u32, 0]])]
+    fn test_topk_last_dim1(
+        #[case] logits: &[[f32; 3]; 2],
+        #[case] expected_top_log: &[[f32; 2]; 2],
+        #[case] expected_top_pos: &[[u32; 2]; 2],
+    ) {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let logits = Tensor::new(logits, &dev).unwrap();
+        let top_k = 2_usize;
+        let (top_logits, top_pos) = logits.topk_last_dim1(top_k).unwrap();
+        assert_eq!(top_logits.to_vec2::<f32>().unwrap(), expected_top_log);
+        assert_eq!(top_pos.to_vec2::<u32>().unwrap(), expected_top_pos);
     }
 
     #[rstest]
