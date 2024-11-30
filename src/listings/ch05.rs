@@ -222,13 +222,12 @@ impl TopK for Tensor {
         // get appropriate sum starting index
         let aux = Tensor::arange(0u32, batch_size as u32, self.device())?;
         let aux = (vocab_size as f64 * aux.broadcast_left(top_k)?.t()?.flatten_all()?)?;
-        let top_pos_flattened_shifted = (&top_pos + aux)?;
-        let top_els = self
-            .flatten_all()?
-            .i(top_pos_flattened_shifted.to_vec1::<u32>()?)?;
+        let top_pos = (top_pos + &aux)?;
+        let top_els = self.flatten_all()?.i(top_pos.to_vec1::<u32>()?)?;
 
         // reshape
         let top_els = top_els.reshape((batch_size, top_k))?;
+        let top_pos = (top_pos - &aux)?;
         let top_pos = top_pos.reshape((batch_size, top_k))?;
         Ok((top_els, top_pos))
     }
