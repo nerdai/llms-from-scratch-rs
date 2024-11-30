@@ -2,15 +2,18 @@ use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
 };
-use candle_core::{Device, IndexOp, Module, Result, Tensor};
-use candle_nn::Optimizer;
+use candle_core::{Device, IndexOp, Module, ModuleT, Result, Tensor, D};
+use candle_nn::{ops::softmax, Optimizer};
 use itertools::Itertools;
 use rand::{
     distributions::{Distribution, WeightedIndex},
     rngs::StdRng,
     SeedableRng,
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 use tiktoken_rs::CoreBPE;
 
 /// Listing 5.1
@@ -166,19 +169,6 @@ pub fn sample_multinomial(rng: &mut StdRng, prs: &Vec<f32>) -> Result<u32> {
     Ok(sample)
 }
 
-pub trait TopK {
-    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
-}
-
-impl TopK for Tensor {
-    fn topk_last_dim(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
-        let top_pos = self.arg_sort_last_dim(false)?;
-        let top_pos = top_pos.i(..top_k)?;
-        let top_els = self.i(top_pos.to_vec1::<u32>()?)?;
-        Ok((top_els, top_pos))
-    }
-}
-
 pub fn print_sampled_tokens(
     probas: &Vec<f32>,
     inverse_vocab: &HashMap<u32, &str>,
@@ -208,6 +198,109 @@ pub fn print_sampled_tokens(
         }
     }
     Ok(())
+}
+
+pub trait TopK {
+    fn topk_last_dim0(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
+
+    fn topk_last_dim1(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
+}
+
+impl TopK for Tensor {
+    fn topk_last_dim0(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
+        let top_pos = self.arg_sort_last_dim(false)?;
+        let top_pos = top_pos.i(..top_k)?;
+        let top_els = self.i(top_pos.to_vec1::<u32>()?)?;
+        Ok((top_els, top_pos))
+    }
+
+    fn topk_last_dim1(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
+        let top_pos = self.arg_sort_last_dim(false)?;
+        let (batch_size, vocab_size) = top_pos.dims2()?;
+        let top_pos = top_pos.i((.., ..top_k))?.flatten_all()?;
+
+        // get appropriate sum starting index
+        let aux = Tensor::arange(0u32, batch_size as u32, self.device())?;
+        let aux = (vocab_size as f64 * aux.broadcast_left(top_k)?.t()?.flatten_all()?)?;
+        let top_pos_flattened_shifted = (&top_pos + aux)?;
+        let top_els = self
+            .flatten_all()?
+            .i(top_pos_flattened_shifted.to_vec1::<u32>()?)?;
+
+        // reshape
+        let top_els = top_els.reshape((batch_size, top_k))?;
+        let top_pos = top_pos.reshape((batch_size, top_k))?;
+        Ok((top_els, top_pos))
+    }
+}
+
+/// Listing 5.4
+#[allow(clippy::too_many_arguments)]
+pub fn generate(
+    model: &GPTModel,
+    idx: Tensor,
+    max_new_tokens: usize,
+    context_size: usize,
+    temperature: Option<f64>,
+    top_k: Option<usize>,
+    eos_id: Option<Tensor>,
+    rng: &mut StdRng,
+) -> Result<Tensor> {
+    let mut idx = idx.clone();
+    for _ in 0..max_new_tokens {
+        let (b, seq_len) = idx.dims2()?;
+        let start_token_index = cmp::max(0isize, seq_len as isize - context_size as isize) as usize;
+        let idx_cond = idx.i((.., start_token_index..seq_len))?;
+        let logits = model.forward_t(&idx_cond, false)?;
+        let (_b, c, _vocab_size) = logits.dims3()?;
+        let logits = logits.i((.., c - 1, ..))?;
+
+        let logits = if let Some(top_k) = top_k {
+            let (top_logits, _top_pos) = logits.contiguous().unwrap().topk_last_dim1(top_k)?;
+            let mask = logits.broadcast_lt(&top_logits.min_keepdim(D::Minus1)?)?;
+            let on_true = logits
+                .ones_like()?
+                .broadcast_mul(&Tensor::new(f32::NEG_INFINITY, logits.device())?)?;
+            mask.where_cond(&on_true, &logits)?
+        } else {
+            logits
+        };
+
+        let idx_next = if let Some(temp) = temperature {
+            let logits = (logits / temp)?;
+            let probas = softmax(&logits, D::Minus1)?;
+            let mut idx_next: Vec<u32> = vec![];
+            for bx in 0..b {
+                let this_probas = probas.i((bx, ..)).unwrap();
+                let next_token_id =
+                    sample_multinomial(rng, &this_probas.to_vec1::<f32>().unwrap()).unwrap();
+                idx_next.push(next_token_id);
+            }
+            Tensor::from_vec(idx_next, (b, 1_usize), logits.device())?
+        } else {
+            let probas = softmax(&logits, 1)?;
+            probas.argmax_keepdim(D::Minus1)?
+        };
+
+        if let Some(ref eos) = eos_id {
+            // not sure if this is the right thing to do
+            // eos_id can appear in any of the batch inputs
+            let num_eos = idx_next
+                .broadcast_eq(eos)
+                .unwrap()
+                .sum_all()
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap();
+
+            if num_eos as usize == b {
+                break;
+            }
+        }
+
+        idx = Tensor::cat(&[&idx, &idx_next], D::Minus1)?;
+    }
+    Ok(idx)
 }
 
 #[cfg(test)]
@@ -267,15 +360,61 @@ mod tests {
     #[rstest]
     #[case(&[-3_f32, -2., -1., 0., 1., 2., 3.], &[3_f32, 2., 1.], &[6_u32, 5, 4])]
     #[case(&[10.1_f32, -1.6, 5., 0., 1., -2., 11.], &[11_f32, 10.1, 5.], &[6_u32, 0, 2])]
-    fn test_topk_last_dim(
+    fn test_topk_last_dim0(
         #[case] logits: &[f32; 7],
         #[case] expected_top_log: &[f32; 3],
         #[case] expected_top_pos: &[u32; 3],
     ) {
         let dev = Device::cuda_if_available(0).unwrap();
         let logits = Tensor::new(logits, &dev).unwrap();
-        let (top_logits, top_pos) = logits.topk_last_dim(3_usize).unwrap();
+        let (top_logits, top_pos) = logits.topk_last_dim0(3_usize).unwrap();
         assert_eq!(top_logits.to_vec1::<f32>().unwrap(), expected_top_log);
         assert_eq!(top_pos.to_vec1::<u32>().unwrap(), expected_top_pos);
+    }
+
+    #[rstest]
+    #[case(&[[-3_f32, -2., -1.], [0., 1., 2.]], &[[-1_f32, -2.], [2_f32, 1.]], &[[2_u32, 1], [2_u32, 1]])]
+    #[case(&[[10.1_f32, -1.6, 5.], [1_f32, -2., 11.]], &[[10.1_f32, 5.], [11_f32, 1.]], &[[0_u32, 2],[2_u32, 0]])]
+    fn test_topk_last_dim1(
+        #[case] logits: &[[f32; 3]; 2],
+        #[case] expected_top_log: &[[f32; 2]; 2],
+        #[case] expected_top_pos: &[[u32; 2]; 2],
+    ) {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let logits = Tensor::new(logits, &dev).unwrap();
+        let top_k = 2_usize;
+        let (top_logits, top_pos) = logits.topk_last_dim1(top_k).unwrap();
+        assert_eq!(top_logits.to_vec2::<f32>().unwrap(), expected_top_log);
+        assert_eq!(top_pos.to_vec2::<u32>().unwrap(), expected_top_pos);
+    }
+
+    #[rstest]
+    fn test_generate() {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let batch_token_ids =
+            Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev).unwrap();
+
+        let cfg = Config::gpt_sm_test();
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let model = GPTModel::new(cfg, vb).unwrap();
+
+        // create sample idx
+        let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
+        let (context_size, max_new_tokens) = (2_usize, 3_usize);
+        let mut rng = StdRng::seed_from_u64(123_u64);
+        let idx = generate(
+            &model,
+            batch_token_ids,
+            max_new_tokens,
+            context_size,
+            Some(1_f64),
+            Some(3_usize),
+            None,
+            &mut rng,
+        )
+        .unwrap();
+
+        assert_eq!(idx.dims(), &[batch_size, seq_len + max_new_tokens]);
     }
 }

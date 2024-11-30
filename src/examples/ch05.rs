@@ -334,10 +334,11 @@ impl Example for EG06 {
         let temp = 0.1;
         let scaled_logits = (next_token_logits / temp).unwrap();
         let scaled_probas = softmax(&scaled_logits, D::Minus1).unwrap();
-        let next_token_id = scaled_probas.argmax(D::Minus1).unwrap();
+        let next_token_id =
+            sample_multinomial(&mut rng, &scaled_probas.to_vec1::<f32>().unwrap()).unwrap();
         println!(
             "Temp (temp=0.1) scaled multinomial sampling next token: {:?}",
-            inverse_vocab.get(&next_token_id.to_scalar::<u32>().unwrap())
+            inverse_vocab.get(&next_token_id)
         );
 
         // generate multinomial random sample
@@ -375,7 +376,7 @@ impl Example for EG07 {
 
         // top-k logits
         let top_k = 3_usize;
-        let (top_logits, top_pos) = next_token_logits.topk_last_dim(top_k).unwrap();
+        let (top_logits, top_pos) = next_token_logits.topk_last_dim0(top_k).unwrap();
         println!("Top logits: {:?}", top_logits.to_vec1::<f32>());
         println!("Top pos: {:?}", top_pos.to_vec1::<u32>());
 
