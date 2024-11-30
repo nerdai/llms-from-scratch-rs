@@ -122,10 +122,10 @@ impl Exercise for X5P3 {
         let temp = None;
 
         let mut old_token_ids: Option<Tensor> = None;
+        let mut rng = StdRng::seed_from_u64(42_u64);
         for ix in 0..4 {
             println!("Itertation {}:", ix);
 
-            let mut rng = StdRng::seed_from_u64(42_u64);
             let token_ids = generate(
                 &model,
                 text_to_token_ids(start_context, &tokenizer, vb.device()).unwrap(),
