@@ -356,13 +356,13 @@ impl Module for TransformerBlock {
         let mut x = xs.to_owned();
         x = self.norm1.forward(&x)?;
         x = self.att.forward(&x)?;
-        x = self.drop_shortcut.forward(&x, true)?; // todo: should be configurable
+        x = self.drop_shortcut.forward(&x, false)?; // todo: should be configurable
         x = (x + shortcut)?;
 
         let shortcut = x.clone();
         x = self.norm2.forward(&x)?;
         x = self.ff.forward(&x)?;
-        x = self.drop_shortcut.forward(&x, true)?;
+        x = self.drop_shortcut.forward(&x, false)?;
         x = (x + shortcut)?;
         Ok(x)
     }
@@ -432,7 +432,7 @@ impl Module for GPTModel {
         let pos_embeds = self.pos_emb.embeddings().index_select(&pos_ids, 0)?;
 
         let mut x = tok_embeds.broadcast_add(&pos_embeds)?;
-        x = self.drop_emb.forward(&x, true)?;
+        x = self.drop_emb.forward(&x, false)?;
         x = self.trf_blocks.forward(&x)?;
         x = self.final_norm.forward(&x)?;
 
