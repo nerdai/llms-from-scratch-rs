@@ -214,7 +214,7 @@ impl TopK for Tensor {
 }
 
 /// Listing 5.4
-#[allow(unused_variables)]
+#[allow(clippy::too_many_arguments)]
 pub fn generate(
     model: &GPTModel,
     idx: Tensor,
@@ -222,12 +222,12 @@ pub fn generate(
     context_size: usize,
     temperature: Option<f64>,
     top_k: Option<usize>,
-    eos_id: Option<u32>,
+    eos_id: Option<Tensor>,
     rng: &mut StdRng,
 ) -> Result<Tensor> {
     let mut idx = idx.clone();
     for _ in 0..max_new_tokens {
-        let (_b, seq_len) = idx.dims2()?;
+        let (b, seq_len) = idx.dims2()?;
         let start_token_index = cmp::max(0isize, seq_len as isize - context_size as isize) as usize;
         let idx_cond = idx.i((.., start_token_index..seq_len))?;
         let logits = model.forward_t(&idx_cond, false)?;
@@ -235,7 +235,7 @@ pub fn generate(
         let logits = logits.i((.., c - 1, ..))?;
 
         let logits = if let Some(top_k) = top_k {
-            let (top_logits, top_pos) = logits.topk_last_dim(top_k)?;
+            let (top_logits, _top_pos) = logits.topk_last_dim(top_k)?;
             let mask = logits.broadcast_lt(&top_logits.min(D::Minus1)?)?;
             let on_true = logits
                 .ones_like()?
@@ -248,13 +248,34 @@ pub fn generate(
         let idx_next = if let Some(temp) = temperature {
             let logits = (logits / temp)?;
             let probas = softmax(&logits, D::Minus1)?;
-            let next_token_id =
-                sample_multinomial(&mut rng, &probas.to_vec1::<f32>().unwrap()).unwrap();
-            probas.argmax_keepdim(D::Minus1)?
+            let mut idx_next: Vec<u32> = vec![];
+            for bx in 0..b {
+                let this_probas = probas.i((bx, ..)).unwrap();
+                let next_token_id =
+                    sample_multinomial(rng, &this_probas.to_vec1::<f32>().unwrap()).unwrap();
+                idx_next.push(next_token_id);
+            }
+            Tensor::from_vec(idx_next, (b, 1_usize), logits.device())?
         } else {
             let probas = softmax(&logits, 1)?;
             probas.argmax_keepdim(D::Minus1)?
         };
+
+        if let Some(ref eos) = eos_id {
+            // not sure if this is the right thing to do
+            // eos_id can appear in any of the batch inputs
+            let num_eos = idx_next
+                .broadcast_eq(eos)
+                .unwrap()
+                .sum_all()
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap();
+
+            if num_eos as usize == b {
+                break;
+            }
+        }
 
         idx = Tensor::cat(&[&idx, &idx_next], D::Minus1)?;
     }
