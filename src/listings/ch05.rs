@@ -219,7 +219,7 @@ impl TopK for Tensor {
         let (batch_size, vocab_size) = top_pos.dims2()?;
         let top_pos = top_pos.i((.., ..top_k))?.flatten_all()?;
 
-        // get appropriate sum startind index
+        // get appropriate sum starting index
         let aux = Tensor::arange(0u32, batch_size as u32, self.device())?;
         let aux = (vocab_size as f64 * aux.broadcast_left(top_k)?.t()?.flatten_all()?)?;
         let top_pos_flattened_shifted = (&top_pos + aux)?;
