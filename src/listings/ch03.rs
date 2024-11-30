@@ -346,7 +346,7 @@ impl Module for MultiHeadAttention {
         // scale
         let mut attn_weights = softmax(&(masked * self.scaling)?, D::Minus1)?;
         // dropout
-        attn_weights = self.dropout.forward(&attn_weights, true)?;
+        attn_weights = self.dropout.forward(&attn_weights, false)?;
 
         // context vectors
         let context_vec = attn_weights.matmul(&values)?.transpose(1, 2)?;
