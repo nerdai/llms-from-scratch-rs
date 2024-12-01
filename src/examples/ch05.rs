@@ -454,6 +454,23 @@ impl Example for EG08 {
     }
 }
 
+/// Example 05.09
+pub struct EG09;
+
+impl Example for EG09 {
+    fn description(&self) -> String {
+        String::from("Saving and loading a candle model.")
+    }
+
+    fn page_source(&self) -> usize {
+        159_usize
+    }
+
+    fn main(&self) {
+        todo!()
+    }
+}
+
 pub mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
