@@ -454,6 +454,114 @@ impl Example for EG08 {
     }
 }
 
+/// Example 05.09
+pub struct EG09;
+
+impl Example for EG09 {
+    fn description(&self) -> String {
+        String::from("Saving and loading a candle model.")
+    }
+
+    fn page_source(&self) -> usize {
+        159_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch05::train_model_simple,
+        };
+        use candle_core::{DType, Device, IndexOp};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
+
+        // construt model
+        let varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let cfg = Config::gpt2_124m();
+        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.0004,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        // train model for an epoch
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
+        let (train_loader, val_loader) = addons::get_train_val_data_loaders(false);
+        let start_context = "Every effort moves you";
+        let _ = train_model_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context,
+            &tokenizer,
+        );
+
+        // save weights
+        println!(
+            "model.out_head.weight first 10 weights BEFORE save: {:?}",
+            varmap
+                .data()
+                .lock()
+                .unwrap()
+                .get("model.out_head.weight")
+                .unwrap()
+                .i((1, ..10))
+                .unwrap()
+                .to_vec1::<f32>()
+        );
+
+        println!("Saving weights to `./checkpoint.safetensors`");
+        varmap.save("checkpoint.safetensors").unwrap();
+
+        // construct a new copy of the model and its varmap
+        let mut varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let _model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+        println!(
+            "model.out_head.weight first 10 weights BEFORE load: {:?}",
+            varmap
+                .data()
+                .lock()
+                .unwrap()
+                .get("model.out_head.weight")
+                .unwrap()
+                .i((1, ..10))
+                .unwrap()
+                .to_vec1::<f32>()
+        );
+
+        // load the saved weights into the new model copy
+        println!("Loading weights from `./checkpoint.safetensors`");
+        varmap.load("checkpoint.safetensors").unwrap();
+        println!(
+            "model.out_head.weight first 10 weights AFTER load: {:?}",
+            varmap
+                .data()
+                .lock()
+                .unwrap()
+                .get("model.out_head.weight")
+                .unwrap()
+                .i((1, ..10))
+                .unwrap()
+                .to_vec1::<f32>()
+        );
+    }
+}
+
 pub mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
