@@ -1,3 +1,4 @@
+pub mod candle_addons;
 pub mod examples;
 pub mod exercises;
 pub mod listings;

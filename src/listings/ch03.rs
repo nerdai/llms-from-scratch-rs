@@ -1,4 +1,4 @@
-use candle_core::{Device, Module, Result, Tensor, D};
+use candle_core::{Device, Module, ModuleT, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
 
@@ -310,14 +310,18 @@ impl MultiHeadAttention {
     pub fn num_heads(&self) -> usize {
         self.num_heads
     }
+
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
 }
 
-impl Module for MultiHeadAttention {
-    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+impl ModuleT for MultiHeadAttention {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
         let (b, num_tokens, _d_in) = xs.dims3()?;
-        let queries = self.w_query.forward(xs)?;
-        let keys = self.w_key.forward(xs)?;
-        let values = self.w_value.forward(xs)?;
+        let queries = self.w_query.forward_t(xs, train)?;
+        let keys = self.w_key.forward_t(xs, train)?;
+        let values = self.w_value.forward_t(xs, train)?;
 
         // reshapes to facilitate getting attn scores each of the individual heads
         // with one matrix multiplication
@@ -346,7 +350,7 @@ impl Module for MultiHeadAttention {
         // scale
         let mut attn_weights = softmax(&(masked * self.scaling)?, D::Minus1)?;
         // dropout
-        attn_weights = self.dropout.forward(&attn_weights, false)?;
+        attn_weights = self.dropout.forward(&attn_weights, train)?;
 
         // context vectors
         let context_vec = attn_weights.matmul(&values)?.transpose(1, 2)?;
@@ -355,7 +359,7 @@ impl Module for MultiHeadAttention {
             .contiguous()?;
 
         // projection
-        self.out_proj.forward(&context_vec)
+        self.out_proj.forward_t(&context_vec, train)
     }
 }
 

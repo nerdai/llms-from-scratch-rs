@@ -307,7 +307,7 @@ impl Example for EG07 {
 
     fn main(&self) {
         use crate::listings::ch04::{Config, GPTModel};
-        use candle_core::{DType, IndexOp, Module};
+        use candle_core::{DType, IndexOp, ModuleT};
         use candle_nn::{VarBuilder, VarMap};
 
         let batch = get_batch_for_gpts();
@@ -319,7 +319,7 @@ impl Example for EG07 {
         let model = GPTModel::new(Config::gpt2_124m(), vb).unwrap();
 
         // get logits
-        let logits = model.forward(&batch).unwrap();
+        let logits = model.forward_t(&batch, false).unwrap();
         println!("output shape: {:?}", logits.shape());
 
         // print first 10 next-token logits for each token of every input sequence
