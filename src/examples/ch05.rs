@@ -68,7 +68,7 @@ impl Example for EG02 {
             ch04::{Config, GPTModel},
             ch05::token_ids_to_text,
         };
-        use candle_core::{DType, Device, IndexOp, Module, Tensor, D};
+        use candle_core::{DType, Device, IndexOp, ModuleT, Tensor, D};
         use candle_nn::{loss::cross_entropy, ops::softmax, VarBuilder, VarMap};
         use tiktoken_rs::get_bpe_from_model;
 
@@ -85,7 +85,7 @@ impl Example for EG02 {
             Tensor::new(&[[3626_u32, 6100, 345], [1107, 588, 11311]], vb.device()).unwrap();
 
         // logits and probas
-        let logits = model.forward(&inputs).unwrap();
+        let logits = model.forward_t(&inputs, false).unwrap();
         let probas = softmax(&logits, D::Minus1).unwrap();
         println!("{:?}", probas);
 

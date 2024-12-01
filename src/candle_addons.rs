@@ -7,7 +7,7 @@ pub struct SequentialT {
 }
 
 /// Creates a new empty sequential layer.
-pub fn seq() -> SequentialT {
+pub fn seqt() -> SequentialT {
     SequentialT { layers: vec![] }
 }
 

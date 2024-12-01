@@ -1,8 +1,8 @@
 use super::ch03::MultiHeadAttention;
-use candle_core::{IndexOp, Module, Result, Tensor, TensorId, D};
+use crate::candle_addons::{seqt, SequentialT};
+use candle_core::{IndexOp, Module, ModuleT, Result, Tensor, TensorId, D};
 use candle_nn::{
-    embedding, linear_b, ops::softmax, seq, Dropout, Embedding, Linear, ModuleT, Sequential,
-    VarBuilder,
+    embedding, linear_b, ops::softmax, seq, Dropout, Embedding, Linear, Sequential, VarBuilder,
 };
 use core::f64;
 use std::cmp;
@@ -348,21 +348,25 @@ impl TransformerBlock {
             drop_shortcut,
         })
     }
+
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
 }
 
-impl Module for TransformerBlock {
-    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+impl ModuleT for TransformerBlock {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
         let shortcut = xs.to_owned();
         let mut x = xs.to_owned();
         x = self.norm1.forward(&x)?;
-        x = self.att.forward(&x)?;
-        x = self.drop_shortcut.forward(&x, false)?; // todo: should be configurable
+        x = self.att.forward_t(&x, train)?;
+        x = self.drop_shortcut.forward(&x, train)?; // todo: should be configurable
         x = (x + shortcut)?;
 
         let shortcut = x.clone();
         x = self.norm2.forward(&x)?;
         x = self.ff.forward(&x)?;
-        x = self.drop_shortcut.forward(&x, false)?;
+        x = self.drop_shortcut.forward(&x, train)?;
         x = (x + shortcut)?;
         Ok(x)
     }
@@ -374,7 +378,7 @@ pub struct GPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
     drop_emb: Dropout,
-    trf_blocks: Sequential, // of transformer blocks
+    trf_blocks: SequentialT, // of transformer blocks
     final_norm: LayerNorm,
     out_head: Linear,
 }
@@ -384,7 +388,7 @@ impl GPTModel {
         let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
         let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
         let drop_emb = Dropout::new(cfg.drop_rate);
-        let mut trf_blocks = seq();
+        let mut trf_blocks = seqt();
         for ix in 0..cfg.n_layers {
             trf_blocks =
                 trf_blocks.add(TransformerBlock::new(cfg, vb.pp(format!("trf-{}", ix))).unwrap());
@@ -405,7 +409,7 @@ impl GPTModel {
         tok_emb: Embedding,
         pos_emb: Embedding,
         drop_emb: Dropout,
-        trf_blocks: Sequential,
+        trf_blocks: SequentialT,
         final_norm: LayerNorm,
         out_head: Linear,
     ) -> Result<Self> {
@@ -422,18 +426,22 @@ impl GPTModel {
     pub fn pos_emb(&self) -> &Embedding {
         &self.pos_emb
     }
+
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
 }
 
-impl Module for GPTModel {
-    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+impl ModuleT for GPTModel {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
         let (_batch_size, seq_len) = xs.dims2()?;
         let tok_embeds = self.tok_emb.forward(xs)?;
         let pos_ids = Tensor::arange(0u32, seq_len as u32, xs.device())?;
         let pos_embeds = self.pos_emb.embeddings().index_select(&pos_ids, 0)?;
 
         let mut x = tok_embeds.broadcast_add(&pos_embeds)?;
-        x = self.drop_emb.forward(&x, false)?;
-        x = self.trf_blocks.forward(&x)?;
+        x = self.drop_emb.forward(&x, train)?;
+        x = self.trf_blocks.forward_t(&x, train)?;
         x = self.final_norm.forward(&x)?;
 
         let logits = self.out_head.forward(&x)?;

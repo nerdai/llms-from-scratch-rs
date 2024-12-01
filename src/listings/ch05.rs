@@ -2,7 +2,7 @@ use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
 };
-use candle_core::{Device, IndexOp, Module, ModuleT, Result, Tensor, D};
+use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::{ops::softmax, Optimizer};
 use itertools::Itertools;
 use rand::{
@@ -39,7 +39,7 @@ pub fn calc_loss_batch(
 ) -> Result<Tensor> {
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?;
-    let logits = model.forward(&input_batch)?;
+    let logits = model.forward_t(&input_batch, true)?;
 
     // flatten
     let logits_flat = logits.flatten(0, 1)?;

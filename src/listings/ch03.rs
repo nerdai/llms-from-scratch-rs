@@ -312,7 +312,7 @@ impl MultiHeadAttention {
     }
 
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        self.forward_t(xs, false)
+        self.forward_t(xs, true)
     }
 }
 

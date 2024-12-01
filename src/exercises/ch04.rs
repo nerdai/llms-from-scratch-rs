@@ -103,7 +103,7 @@ impl Exercise for X4P3 {
 
     fn main(&self) {
         use crate::listings::ch04::GPTModel;
-        use candle_core::{DType, Device, IndexOp, Module, Tensor};
+        use candle_core::{DType, Device, IndexOp, ModuleT, Tensor};
         use candle_nn::{VarBuilder, VarMap};
 
         // create model
@@ -116,7 +116,7 @@ impl Exercise for X4P3 {
         let batch = Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev).unwrap();
 
         // run model forward
-        let logits = model.forward(&batch).unwrap();
+        let logits = model.forward_t(&batch, false).unwrap();
 
         // print first ten logits of vocabular for all batch inputs, and tokens
         let (_b, c, _vocab_size) = logits.dims3().unwrap();
@@ -129,9 +129,12 @@ impl Exercise for X4P3 {
 }
 
 mod addons {
-    use crate::listings::{
-        ch03::MultiHeadAttention,
-        ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+    use crate::{
+        candle_addons::seqt,
+        listings::{
+            ch03::MultiHeadAttention,
+            ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+        },
     };
     use candle_core::Result;
     use candle_nn::{embedding, linear_b, seq, Dropout, VarBuilder};
@@ -209,7 +212,7 @@ mod addons {
             let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
             let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
             let drop_emb = Dropout::new(cfg.drop_rate_emb);
-            let mut trf_blocks = seq();
+            let mut trf_blocks = seqt();
             for ix in 0..cfg.n_layers {
                 trf_blocks = trf_blocks
                     .add(TransformerBlock::new_v2(cfg, vb.pp(format!("trf-{}", ix))).unwrap());
