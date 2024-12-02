@@ -13,6 +13,7 @@ use rand::{
 use std::{
     cmp,
     collections::{HashMap, HashSet},
+    fmt::{write, Display},
     sync::LazyLock,
 };
 use tiktoken_rs::CoreBPE;
@@ -318,27 +319,73 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, &'static str>> = LazyLock
 
 const HF_TRANSFORMER_PREFIX: &'static str = "h";
 
-static TRANSFORMER_MAPPING: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
-    HashMap::from([
-        ("ff.first_layer.bias", "mlp.c_fc.bias"),
-        ("ff.first_layer.weight", "mlp.c_fc.weight"),
-        ("ff.second_layer.bias", "mlp.c_proj.bias"),
-        ("ff.second_layer.weight", "mlp.c_proj.weight"),
-        ("norm1.scale", "ln_1.weight"),
-        ("norm1.shift", "ln_1.bias"),
-        ("norm2.scale", "ln_2.weight"),
-        ("norm2.shift", "ln_2.bias"),
-        ("mha.out_proj.bias", "attn.c_proj.bias"),
-        ("mha.out_proj.weight", "attn.c_proj.weight"),
-        ("mha.key.bias", "attn.c_attn.bias"),
-        // needs to be split into three equal parts
-        ("mha.key.weight", "attn.c_attn.weight"),
-        ("mha.query.bias", "attn.c_attn.bias"),
-        ("mha.query.weight", "attn.c_attn.weight"),
-        ("mha.value.bias", "attn.c_attn.bias"),
-        ("mha.value.weight", "attn.c_attn.weight"),
-    ])
-});
+static TRANSFORMER_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            (
+                "ff.first_layer.bias",
+                HuggingFaceWeightBuilder::new("mlp.c_fc.bias").build(),
+            ),
+            (
+                "ff.first_layer.weight",
+                HuggingFaceWeightBuilder::new("mlp.c_fc.weight")
+                    .set_transpose()
+                    .build(),
+            ),
+            // ("ff.second_layer.bias", "mlp.c_proj.bias"),
+            // ("ff.second_layer.weight", "mlp.c_proj.weight"),
+            // ("norm1.scale", "ln_1.weight"),
+            // ("norm1.shift", "ln_1.bias"),
+            // ("norm2.scale", "ln_2.weight"),
+            // ("norm2.shift", "ln_2.bias"),
+            // ("mha.out_proj.bias", "attn.c_proj.bias"),
+            // ("mha.out_proj.weight", "attn.c_proj.weight"),
+            // ("mha.key.bias", "attn.c_attn.bias"),
+            // // needs to be split into three equal parts
+            // ("mha.key.weight", "attn.c_attn.weight"),
+            // ("mha.query.bias", "attn.c_attn.bias"),
+            // ("mha.query.weight", "attn.c_attn.weight"),
+            // ("mha.value.bias", "attn.c_attn.bias"),
+            // ("mha.value.weight", "attn.c_attn.weight"),
+        ])
+    });
+
+struct HuggingFaceWeight {
+    name: String,
+    transpose: bool,
+}
+
+impl Display for HuggingFaceWeight {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+struct HuggingFaceWeightBuilder {
+    name: String,
+    transpose: bool,
+}
+
+impl HuggingFaceWeightBuilder {
+    fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            transpose: false,
+        }
+    }
+
+    fn set_transpose(mut self) -> Self {
+        self.transpose = true;
+        self
+    }
+
+    fn build(self) -> HuggingFaceWeight {
+        HuggingFaceWeight {
+            name: self.name,
+            transpose: self.transpose,
+        }
+    }
+}
 
 /// Listing 5.5
 #[allow(unused_variables)]
@@ -375,14 +422,14 @@ pub fn load_weights_into_gpt(
         .count();
     let transformer_block_mapping = &*TRANSFORMER_MAPPING;
     for b in 0..num_layers {
-        for (gpt_name, hf_name) in transformer_block_mapping.iter() {
+        for (gpt_name, hf_weight) in transformer_block_mapping.iter() {
             let name = if let Some(prefix) = model_prefix {
                 format!("{prefix}.trf.{b}.{gpt_name}")
             } else {
                 format!("trf.{b}.{gpt_name}")
             };
 
-            let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.{hf_name}");
+            let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.{}", hf_weight.name);
 
             let var = gpt_data
                 .get(name.as_str())
@@ -390,11 +437,15 @@ pub fn load_weights_into_gpt(
 
             let data = weights.get(data_name.as_str()).ok_or_else(|| {
                 Error::CannotFindTensor {
-                    path: hf_name.to_string(),
+                    path: data_name.to_string(),
                 }
                 .bt()
             })?;
-            var.set(data)?;
+            if hf_weight.transpose {
+                var.set(&data.t()?)?;
+            } else {
+                var.set(data)?;
+            }
         }
     }
 
