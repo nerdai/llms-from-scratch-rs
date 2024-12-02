@@ -562,6 +562,31 @@ impl Example for EG09 {
     }
 }
 
+/// Example 05.10
+pub struct EG10;
+
+impl Example for EG10 {
+    fn description(&self) -> String {
+        String::from("Example for loading safetensors from HuggingFace Hub.")
+    }
+
+    fn page_source(&self) -> usize {
+        161_usize
+    }
+
+    fn main(&self) {
+        use candle_core::Device;
+        use hf_hub::api::sync::Api;
+
+        let api = Api::new().unwrap();
+        let repo = api.model("openai-community/gpt2".to_string());
+        let weights = repo.get("model.safetensors").unwrap();
+        let weights = candle_core::safetensors::load(weights, &Device::Cpu);
+
+        println!("{:?}", weights);
+    }
+}
+
 pub mod addons {
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
