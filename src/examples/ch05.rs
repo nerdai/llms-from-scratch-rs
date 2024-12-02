@@ -575,6 +575,7 @@ impl Example for EG10 {
     }
 
     fn main(&self) {
+        use crate::listings::ch04::Config;
         use candle_core::Device;
         use hf_hub::api::sync::Api;
 
@@ -582,6 +583,12 @@ impl Example for EG10 {
         let repo = api.model("openai-community/gpt2".to_string());
         let weights = repo.get("model.safetensors").unwrap();
         let weights = candle_core::safetensors::load(weights, &Device::Cpu);
+
+        // update config
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+
+        println!("{:?}", cfg);
 
         println!("{:?}", weights);
     }
