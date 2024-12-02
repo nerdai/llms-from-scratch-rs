@@ -2,8 +2,8 @@ use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
 };
-use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
-use candle_nn::{ops::softmax, Optimizer};
+use candle_core::{Device, Error, IndexOp, ModuleT, Result, Tensor, Var, D};
+use candle_nn::{ops::softmax, Optimizer, VarMap};
 use itertools::Itertools;
 use rand::{
     distributions::{Distribution, WeightedIndex},
@@ -13,6 +13,7 @@ use rand::{
 use std::{
     cmp,
     collections::{HashMap, HashSet},
+    sync::LazyLock,
 };
 use tiktoken_rs::CoreBPE;
 
@@ -303,6 +304,46 @@ pub fn generate(
         idx = Tensor::cat(&[&idx, &idx_next], D::Minus1)?;
     }
     Ok(idx)
+}
+
+fn assign(left: &mut Var, right: &Tensor) -> Result<()> {
+    left.set(right)?;
+    Ok(())
+}
+
+static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+    HashMap::from([
+        ("model.pos_emb.weight", "wpe.weight"),
+        ("model.tok_emb.weight", "wte.weight"),
+    ])
+});
+
+/// Listing 5.5
+#[allow(unused_variables)]
+pub fn load_weights_into_gpt(
+    gpt_varmap: &mut VarMap,
+    weights: &HashMap<String, Tensor>,
+) -> Result<()> {
+    let gpt_data = gpt_varmap.data().lock().unwrap();
+
+    let weights_mapping = &*WEIGHTS_MAPPING;
+
+    for (gpt_name, hf_name) in weights_mapping.iter() {
+        let var = gpt_data.get(*gpt_name).ok_or_else(|| {
+            Error::CannotFindTensor {
+                path: gpt_name.to_string(),
+            }
+            .bt()
+        })?;
+        let data = weights.get(*hf_name).ok_or_else(|| {
+            Error::CannotFindTensor {
+                path: hf_name.to_string(),
+            }
+            .bt()
+        })?;
+        var.set(data)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

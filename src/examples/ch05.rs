@@ -582,7 +582,7 @@ impl Example for EG10 {
         let api = Api::new().unwrap();
         let repo = api.model("openai-community/gpt2".to_string());
         let weights = repo.get("model.safetensors").unwrap();
-        let weights = candle_core::safetensors::load(weights, &Device::Cpu);
+        let weights = candle_core::safetensors::load(weights, &Device::Cpu).unwrap();
 
         // update config
         let mut cfg = Config::gpt2_124m();
@@ -590,7 +590,43 @@ impl Example for EG10 {
 
         println!("{:?}", cfg);
 
-        println!("{:?}", weights);
+        for key in weights.keys() {
+            println!("{key}: {:?}", weights.get(key).unwrap().shape());
+        }
+    }
+}
+
+pub struct EG11;
+
+impl Example for EG11 {
+    fn description(&self) -> String {
+        String::from("Sample usage of `load_weights_into_gpt`.")
+    }
+
+    fn page_source(&self) -> usize {
+        167_usize
+    }
+
+    fn main(&self) {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch05::load_weights_into_gpt,
+        };
+        use candle_core::{DType, Device, IndexOp, ModuleT, Tensor, D};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+
+        let varmap_binding = varmap.data().lock().unwrap();
+
+        for key in varmap_binding.keys() {
+            println!("{key}: {:?}", varmap_binding.get(key).unwrap().shape());
+        }
     }
 }
 
