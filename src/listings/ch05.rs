@@ -2,7 +2,7 @@ use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
 };
-use candle_core::{Device, Error, IndexOp, ModuleT, Result, Tensor, Var, D};
+use candle_core::{Device, Error, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::{ops::softmax, Optimizer, VarMap};
 use itertools::Itertools;
 use rand::{
@@ -13,7 +13,7 @@ use rand::{
 use std::{
     cmp,
     collections::{HashMap, HashSet},
-    fmt::{write, Display},
+    fmt::Display,
     sync::LazyLock,
 };
 use tiktoken_rs::CoreBPE;
@@ -332,7 +332,7 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> = Laz
     ])
 });
 
-const HF_TRANSFORMER_PREFIX: &'static str = "h";
+const HF_TRANSFORMER_PREFIX: &str = "h";
 
 static TRANSFORMER_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> =
     LazyLock::new(|| {
@@ -447,7 +447,7 @@ pub fn load_weights_into_gpt(
             gpt_name.to_string()
         };
 
-        let data_name = format!("{}", hf_weight.name);
+        let data_name = hf_weight.name.to_string();
 
         let var = gpt_data
             .get(name.as_str())
