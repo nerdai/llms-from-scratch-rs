@@ -332,16 +332,44 @@ static TRANSFORMER_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> =
                     .set_transpose()
                     .build(),
             ),
-            // ("ff.second_layer.bias", "mlp.c_proj.bias"),
-            // ("ff.second_layer.weight", "mlp.c_proj.weight"),
-            // ("norm1.scale", "ln_1.weight"),
-            // ("norm1.shift", "ln_1.bias"),
-            // ("norm2.scale", "ln_2.weight"),
-            // ("norm2.shift", "ln_2.bias"),
-            // ("mha.out_proj.bias", "attn.c_proj.bias"),
-            // ("mha.out_proj.weight", "attn.c_proj.weight"),
-            // ("mha.key.bias", "attn.c_attn.bias"),
+            (
+                "ff.second_layer.bias",
+                HuggingFaceWeightBuilder::new("mlp.c_proj.bias").build(),
+            ),
+            (
+                "ff.second_layer.weight",
+                HuggingFaceWeightBuilder::new("mlp.c_proj.weight")
+                    .set_transpose()
+                    .build(),
+            ),
+            (
+                "norm1.scale",
+                HuggingFaceWeightBuilder::new("ln_1.weight").build(),
+            ),
+            (
+                "norm1.shift",
+                HuggingFaceWeightBuilder::new("ln_1.bias").build(),
+            ),
+            (
+                "norm2.scale",
+                HuggingFaceWeightBuilder::new("ln_2.weight").build(),
+            ),
+            (
+                "norm2.shift",
+                HuggingFaceWeightBuilder::new("ln_2.bias").build(),
+            ),
+            (
+                "mha.out_proj.bias",
+                HuggingFaceWeightBuilder::new("attn.c_proj.bias").build(),
+            ),
+            (
+                "mha.out_proj.weight",
+                HuggingFaceWeightBuilder::new("attn.c_proj.weight")
+                    .set_transpose()
+                    .build(),
+            ),
             // // needs to be split into three equal parts
+            // ("mha.key.bias", "attn.c_attn.bias"),
             // ("mha.key.weight", "attn.c_attn.weight"),
             // ("mha.query.bias", "attn.c_attn.bias"),
             // ("mha.query.weight", "attn.c_attn.weight"),
