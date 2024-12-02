@@ -307,13 +307,28 @@ pub fn generate(
     Ok(idx)
 }
 
-static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> = LazyLock::new(|| {
     HashMap::from([
-        ("pos_emb.weight", "wpe.weight"),
-        ("tok_emb.weight", "wte.weight"),
-        ("final_norm.scale", "ln_f.weight"),
-        ("final_norm.shift", "ln_f.bias"),
-        ("out_head.weight", "wte.weight"),
+        (
+            "pos_emb.weight",
+            HuggingFaceWeightBuilder::new("wpe.weight").build(),
+        ),
+        (
+            "tok_emb.weight",
+            HuggingFaceWeightBuilder::new("wte.weight").build(),
+        ),
+        (
+            "final_norm.scale",
+            HuggingFaceWeightBuilder::new("ln_f.weight").build(),
+        ),
+        (
+            "final_norm.shift",
+            HuggingFaceWeightBuilder::new("ln_f.bias").build(),
+        ),
+        (
+            "out_head.weight",
+            HuggingFaceWeightBuilder::new("wte.weight").build(),
+        ),
     ])
 });
 
@@ -425,22 +440,26 @@ pub fn load_weights_into_gpt(
     let gpt_data = gpt_varmap.data().lock().unwrap();
     let weights_mapping = &*WEIGHTS_MAPPING;
 
-    for (gpt_name, hf_name) in weights_mapping.iter() {
+    for (gpt_name, hf_weight) in weights_mapping.iter() {
         let name = if let Some(prefix) = model_prefix {
             format!("{prefix}.{gpt_name}")
         } else {
             gpt_name.to_string()
         };
+
+        let data_name = format!("{}", hf_weight.name);
+
         let var = gpt_data
             .get(name.as_str())
             .ok_or_else(|| Error::CannotFindTensor { path: name }.bt())?;
-        let data = weights.get(*hf_name).ok_or_else(|| {
-            Error::CannotFindTensor {
-                path: hf_name.to_string(),
-            }
-            .bt()
-        })?;
-        var.set(data)?;
+        let data = weights
+            .get(data_name.as_str())
+            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+        if hf_weight.transpose {
+            var.set(&data.t()?)?;
+        } else {
+            var.set(data)?;
+        }
     }
 
     // set transformer block weights
