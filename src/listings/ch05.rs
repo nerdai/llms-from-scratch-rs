@@ -528,6 +528,39 @@ pub fn load_weights_into_gpt(
         };
         let v_b_var = gpt_data.get(v_name.as_str()).unwrap();
         v_b_var.set(&v_b)?;
+
+        // split attn.c_attn.weight
+        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.weight");
+        let hf_attn_weight = weights
+            .get(data_name.as_str())
+            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+        let q_w = hf_attn_weight.i((.., ..dim))?;
+        let k_w = hf_attn_weight.i((.., dim..2 * dim))?;
+        let v_w = hf_attn_weight.i((.., 2 * dim..))?;
+
+        let q_name = if let Some(prefix) = model_prefix {
+            format!("{prefix}.trf.{b}.mha.query.weight")
+        } else {
+            format!("trf.{b}.mha.query.weight")
+        };
+        let q_w_var = gpt_data.get(q_name.as_str()).unwrap();
+        q_w_var.set(&q_w.t()?)?;
+
+        let k_name = if let Some(prefix) = model_prefix {
+            format!("{prefix}.trf.{b}.mha.key.weight")
+        } else {
+            format!("trf.{b}.mha.key.weight")
+        };
+        let k_w_var = gpt_data.get(k_name.as_str()).unwrap();
+        k_w_var.set(&k_w.t()?)?;
+
+        let v_name = if let Some(prefix) = model_prefix {
+            format!("{prefix}.trf.{b}.mha.value.weight")
+        } else {
+            format!("trf.{b}.mha.value.weight")
+        };
+        let v_w_var = gpt_data.get(v_name.as_str()).unwrap();
+        v_w_var.set(&v_w.t()?)?;
     }
 
     Ok(())
