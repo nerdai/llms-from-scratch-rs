@@ -614,19 +614,23 @@ impl Example for EG11 {
         };
         use candle_core::{DType, Device, IndexOp, ModuleT, Tensor, D};
         use candle_nn::{VarBuilder, VarMap};
+        use hf_hub::api::sync::Api;
 
-        let varmap = VarMap::new();
-        let vb =
-            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let dev = Device::cuda_if_available(0).unwrap();
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
         let mut cfg = Config::gpt2_124m();
         cfg.qkv_bias = true;
         let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
 
-        let varmap_binding = varmap.data().lock().unwrap();
+        // get weights from HF Hub
+        let api = Api::new().unwrap();
+        let repo = api.model("openai-community/gpt2".to_string());
+        let weights = repo.get("model.safetensors").unwrap();
+        let weights = candle_core::safetensors::load(weights, &dev).unwrap();
 
-        for key in varmap_binding.keys() {
-            println!("{key}: {:?}", varmap_binding.get(key).unwrap().shape());
-        }
+        // load weights
+        load_weights_into_gpt(&mut varmap, &weights, Some("model")).unwrap();
     }
 }
 

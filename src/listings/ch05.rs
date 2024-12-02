@@ -306,15 +306,37 @@ pub fn generate(
     Ok(idx)
 }
 
-fn assign(left: &mut Var, right: &Tensor) -> Result<()> {
-    left.set(right)?;
-    Ok(())
-}
-
 static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
-        ("model.pos_emb.weight", "wpe.weight"),
-        ("model.tok_emb.weight", "wte.weight"),
+        ("pos_emb.weight", "wpe.weight"),
+        ("tok_emb.weight", "wte.weight"),
+        ("final_norm.scale", "ln_f.weight"),
+        ("final_norm.shift", "ln_f.bias"),
+        ("out_head.weight", "wte.weight"),
+    ])
+});
+
+const HF_TRANSFORMER_PREFIX: &'static str = "h";
+
+static TRANSFORMER_MAPPING: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+    HashMap::from([
+        ("ff.first_layer.bias", "mlp.c_fc.bias"),
+        ("ff.first_layer.weight", "mlp.c_fc.weight"),
+        ("ff.second_layer.bias", "mlp.c_proj.bias"),
+        ("ff.second_layer.weight", "mlp.c_proj.weight"),
+        ("norm1.scale", "ln_1.weight"),
+        ("norm1.shift", "ln_1.bias"),
+        ("norm2.scale", "ln_2.weight"),
+        ("norm2.shift", "ln_2.bias"),
+        ("mha.out_proj.bias", "attn.c_proj.bias"),
+        ("mha.out_proj.weight", "attn.c_proj.weight"),
+        ("mha.key.bias", "attn.c_attn.bias"),
+        // needs to be split into three equal parts
+        ("mha.key.weight", "attn.c_attn.weight"),
+        ("mha.query.bias", "attn.c_attn.bias"),
+        ("mha.query.weight", "attn.c_attn.weight"),
+        ("mha.value.bias", "attn.c_attn.bias"),
+        ("mha.value.weight", "attn.c_attn.weight"),
     ])
 });
 
@@ -323,18 +345,20 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, &'static str>> = LazyLock
 pub fn load_weights_into_gpt(
     gpt_varmap: &mut VarMap,
     weights: &HashMap<String, Tensor>,
+    model_prefix: Option<&str>,
 ) -> Result<()> {
     let gpt_data = gpt_varmap.data().lock().unwrap();
-
     let weights_mapping = &*WEIGHTS_MAPPING;
 
     for (gpt_name, hf_name) in weights_mapping.iter() {
-        let var = gpt_data.get(*gpt_name).ok_or_else(|| {
-            Error::CannotFindTensor {
-                path: gpt_name.to_string(),
-            }
-            .bt()
-        })?;
+        let name = if let Some(prefix) = model_prefix {
+            format!("{prefix}.{gpt_name}")
+        } else {
+            gpt_name.to_string()
+        };
+        let var = gpt_data
+            .get(name.as_str())
+            .ok_or_else(|| Error::CannotFindTensor { path: name }.bt())?;
         let data = weights.get(*hf_name).ok_or_else(|| {
             Error::CannotFindTensor {
                 path: hf_name.to_string(),
@@ -343,6 +367,37 @@ pub fn load_weights_into_gpt(
         })?;
         var.set(data)?;
     }
+
+    // set transformer block weights
+    let num_layers: usize = gpt_data
+        .keys()
+        .filter(|k| k.contains("mha.out_proj.weight"))
+        .count();
+    let transformer_block_mapping = &*TRANSFORMER_MAPPING;
+    for b in 0..num_layers {
+        for (gpt_name, hf_name) in transformer_block_mapping.iter() {
+            let name = if let Some(prefix) = model_prefix {
+                format!("{prefix}.trf.{b}.{gpt_name}")
+            } else {
+                format!("trf.{b}.{gpt_name}")
+            };
+
+            let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.{hf_name}");
+
+            let var = gpt_data
+                .get(name.as_str())
+                .ok_or_else(|| Error::CannotFindTensor { path: name }.bt())?;
+
+            let data = weights.get(data_name.as_str()).ok_or_else(|| {
+                Error::CannotFindTensor {
+                    path: hf_name.to_string(),
+                }
+                .bt()
+            })?;
+            var.set(data)?;
+        }
+    }
+
     Ok(())
 }
 
