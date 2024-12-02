@@ -494,6 +494,40 @@ pub fn load_weights_into_gpt(
                 var.set(data)?;
             }
         }
+
+        // split attn.c_attn.bias
+        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.bias");
+        let hf_attn_bias = weights
+            .get(data_name.as_str())
+            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+        let dim = hf_attn_bias.dims()[0] / 3_usize;
+        let q_b = hf_attn_bias.i(..dim)?;
+        let k_b = hf_attn_bias.i(dim..2 * dim)?;
+        let v_b = hf_attn_bias.i(2 * dim..)?;
+
+        let q_name = if let Some(prefix) = model_prefix {
+            format!("{prefix}.trf.{b}.mha.query.bias")
+        } else {
+            format!("trf.{b}.mha.query.bias")
+        };
+        let q_b_var = gpt_data.get(q_name.as_str()).unwrap();
+        q_b_var.set(&q_b)?;
+
+        let k_name = if let Some(prefix) = model_prefix {
+            format!("{prefix}.trf.{b}.mha.key.bias")
+        } else {
+            format!("trf.{b}.mha.key.bias")
+        };
+        let k_b_var = gpt_data.get(k_name.as_str()).unwrap();
+        k_b_var.set(&k_b)?;
+
+        let v_name = if let Some(prefix) = model_prefix {
+            format!("{prefix}.trf.{b}.mha.value.bias")
+        } else {
+            format!("trf.{b}.mha.value.bias")
+        };
+        let v_b_var = gpt_data.get(v_name.as_str()).unwrap();
+        v_b_var.set(&v_b)?;
     }
 
     Ok(())
