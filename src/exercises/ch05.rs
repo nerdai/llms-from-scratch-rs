@@ -150,3 +150,53 @@ impl Exercise for X5P3 {
         }
     }
 }
+
+/// Exercise 5.5
+pub struct X5P5;
+
+impl Exercise for X5P5 {
+    fn name(&self) -> String {
+        String::from("5.5")
+    }
+
+    fn main(&self) {
+        use crate::{
+            examples,
+            listings::{
+                ch04::{Config, GPTModel},
+                ch05::{calc_loss_loader, load_weights_into_gpt},
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+        use hf_hub::api::sync::Api;
+
+        let dev = Device::cuda_if_available(0).unwrap();
+
+        // download openai weights
+        let api = Api::new().unwrap();
+        let repo = api.model("openai-community/gpt2".to_string());
+        let weights = repo.get("model.safetensors").unwrap();
+        let mut weights = candle_core::safetensors::load(weights, &dev).unwrap();
+
+        // construct model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+
+        // load openai weights
+        load_weights_into_gpt(&varmap, &mut weights, Some("model"), cfg.n_layers).unwrap();
+
+        // build train and val loaders with utility function from addons module
+        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false);
+
+        // compute train and val loss
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), None).unwrap();
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), None).unwrap();
+
+        println!("Training loss {:?}", train_loss);
+        println!("Validation loss {:?}", val_loss);
+    }
+}
