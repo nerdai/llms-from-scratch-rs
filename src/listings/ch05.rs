@@ -14,6 +14,7 @@ use std::{
     cmp,
     collections::{HashMap, HashSet},
     fmt::Display,
+    rc::Rc,
     sync::LazyLock,
 };
 use tiktoken_rs::CoreBPE;
@@ -319,7 +320,9 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HashMap<&'static str, Hug
                     ),
                     (
                         "tok_emb.weight",
-                        HuggingFaceWeightBuilder::new("wte.weight").build(),
+                        HuggingFaceWeightBuilder::new("wte.weight")
+                            .unset_drop_after_first_load()
+                            .build(),
                     ),
                     (
                         "final_norm.scale",
@@ -331,7 +334,9 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HashMap<&'static str, Hug
                     ),
                     (
                         "out_head.weight",
-                        HuggingFaceWeightBuilder::new("wte.weight").build(),
+                        HuggingFaceWeightBuilder::new("wte.weight")
+                            .unset_drop_after_first_load()
+                            .build(),
                     ),
                 ]),
             ),
@@ -431,6 +436,7 @@ const HF_TRANSFORMER_PREFIX: &str = "h";
 struct HuggingFaceWeight {
     name: String,
     transpose: bool,
+    drop_after_first_load: bool,
 }
 
 impl Display for HuggingFaceWeight {
@@ -442,6 +448,7 @@ impl Display for HuggingFaceWeight {
 struct HuggingFaceWeightBuilder {
     name: String,
     transpose: bool,
+    drop_after_first_load: bool,
 }
 
 impl HuggingFaceWeightBuilder {
@@ -449,6 +456,7 @@ impl HuggingFaceWeightBuilder {
         Self {
             name: name.to_string(),
             transpose: false,
+            drop_after_first_load: true,
         }
     }
 
@@ -457,10 +465,16 @@ impl HuggingFaceWeightBuilder {
         self
     }
 
+    fn unset_drop_after_first_load(mut self) -> Self {
+        self.drop_after_first_load = false;
+        self
+    }
+
     fn build(self) -> HuggingFaceWeight {
         HuggingFaceWeight {
             name: self.name,
             transpose: self.transpose,
+            drop_after_first_load: self.drop_after_first_load,
         }
     }
 }
@@ -468,7 +482,7 @@ impl HuggingFaceWeightBuilder {
 // helper fn for loading weights into gpt
 fn load_from_weights_mapping(
     gpt_varmap: &VarMap,
-    weights: &HashMap<String, Tensor>,
+    weights: &mut HashMap<String, Tensor>,
     var_prefix: Option<&str>,
     weights_prefix: Option<&str>,
     weights_mapping: &HashMap<&str, HuggingFaceWeight>,
@@ -483,22 +497,31 @@ fn load_from_weights_mapping(
             gpt_name.to_string()
         };
 
-        let data_name = if let Some(w_prefix) = weights_prefix {
+        let data_name = Rc::new(if let Some(w_prefix) = weights_prefix {
             format!("{w_prefix}.{}", hf_weight.name)
         } else {
             hf_weight.name.to_string()
-        };
+        });
 
         let var = gpt_data
             .get(var_name.as_str())
             .ok_or_else(|| Error::CannotFindTensor { path: var_name }.bt())?;
-        let data = weights
-            .get(data_name.as_str())
-            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+
+        let data = weights.get(data_name.as_str()).ok_or_else(|| {
+            Error::CannotFindTensor {
+                path: data_name.to_string(),
+            }
+            .bt()
+        })?;
         if hf_weight.transpose {
             var.set(&data.t()?)?;
         } else {
             var.set(data)?;
+        }
+
+        // drop weight after used
+        if hf_weight.drop_after_first_load {
+            weights.remove(data_name.as_str());
         }
     }
     Ok(())
@@ -542,7 +565,7 @@ pub fn load_weights_into_gpt(
         )?;
 
         // split attn.c_attn.bias
-        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.bias");
+        let data_name = format!("{weights_prefix}.attn.c_attn.bias");
         let hf_attn_bias = weights
             .get(data_name.as_str())
             .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
@@ -552,7 +575,7 @@ pub fn load_weights_into_gpt(
         let v_b = hf_attn_bias.i(2 * dim..)?;
 
         // split attn.c_attn.weight
-        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.weight");
+        let data_name = format!("{weights_prefix}.attn.c_attn.weight");
         let hf_attn_weight = weights
             .get(data_name.as_str())
             .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
@@ -576,6 +599,16 @@ pub fn load_weights_into_gpt(
             Some(weights_prefix.as_str()),
             weights_mapping.get("transformer_wts_qkv").unwrap(),
         )?;
+
+        // remove from weights after loading into model
+        weights.remove(format!("{weights_prefix}.attn.c_attn.query.bias").as_str());
+        weights.remove(format!("{weights_prefix}.attn.c_attn.key.bias").as_str());
+        weights.remove(format!("{weights_prefix}.attn.c_attn.value.bias").as_str());
+        weights.remove(format!("{weights_prefix}.attn.c_attn.query.weight").as_str());
+        weights.remove(format!("{weights_prefix}.attn.c_attn.key.weight").as_str());
+        weights.remove(format!("{weights_prefix}.attn.c_attn.value.weight").as_str());
+        weights.remove(format!("{weights_prefix}.attn.c_attn.bias").as_str());
+        weights.remove(format!("{weights_prefix}.attn.c_attn.weight").as_str());
     }
     Ok(())
 }
