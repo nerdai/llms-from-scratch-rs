@@ -290,8 +290,9 @@ impl Exercise for X5P6 {
         let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
 
         // get weights from HF Hub
+        let model_name = "openai-community/gpt2-xl";
         let api = Api::new().unwrap();
-        let repo = api.model("openai-community/gpt2-xl".to_string());
+        let repo = api.model(model_name.to_string());
         let weights = repo.get("model.safetensors").unwrap();
         let weights = candle_core::safetensors::load(weights, &Device::Cpu).unwrap();
 
@@ -317,7 +318,7 @@ impl Exercise for X5P6 {
 
         // decode the token ids to print the output text
         println!(
-            "Output text:\n{:?}",
+            "Model:\n{model_name}\n\nOutput text:\n{:?}",
             token_ids_to_text(token_ids, &tokenizer).unwrap()
         )
     }
