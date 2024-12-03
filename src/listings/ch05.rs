@@ -433,7 +433,7 @@ impl HuggingFaceWeightBuilder {
 fn load_from_weights_mapping(
     gpt_varmap: &VarMap,
     weights: &HashMap<String, Tensor>,
-    model_prefix: Option<&str>,
+    var_prefix: Option<&str>,
     weights_prefix: Option<&str>,
     weights_mapping: &HashMap<&str, HuggingFaceWeight>,
 ) -> Result<()> {
@@ -441,7 +441,7 @@ fn load_from_weights_mapping(
         gpt_varmap.data().lock().unwrap();
 
     for (gpt_name, hf_weight) in weights_mapping.iter() {
-        let var_name = if let Some(prefix) = model_prefix {
+        let var_name = if let Some(prefix) = var_prefix {
             format!("{prefix}.{gpt_name}")
         } else {
             gpt_name.to_string()
@@ -477,13 +477,12 @@ pub fn load_weights_into_gpt(
     num_layers: usize,
 ) -> Result<()> {
     let weights_mapping = &*WEIGHTS_MAPPING;
-
     load_from_weights_mapping(gpt_varmap, weights, model_prefix, None, weights_mapping)?;
 
     // set transformer block weights
     let transformer_block_mapping = &*TRANSFORMER_MAPPING;
     for b in 0..num_layers {
-        let model_prefix = if let Some(prefix) = model_prefix {
+        let var_prefix = if let Some(prefix) = model_prefix {
             format!("{prefix}.trf.{b}")
         } else {
             format!("trf.{b}")
@@ -492,35 +491,10 @@ pub fn load_weights_into_gpt(
         load_from_weights_mapping(
             gpt_varmap,
             weights,
-            Some(model_prefix.as_str()),
+            Some(var_prefix.as_str()),
             Some(weights_prefix.as_str()),
             transformer_block_mapping,
         )?;
-        // for (gpt_name, hf_weight) in transformer_block_mapping.iter() {
-        // let name = if let Some(prefix) = model_prefix {
-        //     format!("{prefix}.trf.{b}.{gpt_name}")
-        // } else {
-        //     format!("trf.{b}.{gpt_name}")
-        // };
-
-        //     let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.{}", hf_weight.name);
-
-        //     let var = gpt_data
-        //         .get(name.as_str())
-        //         .ok_or_else(|| Error::CannotFindTensor { path: name }.bt())?;
-
-        //     let data = weights.get(data_name.as_str()).ok_or_else(|| {
-        //         Error::CannotFindTensor {
-        //             path: data_name.to_string(),
-        //         }
-        //         .bt()
-        //     })?;
-        //     if hf_weight.transpose {
-        //         var.set(&data.t()?)?;
-        //     } else {
-        //         var.set(data)?;
-        //     }
-        // }
     }
 
     //     // split attn.c_attn.bias
