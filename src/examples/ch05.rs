@@ -632,7 +632,7 @@ impl Example for EG11 {
         let weights = candle_core::safetensors::load(weights, &dev).unwrap();
 
         // load weights
-        load_weights_into_gpt(&varmap, &weights, Some("model")).unwrap();
+        load_weights_into_gpt(&varmap, &weights, Some("model"), cfg.n_layers).unwrap();
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";

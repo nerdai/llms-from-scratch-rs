@@ -430,28 +430,32 @@ impl HuggingFaceWeightBuilder {
     }
 }
 
-/// Listing 5.5
-#[allow(unused_variables)]
-pub fn load_weights_into_gpt(
+fn load_from_weights_mapping(
     gpt_varmap: &VarMap,
     weights: &HashMap<String, Tensor>,
     model_prefix: Option<&str>,
+    weights_prefix: Option<&str>,
+    weights_mapping: &HashMap<&str, HuggingFaceWeight>,
 ) -> Result<()> {
-    let gpt_data = gpt_varmap.data().lock().unwrap();
-    let weights_mapping = &*WEIGHTS_MAPPING;
+    let gpt_data: std::sync::MutexGuard<'_, HashMap<String, candle_core::Var>> =
+        gpt_varmap.data().lock().unwrap();
 
     for (gpt_name, hf_weight) in weights_mapping.iter() {
-        let name = if let Some(prefix) = model_prefix {
+        let var_name = if let Some(prefix) = model_prefix {
             format!("{prefix}.{gpt_name}")
         } else {
             gpt_name.to_string()
         };
 
-        let data_name = hf_weight.name.to_string();
+        let data_name = if let Some(w_prefix) = weights_prefix {
+            format!("{w_prefix}.{}", hf_weight.name)
+        } else {
+            hf_weight.name.to_string()
+        };
 
         let var = gpt_data
-            .get(name.as_str())
-            .ok_or_else(|| Error::CannotFindTensor { path: name }.bt())?;
+            .get(var_name.as_str())
+            .ok_or_else(|| Error::CannotFindTensor { path: var_name }.bt())?;
         let data = weights
             .get(data_name.as_str())
             .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
@@ -461,107 +465,131 @@ pub fn load_weights_into_gpt(
             var.set(data)?;
         }
     }
+    Ok(())
+}
+
+/// Listing 5.5
+#[allow(unused_variables)]
+pub fn load_weights_into_gpt(
+    gpt_varmap: &VarMap,
+    weights: &HashMap<String, Tensor>,
+    model_prefix: Option<&str>,
+    num_layers: usize,
+) -> Result<()> {
+    let weights_mapping = &*WEIGHTS_MAPPING;
+
+    load_from_weights_mapping(gpt_varmap, weights, model_prefix, None, weights_mapping)?;
 
     // set transformer block weights
-    let num_layers: usize = gpt_data
-        .keys()
-        .filter(|k| k.contains("mha.out_proj.weight"))
-        .count();
     let transformer_block_mapping = &*TRANSFORMER_MAPPING;
     for b in 0..num_layers {
-        for (gpt_name, hf_weight) in transformer_block_mapping.iter() {
-            let name = if let Some(prefix) = model_prefix {
-                format!("{prefix}.trf.{b}.{gpt_name}")
-            } else {
-                format!("trf.{b}.{gpt_name}")
-            };
-
-            let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.{}", hf_weight.name);
-
-            let var = gpt_data
-                .get(name.as_str())
-                .ok_or_else(|| Error::CannotFindTensor { path: name }.bt())?;
-
-            let data = weights.get(data_name.as_str()).ok_or_else(|| {
-                Error::CannotFindTensor {
-                    path: data_name.to_string(),
-                }
-                .bt()
-            })?;
-            if hf_weight.transpose {
-                var.set(&data.t()?)?;
-            } else {
-                var.set(data)?;
-            }
-        }
-
-        // split attn.c_attn.bias
-        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.bias");
-        let hf_attn_bias = weights
-            .get(data_name.as_str())
-            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
-        let dim = hf_attn_bias.dims()[0] / 3_usize;
-        let q_b = hf_attn_bias.i(..dim)?;
-        let k_b = hf_attn_bias.i(dim..2 * dim)?;
-        let v_b = hf_attn_bias.i(2 * dim..)?;
-
-        let q_name = if let Some(prefix) = model_prefix {
-            format!("{prefix}.trf.{b}.mha.query.bias")
+        let model_prefix = if let Some(prefix) = model_prefix {
+            format!("{prefix}.trf.{b}")
         } else {
-            format!("trf.{b}.mha.query.bias")
+            format!("trf.{b}")
         };
-        let q_b_var = gpt_data.get(q_name.as_str()).unwrap();
-        q_b_var.set(&q_b)?;
+        let weights_prefix = format!("{HF_TRANSFORMER_PREFIX}.{b}");
+        load_from_weights_mapping(
+            gpt_varmap,
+            weights,
+            Some(model_prefix.as_str()),
+            Some(weights_prefix.as_str()),
+            transformer_block_mapping,
+        )?;
+        // for (gpt_name, hf_weight) in transformer_block_mapping.iter() {
+        // let name = if let Some(prefix) = model_prefix {
+        //     format!("{prefix}.trf.{b}.{gpt_name}")
+        // } else {
+        //     format!("trf.{b}.{gpt_name}")
+        // };
 
-        let k_name = if let Some(prefix) = model_prefix {
-            format!("{prefix}.trf.{b}.mha.key.bias")
-        } else {
-            format!("trf.{b}.mha.key.bias")
-        };
-        let k_b_var = gpt_data.get(k_name.as_str()).unwrap();
-        k_b_var.set(&k_b)?;
+        //     let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.{}", hf_weight.name);
 
-        let v_name = if let Some(prefix) = model_prefix {
-            format!("{prefix}.trf.{b}.mha.value.bias")
-        } else {
-            format!("trf.{b}.mha.value.bias")
-        };
-        let v_b_var = gpt_data.get(v_name.as_str()).unwrap();
-        v_b_var.set(&v_b)?;
+        //     let var = gpt_data
+        //         .get(name.as_str())
+        //         .ok_or_else(|| Error::CannotFindTensor { path: name }.bt())?;
 
-        // split attn.c_attn.weight
-        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.weight");
-        let hf_attn_weight = weights
-            .get(data_name.as_str())
-            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
-        let q_w = hf_attn_weight.i((.., ..dim))?;
-        let k_w = hf_attn_weight.i((.., dim..2 * dim))?;
-        let v_w = hf_attn_weight.i((.., 2 * dim..))?;
-
-        let q_name = if let Some(prefix) = model_prefix {
-            format!("{prefix}.trf.{b}.mha.query.weight")
-        } else {
-            format!("trf.{b}.mha.query.weight")
-        };
-        let q_w_var = gpt_data.get(q_name.as_str()).unwrap();
-        q_w_var.set(&q_w.t()?)?;
-
-        let k_name = if let Some(prefix) = model_prefix {
-            format!("{prefix}.trf.{b}.mha.key.weight")
-        } else {
-            format!("trf.{b}.mha.key.weight")
-        };
-        let k_w_var = gpt_data.get(k_name.as_str()).unwrap();
-        k_w_var.set(&k_w.t()?)?;
-
-        let v_name = if let Some(prefix) = model_prefix {
-            format!("{prefix}.trf.{b}.mha.value.weight")
-        } else {
-            format!("trf.{b}.mha.value.weight")
-        };
-        let v_w_var = gpt_data.get(v_name.as_str()).unwrap();
-        v_w_var.set(&v_w.t()?)?;
+        //     let data = weights.get(data_name.as_str()).ok_or_else(|| {
+        //         Error::CannotFindTensor {
+        //             path: data_name.to_string(),
+        //         }
+        //         .bt()
+        //     })?;
+        //     if hf_weight.transpose {
+        //         var.set(&data.t()?)?;
+        //     } else {
+        //         var.set(data)?;
+        //     }
+        // }
     }
+
+    //     // split attn.c_attn.bias
+    //     let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.bias");
+    //     let hf_attn_bias = weights
+    //         .get(data_name.as_str())
+    //         .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+    //     let dim = hf_attn_bias.dims()[0] / 3_usize;
+    //     let q_b = hf_attn_bias.i(..dim)?;
+    //     let k_b = hf_attn_bias.i(dim..2 * dim)?;
+    //     let v_b = hf_attn_bias.i(2 * dim..)?;
+
+    //     let q_name = if let Some(prefix) = model_prefix {
+    //         format!("{prefix}.trf.{b}.mha.query.bias")
+    //     } else {
+    //         format!("trf.{b}.mha.query.bias")
+    //     };
+    //     let q_b_var = gpt_data.get(q_name.as_str()).unwrap();
+    //     q_b_var.set(&q_b)?;
+
+    //     let k_name = if let Some(prefix) = model_prefix {
+    //         format!("{prefix}.trf.{b}.mha.key.bias")
+    //     } else {
+    //         format!("trf.{b}.mha.key.bias")
+    //     };
+    //     let k_b_var = gpt_data.get(k_name.as_str()).unwrap();
+    //     k_b_var.set(&k_b)?;
+
+    //     let v_name = if let Some(prefix) = model_prefix {
+    //         format!("{prefix}.trf.{b}.mha.value.bias")
+    //     } else {
+    //         format!("trf.{b}.mha.value.bias")
+    //     };
+    //     let v_b_var = gpt_data.get(v_name.as_str()).unwrap();
+    //     v_b_var.set(&v_b)?;
+
+    //     // split attn.c_attn.weight
+    //     let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.weight");
+    //     let hf_attn_weight = weights
+    //         .get(data_name.as_str())
+    //         .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+    //     let q_w = hf_attn_weight.i((.., ..dim))?;
+    //     let k_w = hf_attn_weight.i((.., dim..2 * dim))?;
+    //     let v_w = hf_attn_weight.i((.., 2 * dim..))?;
+
+    //     let q_name = if let Some(prefix) = model_prefix {
+    //         format!("{prefix}.trf.{b}.mha.query.weight")
+    //     } else {
+    //         format!("trf.{b}.mha.query.weight")
+    //     };
+    //     let q_w_var = gpt_data.get(q_name.as_str()).unwrap();
+    //     q_w_var.set(&q_w.t()?)?;
+
+    //     let k_name = if let Some(prefix) = model_prefix {
+    //         format!("{prefix}.trf.{b}.mha.key.weight")
+    //     } else {
+    //         format!("trf.{b}.mha.key.weight")
+    //     };
+    //     let k_w_var = gpt_data.get(k_name.as_str()).unwrap();
+    //     k_w_var.set(&k_w.t()?)?;
+
+    //     let v_name = if let Some(prefix) = model_prefix {
+    //         format!("{prefix}.trf.{b}.mha.value.weight")
+    //     } else {
+    //         format!("trf.{b}.mha.value.weight")
+    //     };
+    //     let v_w_var = gpt_data.get(v_name.as_str()).unwrap();
+    //     v_w_var.set(&v_w.t()?)?;
+    // }
 
     Ok(())
 }
