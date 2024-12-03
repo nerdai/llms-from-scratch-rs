@@ -239,7 +239,7 @@ impl Exercise for X5P5 {
         let api = Api::new().unwrap();
         let repo = api.model("openai-community/gpt2".to_string());
         let weights = repo.get("model.safetensors").unwrap();
-        let mut weights = candle_core::safetensors::load(weights, &dev).unwrap();
+        let weights = candle_core::safetensors::load(weights, &dev).unwrap();
 
         // construct model
         let varmap = VarMap::new();
@@ -249,7 +249,7 @@ impl Exercise for X5P5 {
         let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
 
         // load openai weights
-        load_weights_into_gpt(&varmap, &mut weights, Some("model"), cfg.n_layers).unwrap();
+        load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers).unwrap();
 
         // build train and val loaders with utility function from addons module
         let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false);
@@ -293,10 +293,10 @@ impl Exercise for X5P6 {
         let api = Api::new().unwrap();
         let repo = api.model("openai-community/gpt2-xl".to_string());
         let weights = repo.get("model.safetensors").unwrap();
-        let mut weights = candle_core::safetensors::load(weights, &dev).unwrap();
+        let weights = candle_core::safetensors::load(weights, &Device::Cpu).unwrap();
 
         // load weights
-        load_weights_into_gpt(&varmap, &mut weights, Some("model"), cfg.n_layers).unwrap();
+        load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers).unwrap();
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";

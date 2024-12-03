@@ -77,8 +77,8 @@ fn main() {
     let exercise_registry = &*EXERCISE_REGISTRY;
     let example_registry = &*EXAMPLE_REGISTRY;
 
-    // let run_type = RunType::EX(String::from("4.2"));
-    let run_type = RunType::EG(String::from("05.11"));
+    let run_type = RunType::EX(String::from("5.6"));
+    // let run_type = RunType::EG(String::from("05.11"));
     match run_type {
         RunType::EX(id) => {
             let ex = exercise_registry.get(&id[..]).unwrap();

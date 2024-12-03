@@ -321,7 +321,7 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HashMap<&'static str, Hug
                     (
                         "tok_emb.weight",
                         HuggingFaceWeightBuilder::new("wte.weight")
-                            .unset_drop_after_first_load()
+                            .unset_drop_after_loading()
                             .build(),
                     ),
                     (
@@ -335,7 +335,7 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HashMap<&'static str, Hug
                     (
                         "out_head.weight",
                         HuggingFaceWeightBuilder::new("wte.weight")
-                            .unset_drop_after_first_load()
+                            .unset_drop_after_loading()
                             .build(),
                     ),
                 ]),
@@ -436,7 +436,7 @@ const HF_TRANSFORMER_PREFIX: &str = "h";
 struct HuggingFaceWeight {
     name: String,
     transpose: bool,
-    drop_after_first_load: bool,
+    drop_after_loading: bool,
 }
 
 impl Display for HuggingFaceWeight {
@@ -448,7 +448,7 @@ impl Display for HuggingFaceWeight {
 struct HuggingFaceWeightBuilder {
     name: String,
     transpose: bool,
-    drop_after_first_load: bool,
+    drop_after_loading: bool,
 }
 
 impl HuggingFaceWeightBuilder {
@@ -456,7 +456,7 @@ impl HuggingFaceWeightBuilder {
         Self {
             name: name.to_string(),
             transpose: false,
-            drop_after_first_load: true,
+            drop_after_loading: true,
         }
     }
 
@@ -465,8 +465,8 @@ impl HuggingFaceWeightBuilder {
         self
     }
 
-    fn unset_drop_after_first_load(mut self) -> Self {
-        self.drop_after_first_load = false;
+    fn unset_drop_after_loading(mut self) -> Self {
+        self.drop_after_loading = false;
         self
     }
 
@@ -474,7 +474,7 @@ impl HuggingFaceWeightBuilder {
         HuggingFaceWeight {
             name: self.name,
             transpose: self.transpose,
-            drop_after_first_load: self.drop_after_first_load,
+            drop_after_loading: self.drop_after_loading,
         }
     }
 }
@@ -507,20 +507,23 @@ fn load_from_weights_mapping(
             .get(var_name.as_str())
             .ok_or_else(|| Error::CannotFindTensor { path: var_name }.bt())?;
 
-        let data = weights.get(data_name.as_str()).ok_or_else(|| {
-            Error::CannotFindTensor {
-                path: data_name.to_string(),
-            }
-            .bt()
-        })?;
+        let data = weights
+            .get(data_name.as_str())
+            .ok_or_else(|| {
+                Error::CannotFindTensor {
+                    path: data_name.to_string(),
+                }
+                .bt()
+            })?
+            .to_device(var.device())?; // move to same device as var
         if hf_weight.transpose {
             var.set(&data.t()?)?;
         } else {
-            var.set(data)?;
+            var.set(&data)?;
         }
 
-        // drop weight after used
-        if hf_weight.drop_after_first_load {
+        // drop weight after loaded into model
+        if hf_weight.drop_after_loading {
             weights.remove(data_name.as_str());
         }
     }
@@ -531,7 +534,7 @@ fn load_from_weights_mapping(
 #[allow(unused_variables)]
 pub fn load_weights_into_gpt(
     gpt_varmap: &VarMap,
-    weights: &mut HashMap<String, Tensor>,
+    mut weights: HashMap<String, Tensor>,
     model_prefix: Option<&str>,
     num_layers: usize,
 ) -> Result<()> {
@@ -540,7 +543,7 @@ pub fn load_weights_into_gpt(
     // set weights for everything but transformer blocks
     load_from_weights_mapping(
         gpt_varmap,
-        weights,
+        &mut weights,
         model_prefix,
         None,
         weights_mapping.get("not_transformer_wts").unwrap(),
@@ -558,7 +561,7 @@ pub fn load_weights_into_gpt(
         // set weights for everything in this transformer block but its q,k,v
         load_from_weights_mapping(
             gpt_varmap,
-            weights,
+            &mut weights,
             Some(var_prefix.as_str()),
             Some(weights_prefix.as_str()),
             weights_mapping.get("transformer_wts_except_qkv").unwrap(),
@@ -573,6 +576,7 @@ pub fn load_weights_into_gpt(
         let q_b = hf_attn_bias.i(..dim)?;
         let k_b = hf_attn_bias.i(dim..2 * dim)?;
         let v_b = hf_attn_bias.i(2 * dim..)?;
+        weights.remove(format!("{weights_prefix}.attn.c_attn.bias").as_str()); // drop after splitting
 
         // split attn.c_attn.weight
         let data_name = format!("{weights_prefix}.attn.c_attn.weight");
@@ -582,6 +586,7 @@ pub fn load_weights_into_gpt(
         let q_w = hf_attn_weight.i((.., ..dim))?;
         let k_w = hf_attn_weight.i((.., dim..2 * dim))?;
         let v_w = hf_attn_weight.i((.., 2 * dim..))?;
+        weights.remove(format!("{weights_prefix}.attn.c_attn.weight").as_str()); // drop after splitting
 
         // add split bias and weights tensors into weights following name convention
         weights.insert(format!("{weights_prefix}.attn.c_attn.query.bias"), q_b);
@@ -594,21 +599,11 @@ pub fn load_weights_into_gpt(
         // load q,k,v weights and biases
         load_from_weights_mapping(
             gpt_varmap,
-            weights,
+            &mut weights,
             Some(var_prefix.as_str()),
             Some(weights_prefix.as_str()),
             weights_mapping.get("transformer_wts_qkv").unwrap(),
         )?;
-
-        // remove from weights after loading into model
-        weights.remove(format!("{weights_prefix}.attn.c_attn.query.bias").as_str());
-        weights.remove(format!("{weights_prefix}.attn.c_attn.key.bias").as_str());
-        weights.remove(format!("{weights_prefix}.attn.c_attn.value.bias").as_str());
-        weights.remove(format!("{weights_prefix}.attn.c_attn.query.weight").as_str());
-        weights.remove(format!("{weights_prefix}.attn.c_attn.key.weight").as_str());
-        weights.remove(format!("{weights_prefix}.attn.c_attn.value.weight").as_str());
-        weights.remove(format!("{weights_prefix}.attn.c_attn.bias").as_str());
-        weights.remove(format!("{weights_prefix}.attn.c_attn.weight").as_str());
     }
     Ok(())
 }
