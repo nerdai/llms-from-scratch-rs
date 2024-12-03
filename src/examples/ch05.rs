@@ -619,7 +619,7 @@ impl Example for EG11 {
         use tiktoken_rs::get_bpe_from_model;
 
         let dev = Device::cuda_if_available(0).unwrap();
-        let mut varmap = VarMap::new();
+        let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
         let mut cfg = Config::gpt2_124m();
         cfg.qkv_bias = true;
@@ -632,7 +632,7 @@ impl Example for EG11 {
         let weights = candle_core::safetensors::load(weights, &dev).unwrap();
 
         // load weights
-        load_weights_into_gpt(&mut varmap, &weights, Some("model")).unwrap();
+        load_weights_into_gpt(&varmap, &weights, Some("model")).unwrap();
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";

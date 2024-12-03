@@ -433,7 +433,7 @@ impl HuggingFaceWeightBuilder {
 /// Listing 5.5
 #[allow(unused_variables)]
 pub fn load_weights_into_gpt(
-    gpt_varmap: &mut VarMap,
+    gpt_varmap: &VarMap,
     weights: &HashMap<String, Tensor>,
     model_prefix: Option<&str>,
 ) -> Result<()> {
