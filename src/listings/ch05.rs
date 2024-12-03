@@ -451,6 +451,7 @@ struct HuggingFaceWeightBuilder {
     drop_after_loading: bool,
 }
 
+#[allow(dead_code)]
 impl HuggingFaceWeightBuilder {
     fn new(name: &str) -> Self {
         Self {
@@ -465,8 +466,18 @@ impl HuggingFaceWeightBuilder {
         self
     }
 
+    fn unset_transpose(mut self) -> Self {
+        self.transpose = false;
+        self
+    }
+
     fn unset_drop_after_loading(mut self) -> Self {
         self.drop_after_loading = false;
+        self
+    }
+
+    fn set_drop_after_loading(mut self) -> Self {
+        self.drop_after_loading = true;
         self
     }
 
