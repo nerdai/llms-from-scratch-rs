@@ -307,121 +307,126 @@ pub fn generate(
     Ok(idx)
 }
 
-static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> = LazyLock::new(|| {
-    HashMap::from([
-        (
-            "pos_emb.weight",
-            HuggingFaceWeightBuilder::new("wpe.weight").build(),
-        ),
-        (
-            "tok_emb.weight",
-            HuggingFaceWeightBuilder::new("wte.weight").build(),
-        ),
-        (
-            "final_norm.scale",
-            HuggingFaceWeightBuilder::new("ln_f.weight").build(),
-        ),
-        (
-            "final_norm.shift",
-            HuggingFaceWeightBuilder::new("ln_f.bias").build(),
-        ),
-        (
-            "out_head.weight",
-            HuggingFaceWeightBuilder::new("wte.weight").build(),
-        ),
-    ])
-});
-
-const HF_TRANSFORMER_PREFIX: &str = "h";
-
-static TRANSFORMER_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> =
+static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HashMap<&'static str, HuggingFaceWeight>>> =
     LazyLock::new(|| {
         HashMap::from([
             (
-                "ff.first_layer.bias",
-                HuggingFaceWeightBuilder::new("mlp.c_fc.bias").build(),
+                "not_transformer_wts",
+                HashMap::from([
+                    (
+                        "pos_emb.weight",
+                        HuggingFaceWeightBuilder::new("wpe.weight").build(),
+                    ),
+                    (
+                        "tok_emb.weight",
+                        HuggingFaceWeightBuilder::new("wte.weight").build(),
+                    ),
+                    (
+                        "final_norm.scale",
+                        HuggingFaceWeightBuilder::new("ln_f.weight").build(),
+                    ),
+                    (
+                        "final_norm.shift",
+                        HuggingFaceWeightBuilder::new("ln_f.bias").build(),
+                    ),
+                    (
+                        "out_head.weight",
+                        HuggingFaceWeightBuilder::new("wte.weight").build(),
+                    ),
+                ]),
             ),
             (
-                "ff.first_layer.weight",
-                HuggingFaceWeightBuilder::new("mlp.c_fc.weight")
-                    .set_transpose()
-                    .build(),
+                "transformer_wts_except_qkv",
+                HashMap::from([
+                    (
+                        "ff.first_layer.bias",
+                        HuggingFaceWeightBuilder::new("mlp.c_fc.bias").build(),
+                    ),
+                    (
+                        "ff.first_layer.weight",
+                        HuggingFaceWeightBuilder::new("mlp.c_fc.weight")
+                            .set_transpose()
+                            .build(),
+                    ),
+                    (
+                        "ff.second_layer.bias",
+                        HuggingFaceWeightBuilder::new("mlp.c_proj.bias").build(),
+                    ),
+                    (
+                        "ff.second_layer.weight",
+                        HuggingFaceWeightBuilder::new("mlp.c_proj.weight")
+                            .set_transpose()
+                            .build(),
+                    ),
+                    (
+                        "norm1.scale",
+                        HuggingFaceWeightBuilder::new("ln_1.weight").build(),
+                    ),
+                    (
+                        "norm1.shift",
+                        HuggingFaceWeightBuilder::new("ln_1.bias").build(),
+                    ),
+                    (
+                        "norm2.scale",
+                        HuggingFaceWeightBuilder::new("ln_2.weight").build(),
+                    ),
+                    (
+                        "norm2.shift",
+                        HuggingFaceWeightBuilder::new("ln_2.bias").build(),
+                    ),
+                    (
+                        "mha.out_proj.bias",
+                        HuggingFaceWeightBuilder::new("attn.c_proj.bias").build(),
+                    ),
+                    (
+                        "mha.out_proj.weight",
+                        HuggingFaceWeightBuilder::new("attn.c_proj.weight")
+                            .set_transpose()
+                            .build(),
+                    ),
+                ]),
             ),
             (
-                "ff.second_layer.bias",
-                HuggingFaceWeightBuilder::new("mlp.c_proj.bias").build(),
-            ),
-            (
-                "ff.second_layer.weight",
-                HuggingFaceWeightBuilder::new("mlp.c_proj.weight")
-                    .set_transpose()
-                    .build(),
-            ),
-            (
-                "norm1.scale",
-                HuggingFaceWeightBuilder::new("ln_1.weight").build(),
-            ),
-            (
-                "norm1.shift",
-                HuggingFaceWeightBuilder::new("ln_1.bias").build(),
-            ),
-            (
-                "norm2.scale",
-                HuggingFaceWeightBuilder::new("ln_2.weight").build(),
-            ),
-            (
-                "norm2.shift",
-                HuggingFaceWeightBuilder::new("ln_2.bias").build(),
-            ),
-            (
-                "mha.out_proj.bias",
-                HuggingFaceWeightBuilder::new("attn.c_proj.bias").build(),
-            ),
-            (
-                "mha.out_proj.weight",
-                HuggingFaceWeightBuilder::new("attn.c_proj.weight")
-                    .set_transpose()
-                    .build(),
+                "transformer_wts_qkv",
+                HashMap::from([
+                    // NOTE: these weights need to be derived from attn.c_attn.bias and attn.c_attn.weight
+                    // and this is done within the loop.
+                    (
+                        "mha.key.bias",
+                        HuggingFaceWeightBuilder::new("attn.c_attn.key.bias").build(),
+                    ),
+                    (
+                        "mha.key.weight",
+                        HuggingFaceWeightBuilder::new("attn.c_attn.key.weight")
+                            .set_transpose()
+                            .build(),
+                    ),
+                    (
+                        "mha.query.bias",
+                        HuggingFaceWeightBuilder::new("attn.c_attn.query.bias").build(),
+                    ),
+                    (
+                        "mha.query.weight",
+                        HuggingFaceWeightBuilder::new("attn.c_attn.query.weight")
+                            .set_transpose()
+                            .build(),
+                    ),
+                    (
+                        "mha.value.bias",
+                        HuggingFaceWeightBuilder::new("attn.c_attn.value.bias").build(),
+                    ),
+                    (
+                        "mha.value.weight",
+                        HuggingFaceWeightBuilder::new("attn.c_attn.value.weight")
+                            .set_transpose()
+                            .build(),
+                    ),
+                ]),
             ),
         ])
     });
 
-static QKV_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> = LazyLock::new(|| {
-    HashMap::from([
-        // NOTE: these weights need to be derived from attn.c_attn.bias and attn.c_attn.weight
-        // and this is done within the loop.
-        (
-            "mha.key.bias",
-            HuggingFaceWeightBuilder::new("attn.c_attn.key.bias").build(),
-        ),
-        (
-            "mha.key.weight",
-            HuggingFaceWeightBuilder::new("attn.c_attn.key.weight")
-                .set_transpose()
-                .build(),
-        ),
-        (
-            "mha.query.bias",
-            HuggingFaceWeightBuilder::new("attn.c_attn.query.bias").build(),
-        ),
-        (
-            "mha.query.weight",
-            HuggingFaceWeightBuilder::new("attn.c_attn.query.weight")
-                .set_transpose()
-                .build(),
-        ),
-        (
-            "mha.value.bias",
-            HuggingFaceWeightBuilder::new("attn.c_attn.value.bias").build(),
-        ),
-        (
-            "mha.value.weight",
-            HuggingFaceWeightBuilder::new("attn.c_attn.value.weight")
-                .set_transpose()
-                .build(),
-        ),
-    ])
-});
+const HF_TRANSFORMER_PREFIX: &str = "h";
 
 struct HuggingFaceWeight {
     name: String,
@@ -507,10 +512,15 @@ pub fn load_weights_into_gpt(
     num_layers: usize,
 ) -> Result<()> {
     let weights_mapping = &*WEIGHTS_MAPPING;
-    load_from_weights_mapping(gpt_varmap, weights, model_prefix, None, weights_mapping)?;
+    load_from_weights_mapping(
+        gpt_varmap,
+        weights,
+        model_prefix,
+        None,
+        weights_mapping.get("not_transformer_wts").unwrap(),
+    )?;
 
     // set transformer block weights
-    let transformer_block_mapping = &*TRANSFORMER_MAPPING;
     for b in 0..num_layers {
         let var_prefix = if let Some(prefix) = model_prefix {
             format!("{prefix}.trf.{b}")
@@ -523,7 +533,7 @@ pub fn load_weights_into_gpt(
             weights,
             Some(var_prefix.as_str()),
             Some(weights_prefix.as_str()),
-            transformer_block_mapping,
+            weights_mapping.get("transformer_wts_except_qkv").unwrap(),
         )?;
 
         // split attn.c_attn.bias
@@ -554,13 +564,12 @@ pub fn load_weights_into_gpt(
         weights.insert(format!("{weights_prefix}.attn.c_attn.value.weight"), v_w);
 
         // load q,k,v weights and biases
-        let qkv_mapping = &*QKV_MAPPING;
         load_from_weights_mapping(
             gpt_varmap,
             weights,
             Some(var_prefix.as_str()),
             Some(weights_prefix.as_str()),
-            qkv_mapping,
+            weights_mapping.get("transformer_wts_qkv").unwrap(),
         )?;
     }
     Ok(())
