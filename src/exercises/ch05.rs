@@ -151,6 +151,68 @@ impl Exercise for X5P3 {
     }
 }
 
+/// Exercise 5.4
+pub struct X5P4;
+
+impl Exercise for X5P4 {
+    fn name(&self) -> String {
+        String::from("5.4")
+    }
+
+    fn main(&self) {
+        use crate::{
+            examples,
+            listings::{
+                ch04::{Config, GPTModel},
+                ch05::train_model_simple,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
+
+        // construct model
+        let mut varmap = VarMap::new();
+        let vb =
+            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let cfg = Config::gpt2_124m();
+        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+
+        // load from previous checkpoint
+        // NOTE: this requires EG 05.09 to be have ran, which creates a model
+        // checkpoint that we use here
+        println!("Loading weights from `./checkpoint.safetensors`");
+        varmap.load("checkpoint.safetensors").unwrap(); // todo map to anyhow error with proper msg
+
+        // train model for one epoch
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.0004,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
+        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false);
+        let start_context = "Every effort moves you";
+        let _ = train_model_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context,
+            &tokenizer,
+        );
+    }
+}
+
 /// Exercise 5.5
 pub struct X5P5;
 
