@@ -531,6 +531,8 @@ pub fn load_weights_into_gpt(
             format!("trf.{b}")
         };
         let weights_prefix = format!("{HF_TRANSFORMER_PREFIX}.{b}");
+
+        // set weights for everything in this transformer block but its q,k,v
         load_from_weights_mapping(
             gpt_varmap,
             weights,
