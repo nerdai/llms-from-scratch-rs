@@ -513,6 +513,8 @@ pub fn load_weights_into_gpt(
     num_layers: usize,
 ) -> Result<()> {
     let weights_mapping = &*WEIGHTS_MAPPING;
+
+    // set weights for everything but transformer blocks
     load_from_weights_mapping(
         gpt_varmap,
         weights,
