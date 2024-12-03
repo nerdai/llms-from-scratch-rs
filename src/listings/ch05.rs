@@ -465,6 +465,7 @@ impl HuggingFaceWeightBuilder {
     }
 }
 
+// helper fn for loading weights into gpt
 fn load_from_weights_mapping(
     gpt_varmap: &VarMap,
     weights: &HashMap<String, Tensor>,
