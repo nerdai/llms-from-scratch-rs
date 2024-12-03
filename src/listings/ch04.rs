@@ -391,7 +391,7 @@ impl GPTModel {
         let mut trf_blocks = seqt();
         for ix in 0..cfg.n_layers {
             trf_blocks =
-                trf_blocks.add(TransformerBlock::new(cfg, vb.pp(format!("trf-{}", ix))).unwrap());
+                trf_blocks.add(TransformerBlock::new(cfg, vb.pp(format!("trf.{}", ix))).unwrap());
         }
         let final_norm = LayerNorm::new(cfg.emb_dim, vb.pp("final_norm"))?;
         let out_head = linear_b(cfg.emb_dim, cfg.vocab_size, false, vb.pp("out_head"))?;
