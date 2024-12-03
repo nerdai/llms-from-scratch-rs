@@ -262,3 +262,16 @@ impl Exercise for X5P5 {
         println!("Validation loss {:?}", val_loss);
     }
 }
+
+/// Exercise 5.6
+pub struct X5P6;
+
+impl Exercise for X5P6 {
+    fn name(&self) -> String {
+        String::from("5.6")
+    }
+
+    fn main(&self) {
+        todo!()
+    }
+}
