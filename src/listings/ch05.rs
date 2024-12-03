@@ -582,6 +582,8 @@ pub fn load_weights_into_gpt(
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
+
     use super::*;
     use crate::listings::ch04::Config;
     use candle_core::{DType, Device};
