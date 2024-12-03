@@ -383,15 +383,45 @@ static TRANSFORMER_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> =
                     .set_transpose()
                     .build(),
             ),
-            // // needs to be split into three equal parts
-            // ("mha.key.bias", "attn.c_attn.bias"),
-            // ("mha.key.weight", "attn.c_attn.weight"),
-            // ("mha.query.bias", "attn.c_attn.bias"),
-            // ("mha.query.weight", "attn.c_attn.weight"),
-            // ("mha.value.bias", "attn.c_attn.bias"),
-            // ("mha.value.weight", "attn.c_attn.weight"),
         ])
     });
+
+static QKV_MAPPING: LazyLock<HashMap<&'static str, HuggingFaceWeight>> = LazyLock::new(|| {
+    HashMap::from([
+        // NOTE: these weights need to be derived from attn.c_attn.bias and attn.c_attn.weight
+        // and this is done within the loop.
+        (
+            "mha.key.bias",
+            HuggingFaceWeightBuilder::new("attn.c_attn.key.bias").build(),
+        ),
+        (
+            "mha.key.weight",
+            HuggingFaceWeightBuilder::new("attn.c_attn.key.weight")
+                .set_transpose()
+                .build(),
+        ),
+        (
+            "mha.query.bias",
+            HuggingFaceWeightBuilder::new("attn.c_attn.query.bias").build(),
+        ),
+        (
+            "mha.query.weight",
+            HuggingFaceWeightBuilder::new("attn.c_attn.query.weight")
+                .set_transpose()
+                .build(),
+        ),
+        (
+            "mha.value.bias",
+            HuggingFaceWeightBuilder::new("attn.c_attn.value.bias").build(),
+        ),
+        (
+            "mha.value.weight",
+            HuggingFaceWeightBuilder::new("attn.c_attn.value.weight")
+                .set_transpose()
+                .build(),
+        ),
+    ])
+});
 
 struct HuggingFaceWeight {
     name: String,
@@ -472,7 +502,7 @@ fn load_from_weights_mapping(
 #[allow(unused_variables)]
 pub fn load_weights_into_gpt(
     gpt_varmap: &VarMap,
-    weights: &HashMap<String, Tensor>,
+    weights: &mut HashMap<String, Tensor>,
     model_prefix: Option<&str>,
     num_layers: usize,
 ) -> Result<()> {
@@ -495,76 +525,44 @@ pub fn load_weights_into_gpt(
             Some(weights_prefix.as_str()),
             transformer_block_mapping,
         )?;
+
+        // split attn.c_attn.bias
+        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.bias");
+        let hf_attn_bias = weights
+            .get(data_name.as_str())
+            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+        let dim = hf_attn_bias.dims()[0] / 3_usize;
+        let q_b = hf_attn_bias.i(..dim)?;
+        let k_b = hf_attn_bias.i(dim..2 * dim)?;
+        let v_b = hf_attn_bias.i(2 * dim..)?;
+
+        // split attn.c_attn.weight
+        let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.weight");
+        let hf_attn_weight = weights
+            .get(data_name.as_str())
+            .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
+        let q_w = hf_attn_weight.i((.., ..dim))?;
+        let k_w = hf_attn_weight.i((.., dim..2 * dim))?;
+        let v_w = hf_attn_weight.i((.., 2 * dim..))?;
+
+        // add split bias and weights tensors into weights following name convention
+        weights.insert(format!("{weights_prefix}.attn.c_attn.query.bias"), q_b);
+        weights.insert(format!("{weights_prefix}.attn.c_attn.key.bias"), k_b);
+        weights.insert(format!("{weights_prefix}.attn.c_attn.value.bias"), v_b);
+        weights.insert(format!("{weights_prefix}.attn.c_attn.query.weight"), q_w);
+        weights.insert(format!("{weights_prefix}.attn.c_attn.key.weight"), k_w);
+        weights.insert(format!("{weights_prefix}.attn.c_attn.value.weight"), v_w);
+
+        // load q,k,v weights and biases
+        let qkv_mapping = &*QKV_MAPPING;
+        load_from_weights_mapping(
+            gpt_varmap,
+            weights,
+            Some(var_prefix.as_str()),
+            Some(weights_prefix.as_str()),
+            qkv_mapping,
+        )?;
     }
-
-    //     // split attn.c_attn.bias
-    //     let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.bias");
-    //     let hf_attn_bias = weights
-    //         .get(data_name.as_str())
-    //         .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
-    //     let dim = hf_attn_bias.dims()[0] / 3_usize;
-    //     let q_b = hf_attn_bias.i(..dim)?;
-    //     let k_b = hf_attn_bias.i(dim..2 * dim)?;
-    //     let v_b = hf_attn_bias.i(2 * dim..)?;
-
-    //     let q_name = if let Some(prefix) = model_prefix {
-    //         format!("{prefix}.trf.{b}.mha.query.bias")
-    //     } else {
-    //         format!("trf.{b}.mha.query.bias")
-    //     };
-    //     let q_b_var = gpt_data.get(q_name.as_str()).unwrap();
-    //     q_b_var.set(&q_b)?;
-
-    //     let k_name = if let Some(prefix) = model_prefix {
-    //         format!("{prefix}.trf.{b}.mha.key.bias")
-    //     } else {
-    //         format!("trf.{b}.mha.key.bias")
-    //     };
-    //     let k_b_var = gpt_data.get(k_name.as_str()).unwrap();
-    //     k_b_var.set(&k_b)?;
-
-    //     let v_name = if let Some(prefix) = model_prefix {
-    //         format!("{prefix}.trf.{b}.mha.value.bias")
-    //     } else {
-    //         format!("trf.{b}.mha.value.bias")
-    //     };
-    //     let v_b_var = gpt_data.get(v_name.as_str()).unwrap();
-    //     v_b_var.set(&v_b)?;
-
-    //     // split attn.c_attn.weight
-    //     let data_name = format!("{HF_TRANSFORMER_PREFIX}.{b}.attn.c_attn.weight");
-    //     let hf_attn_weight = weights
-    //         .get(data_name.as_str())
-    //         .ok_or_else(|| Error::CannotFindTensor { path: data_name }.bt())?;
-    //     let q_w = hf_attn_weight.i((.., ..dim))?;
-    //     let k_w = hf_attn_weight.i((.., dim..2 * dim))?;
-    //     let v_w = hf_attn_weight.i((.., 2 * dim..))?;
-
-    //     let q_name = if let Some(prefix) = model_prefix {
-    //         format!("{prefix}.trf.{b}.mha.query.weight")
-    //     } else {
-    //         format!("trf.{b}.mha.query.weight")
-    //     };
-    //     let q_w_var = gpt_data.get(q_name.as_str()).unwrap();
-    //     q_w_var.set(&q_w.t()?)?;
-
-    //     let k_name = if let Some(prefix) = model_prefix {
-    //         format!("{prefix}.trf.{b}.mha.key.weight")
-    //     } else {
-    //         format!("trf.{b}.mha.key.weight")
-    //     };
-    //     let k_w_var = gpt_data.get(k_name.as_str()).unwrap();
-    //     k_w_var.set(&k_w.t()?)?;
-
-    //     let v_name = if let Some(prefix) = model_prefix {
-    //         format!("{prefix}.trf.{b}.mha.value.weight")
-    //     } else {
-    //         format!("trf.{b}.mha.value.weight")
-    //     };
-    //     let v_w_var = gpt_data.get(v_name.as_str()).unwrap();
-    //     v_w_var.set(&v_w.t()?)?;
-    // }
-
     Ok(())
 }
 

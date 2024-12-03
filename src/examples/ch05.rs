@@ -629,10 +629,10 @@ impl Example for EG11 {
         let api = Api::new().unwrap();
         let repo = api.model("openai-community/gpt2".to_string());
         let weights = repo.get("model.safetensors").unwrap();
-        let weights = candle_core::safetensors::load(weights, &dev).unwrap();
+        let mut weights = candle_core::safetensors::load(weights, &dev).unwrap();
 
         // load weights
-        load_weights_into_gpt(&varmap, &weights, Some("model"), cfg.n_layers).unwrap();
+        load_weights_into_gpt(&varmap, &mut weights, Some("model"), cfg.n_layers).unwrap();
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
