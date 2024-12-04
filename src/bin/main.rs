@@ -68,12 +68,6 @@ static EXAMPLE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Example>>> = Laz
     m
 });
 
-#[allow(dead_code)]
-enum RunType {
-    EG(String),
-    EX(String),
-}
-
 /// CLI
 #[derive(Debug, Parser)]
 #[command(name = "llms-from-scratch-rs")]
