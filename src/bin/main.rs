@@ -1,3 +1,4 @@
+use clap::{Parser, Subcommand};
 use llms_from_scratch_rs::{examples, exercises, Example, Exercise};
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -73,20 +74,42 @@ enum RunType {
     EX(String),
 }
 
+/// CLI
+#[derive(Debug, Parser)]
+#[command(name = "llms-from-scratch-rs")]
+#[command(about = "A CLI for running examples and exercises.", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Run examples
+    Example {
+        /// The example to run
+        id: String,
+    },
+    /// Run exercises
+    Exercise {
+        /// The exercise to run
+        id: String,
+    },
+}
+
 fn main() {
     let exercise_registry = &*EXERCISE_REGISTRY;
     let example_registry = &*EXAMPLE_REGISTRY;
+    let cli = Cli::parse();
 
-    let run_type = RunType::EX(String::from("5.6"));
-    // let run_type = RunType::EG(String::from("05.11"));
-    match run_type {
-        RunType::EX(id) => {
-            let ex = exercise_registry.get(&id[..]).unwrap();
-            ex.main()
-        }
-        RunType::EG(id) => {
+    match cli.command {
+        Commands::Example { id } => {
             let eg = example_registry.get(&id[..]).unwrap();
             eg.main()
+        }
+        Commands::Exercise { id } => {
+            let ex = exercise_registry.get(&id[..]).unwrap();
+            ex.main()
         }
     }
 }
