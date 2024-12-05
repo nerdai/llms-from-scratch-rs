@@ -8,6 +8,10 @@ impl Exercise for X1 {
         String::from("4.1")
     }
 
+    fn title(&self) -> String {
+        "Number of parameters in feed forward and attention modules".to_string()
+    }
+
     fn statement(&self) -> String {
         let stmt = "Calculate and compare the number of parameters that are contained in the feed forward module \
         and those that are contained in the multi-head attention module.";
@@ -49,6 +53,10 @@ pub struct X2;
 impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("4.2")
+    }
+
+    fn title(&self) -> String {
+        "Initializing larger GPT models".to_string()
     }
 
     fn statement(&self) -> String {
@@ -118,6 +126,10 @@ pub struct X3;
 impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("4.3")
+    }
+
+    fn title(&self) -> String {
+        "Using separate dropout parameters".to_string()
     }
 
     fn statement(&self) -> String {

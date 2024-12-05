@@ -8,6 +8,10 @@ impl Exercise for X1 {
         String::from("2.1")
     }
 
+    fn title(&self) -> String {
+        "Byte pair encoding of unknown words".to_string()
+    }
+
     fn statement(&self) -> String {
         let stmt = "Try the BPE tokenizer from the tiktoken library on the \
         unknown words 'Akwirw ier' and print the individual token IDs. Then, \
@@ -36,6 +40,10 @@ pub struct X2;
 impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("2.2")
+    }
+
+    fn title(&self) -> String {
+        "Data loaders with different strides and context sizes".to_string()
     }
 
     fn statement(&self) -> String {

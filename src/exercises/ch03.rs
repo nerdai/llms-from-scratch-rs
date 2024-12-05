@@ -8,6 +8,10 @@ impl Exercise for X1 {
         String::from("3.1")
     }
 
+    fn title(&self) -> String {
+        "Comparing `SelfAttention_v1` and `SelfAttention_v2`".to_string()
+    }
+
     fn statement(&self) -> String {
         let stmt = "Note that `nn.Linear` in `SelfAttention_v2` uses a \
         different weight initialization scheme as `nn.Parameter(torch.rand(d_in, d_out))` \
@@ -62,6 +66,10 @@ impl Exercise for X2 {
         String::from("3.2")
     }
 
+    fn title(&self) -> String {
+        "Returning two-dimensional embedding vectors".to_string()
+    }
+
     fn statement(&self) -> String {
         let stmt = "Change the input arguments for the \
         `MultiHeadAttentionWrapper(..., num_heads=2)` call such that the output \
@@ -104,6 +112,10 @@ pub struct X3;
 impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("3.3")
+    }
+
+    fn title(&self) -> String {
+        "Initializing GPT-2 size attention modules".to_string()
     }
 
     fn statement(&self) -> String {

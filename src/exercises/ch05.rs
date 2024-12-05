@@ -8,6 +8,10 @@ impl Exercise for X1 {
         String::from("5.1")
     }
 
+    fn title(&self) -> String {
+        "Printing sampling frequencies with various temperatures".to_string() // title missing from book
+    }
+
     fn statement(&self) -> String {
         let stmt = "Use the `print_sampled_tokens` function to print the \
         sampling frequencies of the softmax probabilities scaled with the \
@@ -50,6 +54,10 @@ pub struct X2;
 impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("5.2")
+    }
+
+    fn title(&self) -> String {
+        "Using various temperatures and top-k values".to_string() // missing from book
     }
 
     fn statement(&self) -> String {
@@ -114,6 +122,10 @@ pub struct X3;
 impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("5.3")
+    }
+
+    fn title(&self) -> String {
+        "Parameter values for deterministic sampling".to_string() // missing from book
     }
 
     fn statement(&self) -> String {
@@ -186,6 +198,10 @@ impl Exercise for X4 {
         String::from("5.4")
     }
 
+    fn title(&self) -> String {
+        "Continuing training from pre-loaded weights".to_string() // missing from book
+    }
+
     fn statement(&self) -> String {
         let stmt = "After saving the weights, load the model and optimizer \
         in a new Python session or Jupyter notebook file and continue pretraining \
@@ -255,6 +271,10 @@ impl Exercise for X5 {
         String::from("5.5")
     }
 
+    fn title(&self) -> String {
+        "Training and validation losses with OpenAI weights".to_string() // missing from book
+    }
+
     fn statement(&self) -> String {
         let stmt = "Calculate the training and validation set losses of the \
         `GPTModel` with the pretrained weights from OpenAI on the “The Verdict” \
@@ -310,6 +330,10 @@ pub struct X6;
 impl Exercise for X6 {
     fn name(&self) -> String {
         String::from("5.6")
+    }
+
+    fn title(&self) -> String {
+        "Comparing generations with different GPT-2 model sizes".to_string() // missing from book
     }
 
     fn statement(&self) -> String {
