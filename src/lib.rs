@@ -7,9 +7,11 @@ pub mod listings;
 pub trait Exercise: Send + Sync {
     fn name(&self) -> String;
 
-    fn statement(&self) -> String {
+    fn title(&self) -> String {
         String::default()
     }
+
+    fn statement(&self) -> String;
 
     fn main(&self);
 }
