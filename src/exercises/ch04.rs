@@ -8,6 +8,12 @@ impl Exercise for X1 {
         String::from("4.1")
     }
 
+    fn statement(&self) -> String {
+        let stmt = "Calculate and compare the number of parameters that are contained in the feed forward module \
+        and those that are contained in the multi-head attention module.";
+        stmt.to_string()
+    }
+
     fn main(&self) {
         use crate::listings::ch04::{Config, TransformerBlock};
         use candle_core::{DType, Device};
@@ -43,6 +49,19 @@ pub struct X2;
 impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("4.2")
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "We initialized a 124-million-parameter GPT model, \
+        which is known as 'GPT-2 small.' Without making any code modifications \
+        besides updating the configuration file, use the GPTModel class to \
+        implement GPT-2 medium (using 1,024-dimensional embeddings, 24 transformer \
+        blocks, 16 multi-head attention heads), GPT-2 large (1,280- dimensional \
+        embeddings, 36 transformer blocks, 20 multi-head attention heads), and \
+        GPT-2 XL (1,600-dimensional embeddings, 48 transformer blocks, 25 \
+        multi-head attention heads). As a bonus, calculate the total number of \
+        parameters in each GPT model.";
+        stmt.to_string()
     }
 
     fn main(&self) {
@@ -99,6 +118,17 @@ pub struct X3;
 impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("4.3")
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "At the beginning of this chapter, we defined a global \
+        `drop_rate` setting in the `GPT_CONFIG_124M` dictionary to set the \
+        dropout rate in various places throughout the GPTModel architecture. \
+        Change the code to specify a separate dropout value for the various \
+        dropout layers throughout the model architecture. (Hint: there are three \
+        distinct places where we used dropout layers: the embedding layer, \
+        shortcut layer, and multi-head attention module.)";
+        stmt.to_string()
     }
 
     fn main(&self) {
