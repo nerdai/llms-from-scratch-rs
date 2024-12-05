@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use comfy_table::{ContentArrangement, Table};
 use itertools::Itertools;
 use llms_from_scratch_rs::{examples, exercises, Example, Exercise};
 use std::collections::HashMap;
@@ -118,18 +119,31 @@ fn main() {
             exercises,
         } => {
             if examples {
-                println!("Examples:\n");
+                let mut examples_table = Table::new();
+                examples_table
+                    .set_width(80)
+                    .set_content_arrangement(ContentArrangement::Dynamic)
+                    .set_header(vec!["Id", "Description"]);
                 for key in example_registry.keys().sorted() {
                     let eg = example_registry.get(key).unwrap();
-                    println!("{}: {}", key, eg.description());
+                    examples_table.add_row(vec![key.to_string(), eg.description()]);
                 }
+                println!("EXAMPLES:\n{examples_table}");
             }
             if exercises {
-                println!("Exercises:\n");
+                let mut exercises_table = Table::new();
+                exercises_table
+                    .set_width(80)
+                    .set_content_arrangement(ContentArrangement::Dynamic)
+                    .set_header(vec!["Id", "Statement"]);
                 for key in exercise_registry.keys().sorted() {
                     let ex = exercise_registry.get(key).unwrap();
-                    println!("{}: {}\n{}", key, ex.title(), ex.statement());
+                    exercises_table.add_row(vec![
+                        key.to_string(),
+                        format!("{}\n\n{}", ex.title(), ex.statement()),
+                    ]);
                 }
+                println!("EXERCISES:\n{exercises_table}");
             }
         }
     }
