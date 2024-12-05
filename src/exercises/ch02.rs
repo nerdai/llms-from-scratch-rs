@@ -8,6 +8,16 @@ impl Exercise for X1 {
         String::from("2.1")
     }
 
+    fn statement(&self) -> String {
+        let stmt = "Try the BPE tokenizer from the tiktoken library on the \
+        unknown words 'Akwirw ier' and print the individual token IDs. Then, \
+        call the decode function on each of the resulting integers in this list \
+        to reproduce the mapping shown in figure 2.11. Lastly, call the decode \
+        method on the token IDs to check whether it can reconstruct the \
+        original input, 'Akwirw ier.'";
+        stmt.to_string()
+    }
+
     fn main(&self) {
         use tiktoken_rs::get_bpe_from_model;
 
@@ -26,6 +36,13 @@ pub struct X2;
 impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("2.2")
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "To develop more intuition for how the data loader works, \
+        try to run it with different settings such as `max_length=2` and \
+        `stride=2`, and `max_length=8` and `stride=2`.";
+        stmt.to_string()
     }
 
     fn main(&self) {
