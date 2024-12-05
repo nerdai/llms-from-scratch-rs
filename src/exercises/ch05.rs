@@ -1,9 +1,9 @@
 use crate::Exercise;
 
 /// Exercise 5.1
-pub struct X5P1;
+pub struct X1;
 
-impl Exercise for X5P1 {
+impl Exercise for X1 {
     fn name(&self) -> String {
         String::from("5.1")
     }
@@ -36,9 +36,9 @@ impl Exercise for X5P1 {
 }
 
 /// Exercise 5.2
-pub struct X5P2;
+pub struct X2;
 
-impl Exercise for X5P2 {
+impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("5.2")
     }
@@ -90,9 +90,9 @@ impl Exercise for X5P2 {
 }
 
 /// Exercise 5.3
-pub struct X5P3;
+pub struct X3;
 
-impl Exercise for X5P3 {
+impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("5.3")
     }
@@ -152,9 +152,9 @@ impl Exercise for X5P3 {
 }
 
 /// Exercise 5.4
-pub struct X5P4;
+pub struct X4;
 
-impl Exercise for X5P4 {
+impl Exercise for X4 {
     fn name(&self) -> String {
         String::from("5.4")
     }
@@ -214,9 +214,9 @@ impl Exercise for X5P4 {
 }
 
 /// Exercise 5.5
-pub struct X5P5;
+pub struct X5;
 
-impl Exercise for X5P5 {
+impl Exercise for X5 {
     fn name(&self) -> String {
         String::from("5.5")
     }
@@ -264,9 +264,9 @@ impl Exercise for X5P5 {
 }
 
 /// Exercise 5.6
-pub struct X5P6;
+pub struct X6;
 
-impl Exercise for X5P6 {
+impl Exercise for X6 {
     fn name(&self) -> String {
         String::from("5.6")
     }

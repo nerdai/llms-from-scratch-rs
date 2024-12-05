@@ -8,23 +8,23 @@ static EXERCISE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Exercise>>> =
     LazyLock::new(|| {
         let mut m: HashMap<&'static str, Box<dyn Exercise + 'static>> = HashMap::new();
         // ch02
-        m.insert("2.1", Box::new(exercises::ch02::X2P1));
-        m.insert("2.2", Box::new(exercises::ch02::X2P2));
+        m.insert("2.1", Box::new(exercises::ch02::X1));
+        m.insert("2.2", Box::new(exercises::ch02::X2));
         // ch03
-        m.insert("3.1", Box::new(exercises::ch03::X3P1));
-        m.insert("3.2", Box::new(exercises::ch03::X3P2));
-        m.insert("3.3", Box::new(exercises::ch03::X3P3));
+        m.insert("3.1", Box::new(exercises::ch03::X1));
+        m.insert("3.2", Box::new(exercises::ch03::X2));
+        m.insert("3.3", Box::new(exercises::ch03::X3));
         // ch04
-        m.insert("4.1", Box::new(exercises::ch04::X4P1));
-        m.insert("4.2", Box::new(exercises::ch04::X4P2));
-        m.insert("4.3", Box::new(exercises::ch04::X4P3));
+        m.insert("4.1", Box::new(exercises::ch04::X1));
+        m.insert("4.2", Box::new(exercises::ch04::X2));
+        m.insert("4.3", Box::new(exercises::ch04::X3));
         // ch05
-        m.insert("5.1", Box::new(exercises::ch05::X5P1));
-        m.insert("5.2", Box::new(exercises::ch05::X5P2));
-        m.insert("5.3", Box::new(exercises::ch05::X5P3));
-        m.insert("5.4", Box::new(exercises::ch05::X5P4));
-        m.insert("5.5", Box::new(exercises::ch05::X5P5));
-        m.insert("5.6", Box::new(exercises::ch05::X5P6));
+        m.insert("5.1", Box::new(exercises::ch05::X1));
+        m.insert("5.2", Box::new(exercises::ch05::X2));
+        m.insert("5.3", Box::new(exercises::ch05::X3));
+        m.insert("5.4", Box::new(exercises::ch05::X4));
+        m.insert("5.5", Box::new(exercises::ch05::X5));
+        m.insert("5.6", Box::new(exercises::ch05::X6));
         m
     });
 

@@ -1,9 +1,9 @@
 use crate::Exercise;
 
 /// 3.1
-pub struct X3P1;
+pub struct X1;
 
-impl Exercise for X3P1 {
+impl Exercise for X1 {
     fn name(&self) -> String {
         String::from("3.1")
     }
@@ -39,9 +39,9 @@ impl Exercise for X3P1 {
 }
 
 /// Exercise 3.2
-pub struct X3P2;
+pub struct X2;
 
-impl Exercise for X3P2 {
+impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("3.2")
     }
@@ -74,9 +74,9 @@ impl Exercise for X3P2 {
 }
 
 /// Exercise 3.3
-pub struct X3P3;
+pub struct X3;
 
-impl Exercise for X3P3 {
+impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("3.3")
     }

@@ -1,9 +1,9 @@
 use crate::Exercise;
 
 /// 2.1
-pub struct X2P1;
+pub struct X1;
 
-impl Exercise for X2P1 {
+impl Exercise for X1 {
     fn name(&self) -> String {
         String::from("2.1")
     }
@@ -21,9 +21,9 @@ impl Exercise for X2P1 {
 }
 
 /// 2.2
-pub struct X2P2;
+pub struct X2;
 
-impl Exercise for X2P2 {
+impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("2.2")
     }
