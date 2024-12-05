@@ -1,11 +1,24 @@
 use crate::Exercise;
 
 /// Exercise 5.1
-pub struct X5P1;
+pub struct X1;
 
-impl Exercise for X5P1 {
+impl Exercise for X1 {
     fn name(&self) -> String {
         String::from("5.1")
+    }
+
+    fn title(&self) -> String {
+        "Printing sampling frequencies with various temperatures".to_string() // title missing from book
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Use the `print_sampled_tokens` function to print the \
+        sampling frequencies of the softmax probabilities scaled with the \
+        temperatures shown in figure 5.14. How often is the word `pizza` sampled \
+        in each case? Can you think of a faster and more accurate way to \
+        determine how often the word `pizza` is sampled?";
+        stmt.to_string()
     }
 
     fn main(&self) {
@@ -36,11 +49,25 @@ impl Exercise for X5P1 {
 }
 
 /// Exercise 5.2
-pub struct X5P2;
+pub struct X2;
 
-impl Exercise for X5P2 {
+impl Exercise for X2 {
     fn name(&self) -> String {
         String::from("5.2")
+    }
+
+    fn title(&self) -> String {
+        "Using various temperatures and top-k values".to_string() // missing from book
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Play around with different temperatures and top-k \
+        settings. Based on your observations, can you think of applications \
+        where lower temperature and top-k settings are desired? Likewise, can \
+        you think of applications where higher temperature and top-k settings \
+        are preferred? (It’s recommended to also revisit this exercise at the \
+        end of the chapter after loading the pretrained weights from OpenAI.)";
+        stmt.to_string()
     }
 
     fn main(&self) {
@@ -90,11 +117,23 @@ impl Exercise for X5P2 {
 }
 
 /// Exercise 5.3
-pub struct X5P3;
+pub struct X3;
 
-impl Exercise for X5P3 {
+impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("5.3")
+    }
+
+    fn title(&self) -> String {
+        "Parameter values for deterministic sampling".to_string() // missing from book
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "What are the different combinations of settings for \
+        the `generate` function to force deterministic behavior, that is, \
+        disabling the random sampling such that it always produces the same \
+        outputs similar to the `generate_simple` function?";
+        stmt.to_string()
     }
 
     fn main(&self) {
@@ -152,11 +191,22 @@ impl Exercise for X5P3 {
 }
 
 /// Exercise 5.4
-pub struct X5P4;
+pub struct X4;
 
-impl Exercise for X5P4 {
+impl Exercise for X4 {
     fn name(&self) -> String {
         String::from("5.4")
+    }
+
+    fn title(&self) -> String {
+        "Continuing training from pre-loaded weights".to_string() // missing from book
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "After saving the weights, load the model and optimizer \
+        in a new Python session or Jupyter notebook file and continue pretraining \
+        it for one more epoch using the `train_model_simple` function.";
+        stmt.to_string()
     }
 
     fn main(&self) {
@@ -214,11 +264,22 @@ impl Exercise for X5P4 {
 }
 
 /// Exercise 5.5
-pub struct X5P5;
+pub struct X5;
 
-impl Exercise for X5P5 {
+impl Exercise for X5 {
     fn name(&self) -> String {
         String::from("5.5")
+    }
+
+    fn title(&self) -> String {
+        "Training and validation losses with OpenAI weights".to_string() // missing from book
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Calculate the training and validation set losses of the \
+        `GPTModel` with the pretrained weights from OpenAI on the “The Verdict” \
+        dataset.";
+        stmt.to_string()
     }
 
     fn main(&self) {
@@ -264,11 +325,22 @@ impl Exercise for X5P5 {
 }
 
 /// Exercise 5.6
-pub struct X5P6;
+pub struct X6;
 
-impl Exercise for X5P6 {
+impl Exercise for X6 {
     fn name(&self) -> String {
         String::from("5.6")
+    }
+
+    fn title(&self) -> String {
+        "Comparing generations with different GPT-2 model sizes".to_string() // missing from book
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Experiment with GPT-2 models of different sizes—for \
+        example, the largest 1,558 million parameter model—and compare the \
+        generated text to the 124 million model.";
+        stmt.to_string()
     }
 
     fn main(&self) {
