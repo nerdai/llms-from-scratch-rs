@@ -128,7 +128,7 @@ fn main() {
                 println!("Exercises:\n");
                 for key in exercise_registry.keys().sorted() {
                     let ex = exercise_registry.get(key).unwrap();
-                    println!("{}: {}", key, ex.statement());
+                    println!("{}: {}\n{}", key, ex.title(), ex.statement());
                 }
             }
         }
