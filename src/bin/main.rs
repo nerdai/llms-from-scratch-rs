@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use itertools::Itertools;
 use llms_from_scratch_rs::{examples, exercises, Example, Exercise};
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -89,6 +90,13 @@ enum Commands {
         /// The exercise to run
         id: String,
     },
+    /// List examples and exercises
+    List {
+        #[clap(long, action)]
+        examples: bool,
+        #[clap(long, action)]
+        exercises: bool,
+    },
 }
 
 fn main() {
@@ -104,6 +112,25 @@ fn main() {
         Commands::Exercise { id } => {
             let ex = exercise_registry.get(&id[..]).unwrap();
             ex.main()
+        }
+        Commands::List {
+            examples,
+            exercises,
+        } => {
+            if examples {
+                println!("Examples:\n");
+                for key in example_registry.keys().sorted() {
+                    let eg = example_registry.get(key).unwrap();
+                    println!("{}: {}", key, eg.description());
+                }
+            }
+            if exercises {
+                println!("Exercises:\n");
+                for key in exercise_registry.keys().sorted() {
+                    let ex = exercise_registry.get(key).unwrap();
+                    println!("{}: {}", key, ex.statement());
+                }
+            }
         }
     }
 }
