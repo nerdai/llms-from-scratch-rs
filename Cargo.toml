@@ -9,6 +9,7 @@ anyhow = "1.0.93"
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
 candle-datasets = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
+clap = { version = "4.5.22", features = ["derive"] }
 fancy-regex = "0.14.0"
 hf-hub = "0.3.2"
 itertools = "0.13.0"
