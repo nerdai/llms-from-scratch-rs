@@ -8,6 +8,22 @@ impl Exercise for X1 {
         String::from("3.1")
     }
 
+    fn statement(&self) -> String {
+        let stmt = "Note that `nn.Linear` in `SelfAttention_v2` uses a \
+        different weight initialization scheme as `nn.Parameter(torch.rand(d_in, d_out))` \
+        used in `SelfAttention_v1`, which causes both mechanisms to produce \
+        different results. To check that both implementations, `SelfAttention_v1` \
+        and `SelfAttention_v2`, are otherwise similar, we can transfer the \
+        weight matrices from a `SelfAttention_v2` object to a `SelfAttention_v1`, \
+        such that both objects then produce the same results. Your task is to \
+        correctly assign the weights from an instance of `SelfAttention_v2` to \
+        an instance of `SelfAttention_v1`. To do this, you need to understand \
+        the relationship between the weights in both versions. (Hint: `nn.Linear` \
+        stores the weight matrix in a transposed form.) After the assignment, \
+        you should observe that both instances produce the same outputs.";
+        stmt.to_string()
+    }
+
     fn main(&self) {
         use crate::listings::ch03::{SelfAttentionV1, SelfAttentionV2};
         use candle_core::{DType, Device, Module, Tensor};
@@ -46,6 +62,15 @@ impl Exercise for X2 {
         String::from("3.2")
     }
 
+    fn statement(&self) -> String {
+        let stmt = "Change the input arguments for the \
+        `MultiHeadAttentionWrapper(..., num_heads=2)` call such that the output \
+        context vectors are two-dimensional instead of four dimensional while \
+        keeping the setting `num_heads=2`. Hint: You don’t have to modify the \
+        class implementation; you just have to change one of the other input arguments.";
+        stmt.to_string()
+    }
+
     fn main(&self) {
         use crate::listings::ch03::MultiHeadAttentionWrapper;
         use candle_core::{DType, Device, Module, Tensor};
@@ -79,6 +104,16 @@ pub struct X3;
 impl Exercise for X3 {
     fn name(&self) -> String {
         String::from("3.3")
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Using the `MultiHeadAttention` class, initialize a \
+        multi-head attention module that has the same number of attention heads \
+        as the smallest GPT-2 model (12 attention heads). Also ensure that you \
+        use the respective input and output embedding sizes similar to GPT-2 \
+        (768 dimensions). Note that the smallest GPT-2 model supports a context \
+        length of 1,024 tokens.";
+        stmt.to_string()
     }
 
     fn main(&self) {
