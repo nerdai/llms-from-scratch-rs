@@ -1,4 +1,5 @@
 use crate::Exercise;
+use anyhow::Result;
 
 /// Exercise 4.1
 pub struct X1;
@@ -18,16 +19,16 @@ impl Exercise for X1 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::listings::ch04::{Config, TransformerBlock};
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
 
         // create model
-        let dev = Device::cuda_if_available(0).unwrap();
+        let dev = Device::cuda_if_available(0)?;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-        let _ = TransformerBlock::new(Config::gpt2_124m(), vb).unwrap();
+        let _ = TransformerBlock::new(Config::gpt2_124m(), vb)?;
 
         // Get varmap data containing all variables
         let varmap_data = varmap.data().lock().unwrap();
@@ -44,6 +45,7 @@ impl Exercise for X1 {
         }
         println!("Ff number of parameters: {}", ff_params);
         println!("Mha number of parameters: {}", mha_params);
+        Ok(())
     }
 }
 
@@ -72,7 +74,7 @@ impl Exercise for X2 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::listings::ch04::{Config, GPTModel};
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
@@ -86,10 +88,10 @@ impl Exercise for X2 {
 
         for (mdl_name, cfg) in configs.iter() {
             // construct model which stores the vars in the varmap
-            let dev = Device::cuda_if_available(0).unwrap();
+            let dev = Device::cuda_if_available(0)?;
             let varmap = VarMap::new();
             let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-            let _ = GPTModel::new(*cfg, vb).unwrap();
+            let _ = GPTModel::new(*cfg, vb)?;
 
             // compute number of params (todo build utility func for this)
             let mut total_params = 0_usize;
@@ -117,6 +119,7 @@ impl Exercise for X2 {
             let total_size_mb = total_size_bytes as f32 / (1024_f32 * 1024.);
             println!("Total size of the model: {} MB\n", total_size_mb);
         }
+        Ok(())
     }
 }
 
@@ -143,30 +146,31 @@ impl Exercise for X3 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::listings::ch04::GPTModel;
         use candle_core::{DType, Device, IndexOp, ModuleT, Tensor};
         use candle_nn::{VarBuilder, VarMap};
 
         // create model
-        let dev = Device::cuda_if_available(0).unwrap();
+        let dev = Device::cuda_if_available(0)?;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-        let model = GPTModel::new_v2(addons::ConfigV2::gpt_config_124m(), vb).unwrap();
+        let model = GPTModel::new_v2(addons::ConfigV2::gpt_config_124m(), vb)?;
 
         // create batch inputs
-        let batch = Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev).unwrap();
+        let batch = Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev)?;
 
         // run model forward
-        let logits = model.forward_t(&batch, false).unwrap();
+        let logits = model.forward_t(&batch, false)?;
 
         // print first ten logits of vocabular for all batch inputs, and tokens
-        let (_b, c, _vocab_size) = logits.dims3().unwrap();
-        let last_tokens_logits = logits.i((.., c - 1, ..)).unwrap();
+        let (_b, c, _vocab_size) = logits.dims3()?;
+        let last_tokens_logits = logits.i((.., c - 1, ..))?;
         println!(
             "first 10 logits of last vector: {:?}",
-            last_tokens_logits.i((.., 0..10)).unwrap().to_vec2::<f32>()
+            last_tokens_logits.i((.., 0..10))?.to_vec2::<f32>()
         );
+        Ok(())
     }
 }
 
@@ -256,8 +260,8 @@ mod addons {
             let drop_emb = Dropout::new(cfg.drop_rate_emb);
             let mut trf_blocks = seqt();
             for ix in 0..cfg.n_layers {
-                trf_blocks = trf_blocks
-                    .add(TransformerBlock::new_v2(cfg, vb.pp(format!("trf-{}", ix))).unwrap());
+                trf_blocks =
+                    trf_blocks.add(TransformerBlock::new_v2(cfg, vb.pp(format!("trf-{}", ix)))?);
             }
             let final_norm = LayerNorm::new(cfg.emb_dim, vb.pp("final_norm"))?;
             let out_head = linear_b(cfg.emb_dim, cfg.vocab_size, false, vb.pp("out_head"))?;
