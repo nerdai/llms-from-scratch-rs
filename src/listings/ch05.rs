@@ -621,14 +621,14 @@ pub fn load_weights_into_gpt(
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
-
     use super::*;
     use crate::listings::ch04::Config;
+    use anyhow::Result;
     use candle_core::{DType, Device};
     use candle_nn::{VarBuilder, VarMap};
     use rand::SeedableRng;
     use rstest::*;
+    use std::vec;
     use tiktoken_rs::get_bpe_from_model;
 
     #[fixture]
@@ -641,38 +641,38 @@ mod tests {
     #[rstest]
     fn test_text_to_token_ids_and_back_to_text(
         #[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE),
-    ) {
-        let token_ids =
-            text_to_token_ids(&txt[..], &tokenizer, &Device::cuda_if_available(0).unwrap())
-                .unwrap();
-        let decoded_text = token_ids_to_text(token_ids, &tokenizer).unwrap();
+    ) -> Result<()> {
+        let token_ids = text_to_token_ids(&txt[..], &tokenizer, &Device::cuda_if_available(0)?)?;
+        let decoded_text = token_ids_to_text(token_ids, &tokenizer)?;
         assert_eq!(decoded_text, txt);
+        Ok(())
     }
 
     #[rstest]
-    fn test_calc_loss_batch() {
+    fn test_calc_loss_batch() -> Result<()> {
         // create model
         let varmap = VarMap::new();
-        let vb =
-            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
         let cfg = Config::gpt_sm_test();
-        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
 
         // create sample inputs
-        let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device()).unwrap();
-        let targets = Tensor::new(&[[1_u32, 2, 3], [4, 5, 9]], vb.device()).unwrap();
-        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device()).unwrap();
+        let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
+        let targets = Tensor::new(&[[1_u32, 2, 3], [4, 5, 9]], vb.device())?;
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device())?;
 
         assert_eq!(loss.elem_count(), 1);
+        Ok(())
     }
 
     #[rstest]
     #[case(vec![0_f32, 1_f32], 1_u32)]
     #[case(vec![1_f32, 0_f32], 0_u32)]
-    fn test_sample_multinomial(#[case] prs: Vec<f32>, #[case] expected: u32) {
+    fn test_sample_multinomial(#[case] prs: Vec<f32>, #[case] expected: u32) -> Result<()> {
         let mut rng = StdRng::seed_from_u64(1234_u64);
-        let token = sample_multinomial(&mut rng, &prs).unwrap();
+        let token = sample_multinomial(&mut rng, &prs)?;
         assert_eq!(token, expected);
+        Ok(())
     }
 
     #[rstest]
@@ -682,12 +682,13 @@ mod tests {
         #[case] logits: &[f32; 7],
         #[case] expected_top_log: &[f32; 3],
         #[case] expected_top_pos: &[u32; 3],
-    ) {
-        let dev = Device::cuda_if_available(0).unwrap();
-        let logits = Tensor::new(logits, &dev).unwrap();
-        let (top_logits, top_pos) = logits.topk_last_dim0(3_usize).unwrap();
-        assert_eq!(top_logits.to_vec1::<f32>().unwrap(), expected_top_log);
-        assert_eq!(top_pos.to_vec1::<u32>().unwrap(), expected_top_pos);
+    ) -> Result<()> {
+        let dev = Device::cuda_if_available(0)?;
+        let logits = Tensor::new(logits, &dev)?;
+        let (top_logits, top_pos) = logits.topk_last_dim0(3_usize)?;
+        assert_eq!(top_logits.to_vec1::<f32>()?, expected_top_log);
+        assert_eq!(top_pos.to_vec1::<u32>()?, expected_top_pos);
+        Ok(())
     }
 
     #[rstest]
@@ -697,28 +698,28 @@ mod tests {
         #[case] logits: &[[f32; 3]; 2],
         #[case] expected_top_log: &[[f32; 2]; 2],
         #[case] expected_top_pos: &[[u32; 2]; 2],
-    ) {
-        let dev = Device::cuda_if_available(0).unwrap();
-        let logits = Tensor::new(logits, &dev).unwrap();
+    ) -> Result<()> {
+        let dev = Device::cuda_if_available(0)?;
+        let logits = Tensor::new(logits, &dev)?;
         let top_k = 2_usize;
-        let (top_logits, top_pos) = logits.topk_last_dim1(top_k).unwrap();
-        assert_eq!(top_logits.to_vec2::<f32>().unwrap(), expected_top_log);
-        assert_eq!(top_pos.to_vec2::<u32>().unwrap(), expected_top_pos);
+        let (top_logits, top_pos) = logits.topk_last_dim1(top_k)?;
+        assert_eq!(top_logits.to_vec2::<f32>()?, expected_top_log);
+        assert_eq!(top_pos.to_vec2::<u32>()?, expected_top_pos);
+        Ok(())
     }
 
     #[rstest]
-    fn test_generate() {
+    fn test_generate() -> Result<()> {
         let dev = Device::cuda_if_available(0).unwrap();
-        let batch_token_ids =
-            Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev).unwrap();
+        let batch_token_ids = Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev)?;
 
         let cfg = Config::gpt_sm_test();
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-        let model = GPTModel::new(cfg, vb).unwrap();
+        let model = GPTModel::new(cfg, vb)?;
 
         // create sample idx
-        let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
+        let (batch_size, seq_len) = batch_token_ids.dims2()?;
         let (context_size, max_new_tokens) = (2_usize, 3_usize);
         let mut rng = StdRng::seed_from_u64(123_u64);
         let idx = generate(
@@ -730,10 +731,10 @@ mod tests {
             Some(3_usize),
             None,
             &mut rng,
-        )
-        .unwrap();
+        )?;
 
         assert_eq!(idx.dims(), &[batch_size, seq_len + max_new_tokens]);
+        Ok(())
     }
 
     #[rstest]

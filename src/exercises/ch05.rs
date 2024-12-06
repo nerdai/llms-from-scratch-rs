@@ -1,4 +1,5 @@
 use crate::Exercise;
+use anyhow::Result;
 
 /// Exercise 5.1
 pub struct X1;
@@ -21,13 +22,13 @@ impl Exercise for X1 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::{examples, listings::ch05::print_sampled_tokens};
         use candle_core::D;
         use candle_nn::ops::softmax;
 
         let (_vocab, inverse_vocab) = examples::ch05::addons::get_vocab_and_inversed_vocab();
-        let next_token_logits = examples::ch05::addons::get_next_token_logits().unwrap();
+        let next_token_logits = examples::ch05::addons::get_next_token_logits()?;
 
         let temperatures = &[1_f64, 0.1, 5.];
         for temp in temperatures.iter() {
@@ -35,16 +36,12 @@ impl Exercise for X1 {
                 "Temp (temp={}) scaling sampling conducted 1000 times:",
                 temp
             );
-            let scaled_logits = (&next_token_logits / temp.to_owned()).unwrap();
-            let scaled_probas = softmax(&scaled_logits, D::Minus1).unwrap();
-            print_sampled_tokens(
-                &scaled_probas.to_vec1::<f32>().unwrap(),
-                &inverse_vocab,
-                true,
-            )
-            .unwrap();
+            let scaled_logits = (&next_token_logits / temp.to_owned())?;
+            let scaled_probas = softmax(&scaled_logits, D::Minus1)?;
+            print_sampled_tokens(&scaled_probas.to_vec1::<f32>()?, &inverse_vocab, true)?;
             println!("\n");
         }
+        Ok(())
     }
 }
 
@@ -70,7 +67,7 @@ impl Exercise for X2 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::{Config, GPTModel},
             ch05::{generate, text_to_token_ids, token_ids_to_text},
@@ -83,14 +80,13 @@ impl Exercise for X2 {
 
         // construct model
         let varmap = VarMap::new();
-        let vb =
-            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
         let cfg = Config::gpt2_124m();
-        let model = GPTModel::new(Config::gpt2_124m(), vb.pp("model")).unwrap();
+        let model = GPTModel::new(Config::gpt2_124m(), vb.pp("model"))?;
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let tokenizer = get_bpe_from_model("gpt2")?;
 
         let temperatures = &[0.1_f64, 1., 5.];
         let top_ks = &[20_usize, 100, cfg.vocab_size];
@@ -100,19 +96,19 @@ impl Exercise for X2 {
 
             let token_ids = generate(
                 &model,
-                text_to_token_ids(start_context, &tokenizer, vb.device()).unwrap(),
+                text_to_token_ids(start_context, &tokenizer, vb.device())?,
                 15_usize,
                 cfg.context_length,
                 Some(*temp),
                 Some(*top_k),
                 None,
                 &mut rng,
-            )
-            .unwrap();
+            )?;
 
             // decode the token ids to print the output text
             println!("{:?}\n", token_ids_to_text(token_ids, &tokenizer))
         }
+        Ok(())
     }
 }
 
@@ -136,7 +132,7 @@ impl Exercise for X3 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::{Config, GPTModel},
             ch05::{generate, text_to_token_ids},
@@ -148,14 +144,13 @@ impl Exercise for X3 {
 
         // construct model
         let varmap = VarMap::new();
-        let vb =
-            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
         let cfg = Config::gpt2_124m();
-        let model = GPTModel::new(Config::gpt2_124m(), vb.pp("model")).unwrap();
+        let model = GPTModel::new(Config::gpt2_124m(), vb.pp("model"))?;
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let tokenizer = get_bpe_from_model("gpt2")?;
 
         // deterministic settings: temp to None and top_k to any value
         let temp = None;
@@ -167,15 +162,14 @@ impl Exercise for X3 {
 
             let token_ids = generate(
                 &model,
-                text_to_token_ids(start_context, &tokenizer, vb.device()).unwrap(),
+                text_to_token_ids(start_context, &tokenizer, vb.device())?,
                 15_usize,
                 cfg.context_length,
                 temp,
                 Some(20usize),
                 None,
                 &mut rng,
-            )
-            .unwrap();
+            )?;
 
             if let Some(old) = old_token_ids {
                 println!("old token ids: {:?}", old.to_vec2::<u32>());
@@ -187,6 +181,7 @@ impl Exercise for X3 {
 
             old_token_ids = Some(token_ids);
         }
+        Ok(())
     }
 }
 
@@ -209,7 +204,7 @@ impl Exercise for X4 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::{
             examples,
             listings::{
@@ -223,16 +218,15 @@ impl Exercise for X4 {
 
         // construct model
         let mut varmap = VarMap::new();
-        let vb =
-            VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0).unwrap());
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
         let cfg = Config::gpt2_124m();
-        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
 
         // load from previous checkpoint
         // NOTE: this requires EG 05.09 to be have ran, which creates a model
         // checkpoint that we use here
         println!("Loading weights from `./checkpoint.safetensors`");
-        varmap.load("checkpoint.safetensors").unwrap(); // todo map to anyhow error with proper msg
+        varmap.load("checkpoint.safetensors")?; // todo map to anyhow error with proper msg
 
         // train model for one epoch
         let optimizer = AdamW::new(
@@ -242,11 +236,10 @@ impl Exercise for X4 {
                 weight_decay: 0.1,
                 ..Default::default()
             },
-        )
-        .unwrap();
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        )?;
+        let tokenizer = get_bpe_from_model("gpt2")?;
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
-        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false);
+        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false)?;
         let start_context = "Every effort moves you";
         let _ = train_model_simple(
             &model,
@@ -260,6 +253,7 @@ impl Exercise for X4 {
             start_context,
             &tokenizer,
         );
+        Ok(())
     }
 }
 
@@ -282,7 +276,7 @@ impl Exercise for X5 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::{
             examples,
             listings::{
@@ -294,33 +288,34 @@ impl Exercise for X5 {
         use candle_nn::{VarBuilder, VarMap};
         use hf_hub::api::sync::Api;
 
-        let dev = Device::cuda_if_available(0).unwrap();
+        let dev = Device::cuda_if_available(0)?;
 
         // download openai weights
-        let api = Api::new().unwrap();
+        let api = Api::new()?;
         let repo = api.model("openai-community/gpt2".to_string());
-        let weights = repo.get("model.safetensors").unwrap();
-        let weights = candle_core::safetensors::load(weights, &dev).unwrap();
+        let weights = repo.get("model.safetensors")?;
+        let weights = candle_core::safetensors::load(weights, &dev)?;
 
         // construct model
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
         let mut cfg = Config::gpt2_124m();
         cfg.qkv_bias = true;
-        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
 
         // load openai weights
-        load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers).unwrap();
+        load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers)?;
 
         // build train and val loaders with utility function from addons module
-        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false);
+        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false)?;
 
         // compute train and val loss
-        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), None).unwrap();
-        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), None).unwrap();
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), None)?;
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), None)?;
 
         println!("Training loss {:?}", train_loss);
         println!("Validation loss {:?}", val_loss);
+        Ok(())
     }
 }
 
@@ -343,7 +338,7 @@ impl Exercise for X6 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::{Config, GPTModel},
             ch05::{generate, load_weights_into_gpt, text_to_token_ids, token_ids_to_text},
@@ -354,44 +349,44 @@ impl Exercise for X6 {
         use rand::{rngs::StdRng, SeedableRng};
         use tiktoken_rs::get_bpe_from_model;
 
-        let dev = Device::cuda_if_available(0).unwrap();
+        let dev = Device::cuda_if_available(0)?;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
         let mut cfg = Config::gpt2_xlarge();
         cfg.qkv_bias = true;
-        let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
 
         // get weights from HF Hub
         let model_name = "openai-community/gpt2-xl";
-        let api = Api::new().unwrap();
+        let api = Api::new()?;
         let repo = api.model(model_name.to_string());
-        let weights = repo.get("model.safetensors").unwrap();
-        let weights = candle_core::safetensors::load(weights, &Device::Cpu).unwrap();
+        let weights = repo.get("model.safetensors")?;
+        let weights = candle_core::safetensors::load(weights, &Device::Cpu)?;
 
         // load weights
-        load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers).unwrap();
+        load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers)?;
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let tokenizer = get_bpe_from_model("gpt2")?;
 
         let mut rng = StdRng::seed_from_u64(42_u64);
         let token_ids = generate(
             &model,
-            text_to_token_ids(start_context, &tokenizer, vb.device()).unwrap(),
+            text_to_token_ids(start_context, &tokenizer, vb.device())?,
             25_usize,
             cfg.context_length,
             Some(0.1_f64),
             Some(50_usize),
             None,
             &mut rng,
-        )
-        .unwrap();
+        )?;
 
         // decode the token ids to print the output text
         println!(
             "Model:\n{model_name}\n\nOutput text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer).unwrap()
-        )
+            token_ids_to_text(token_ids, &tokenizer)?
+        );
+        Ok(())
     }
 }

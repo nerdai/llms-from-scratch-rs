@@ -258,6 +258,7 @@ mod tests {
     use core::panic;
 
     use super::*;
+    use anyhow::Result;
     use candle_datasets::Batcher;
     use rstest::*;
     use tiktoken_rs::get_bpe_from_model;
@@ -287,7 +288,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_simple_tokenizer_init(vocab: HashMap<&str, i32>) {
+    fn test_simple_tokenizer_init(vocab: HashMap<&str, i32>) -> Result<()> {
         let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
 
         // assert
@@ -295,10 +296,11 @@ mod tests {
         assert_eq!(tokenizer.str_to_int.get(&String::from("is")), Some(&2));
         assert_eq!(tokenizer.str_to_int.get(&String::from("a")), Some(&3));
         assert_eq!(tokenizer.str_to_int.get(&String::from("test")), Some(&4));
+        Ok(())
     }
 
     #[rstest]
-    fn test_encode(vocab: HashMap<&str, i32>) {
+    fn test_encode(vocab: HashMap<&str, i32>) -> Result<()> {
         let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
         let token_ids = tokenizer.encode("this is a test");
 
@@ -306,10 +308,11 @@ mod tests {
         assert_eq!(token_ids[1], 2);
         assert_eq!(token_ids[2], 3);
         assert_eq!(token_ids[3], 4);
+        Ok(())
     }
 
     #[rstest]
-    fn test_simple_tokenizer_decode(mut vocab: HashMap<&str, i32>) {
+    fn test_simple_tokenizer_decode(mut vocab: HashMap<&str, i32>) -> Result<()> {
         vocab.entry(".").or_insert(5);
         let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
 
@@ -317,10 +320,11 @@ mod tests {
         let text = tokenizer.decode(token_ids);
 
         assert_eq!(text, "this is a test.");
+        Ok(())
     }
 
     #[rstest]
-    fn test_simple_tokenizer_v2_encode(vocab: HashMap<&str, i32>) {
+    fn test_simple_tokenizer_v2_encode(vocab: HashMap<&str, i32>) -> Result<()> {
         let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
         let token_ids = tokenizer.encode("this is a test! <|endoftext|>");
 
@@ -330,20 +334,24 @@ mod tests {
         assert_eq!(token_ids[3], 4);
         assert_eq!(token_ids[4], 5);
         assert_eq!(token_ids[5], 6);
+        Ok(())
     }
 
     #[rstest]
-    fn test_simple_tokenizer_v2_decode(vocab: HashMap<&str, i32>) {
+    fn test_simple_tokenizer_v2_decode(vocab: HashMap<&str, i32>) -> Result<()> {
         let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
 
         let token_ids = vec![1, 2, 3, 4, 5, 6];
         let text = tokenizer.decode(token_ids);
 
         assert_eq!(text, "this is a test <|unk|> <|endoftext|>");
+        Ok(())
     }
 
     #[rstest]
-    fn test_gpt_dataset_v1_init(#[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE)) {
+    fn test_gpt_dataset_v1_init(
+        #[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE),
+    ) -> Result<()> {
         let token_ids = tokenizer.encode_with_special_tokens(&txt[..]);
         let stride = 1_usize;
         let max_length = 3_usize;
@@ -363,10 +371,13 @@ mod tests {
             // test stride alignments
             assert_eq!(dataset.input_ids[ix][0], token_ids[ix * stride]);
         }
+        Ok(())
     }
 
     #[rstest]
-    fn test_gpt_dataset_v1_iter(#[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE)) {
+    fn test_gpt_dataset_v1_iter(
+        #[from(txt_tokenizer)] (txt, tokenizer): (String, CoreBPE),
+    ) -> Result<()> {
         let stride = 1_usize;
         let max_length = 3_usize;
         let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
@@ -375,8 +386,8 @@ mod tests {
 
         // user iter to sequentially get next pair checking equality with dataset
         while let Some(Ok((this_inputs, this_targets))) = iter.next() {
-            let this_inputs_vec: Vec<u32> = this_inputs.to_vec1::<u32>().unwrap();
-            let this_targets_vec: Vec<u32> = this_targets.to_vec1::<u32>().unwrap();
+            let this_inputs_vec: Vec<u32> = this_inputs.to_vec1::<u32>()?;
+            let this_targets_vec: Vec<u32> = this_targets.to_vec1::<u32>()?;
 
             assert!(this_inputs.shape().dims()[0] == max_length);
             assert!(this_targets.shape().dims()[0] == max_length);
@@ -391,10 +402,11 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, dataset.len());
+        Ok(())
     }
 
     #[rstest]
-    fn test_gpt_dataset_with_batch(#[from(gpt_dataset)] dataset: GPTDatasetV1) {
+    fn test_gpt_dataset_with_batch(#[from(gpt_dataset)] dataset: GPTDatasetV1) -> Result<()> {
         let iter = GPTDatasetIter::new(dataset.clone(), false);
         let batch_size = 2_usize;
         let mut batch_iter = Batcher::new_r2(iter).batch_size(batch_size);
@@ -407,10 +419,11 @@ mod tests {
             Some(Err(err)) => panic!("{}", err),
             None => panic!("None"),
         }
+        Ok(())
     }
 
     #[rstest]
-    fn test_create_dataloader_v1() {
+    fn test_create_dataloader_v1() -> Result<()> {
         let txt = "In the heart of the city";
         let batch_size = 2_usize;
         let stride = 1_usize;
@@ -429,5 +442,6 @@ mod tests {
             Some(Err(err)) => panic!("{}", err),
             None => panic!("None"),
         }
+        Ok(())
     }
 }

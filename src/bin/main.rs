@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use comfy_table::{ContentArrangement, Table};
 use itertools::Itertools;
@@ -100,7 +101,7 @@ enum Commands {
     },
 }
 
-fn main() {
+fn main() -> Result<()> {
     let exercise_registry = &*EXERCISE_REGISTRY;
     let example_registry = &*EXAMPLE_REGISTRY;
     let cli = Cli::parse();
@@ -145,6 +146,7 @@ fn main() {
                 }
                 println!("EXERCISES:\n{exercises_table}");
             }
+            Ok(())
         }
     }
 }

@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 pub mod candle_addons;
 pub mod examples;
 pub mod exercises;
@@ -11,7 +13,7 @@ pub trait Exercise: Send + Sync {
 
     fn statement(&self) -> String;
 
-    fn main(&self);
+    fn main(&self) -> Result<()>;
 }
 
 /// Example Trait
@@ -20,5 +22,5 @@ pub trait Example: Send + Sync {
 
     fn page_source(&self) -> usize;
 
-    fn main(&self);
+    fn main(&self) -> Result<()>;
 }

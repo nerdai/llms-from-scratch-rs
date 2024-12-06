@@ -366,6 +366,7 @@ impl ModuleT for MultiHeadAttention {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use candle_core::{DType, Device};
     use candle_nn::{VarBuilder, VarMap};
     use rstest::*;
@@ -378,76 +379,82 @@ mod tests {
     }
 
     #[rstest]
-    fn test_self_attention_v1_init(vb: VarBuilder<'_>) {
+    fn test_self_attention_v1_init(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
+        let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn"))?;
 
         assert_eq!(attn_v1_layer.w_query.dims(), &[d_in, d_out]);
         assert_eq!(attn_v1_layer.w_key.dims(), &[d_in, d_out]);
         assert_eq!(attn_v1_layer.w_value.dims(), &[d_in, d_out]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_self_attention_v1_forward(vb: VarBuilder<'_>) {
+    fn test_self_attention_v1_forward(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
+        let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn"))?;
 
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device()).unwrap();
-        let context_vectors = attn_v1_layer.forward(&xs).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device())?;
+        let context_vectors = attn_v1_layer.forward(&xs)?;
 
         assert_eq!(context_vectors.dims(), &[input_length, d_out]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_self_attention_v2_init(vb: VarBuilder<'_>) {
+    fn test_self_attention_v2_init(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn"))?;
 
         assert_eq!(attn_v2_layer.w_query.weight().dims(), &[d_out, d_in]);
         assert_eq!(attn_v2_layer.w_key.weight().dims(), &[d_out, d_in]);
         assert_eq!(attn_v2_layer.w_value.weight().dims(), &[d_out, d_in]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_self_attention_v2_forward(vb: VarBuilder<'_>) {
+    fn test_self_attention_v2_forward(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+        let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn"))?;
 
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device()).unwrap();
-        let context_vectors = attn_v2_layer.forward(&xs).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device())?;
+        let context_vectors = attn_v2_layer.forward(&xs)?;
 
         assert_eq!(context_vectors.dims(), &[input_length, d_out]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_causal_attention_init(vb: VarBuilder<'_>) {
+    fn test_causal_attention_init(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
+        let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn"))?;
 
         assert_eq!(casual_attn.w_query.weight().dims(), &[d_out, d_in]);
         assert_eq!(casual_attn.w_key.weight().dims(), &[d_out, d_in]);
         assert_eq!(casual_attn.w_value.weight().dims(), &[d_out, d_in]);
         assert_eq!(casual_attn.drop_p, 0.5_f32);
+        Ok(())
     }
 
     #[rstest]
-    fn test_causal_attention_forward(vb: VarBuilder<'_>) {
+    fn test_causal_attention_forward(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
-        let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
+        let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn"))?;
 
         // create batch
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
-        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
-        let context_vectors = casual_attn.forward(&batch).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+        let context_vectors = casual_attn.forward(&batch)?;
 
         assert_eq!(context_vectors.dims(), &[2_usize, input_length, d_out]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_multihead_attention_wrapper_init(vb: VarBuilder<'_>) {
+    fn test_multihead_attention_wrapper_init(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
         let num_heads = 3_usize;
         let multihead_attn = MultiHeadAttentionWrapper::new(
@@ -457,8 +464,7 @@ mod tests {
             0.5_f32,
             false,
             vb.pp("multihead_attn"),
-        )
-        .unwrap();
+        )?;
 
         assert_eq!(multihead_attn.heads.len(), num_heads);
 
@@ -469,10 +475,11 @@ mod tests {
             assert_eq!(causal_attn.w_value.weight().dims(), &[d_out, d_in]);
             assert_eq!(causal_attn.drop_p, 0.5_f32);
         }
+        Ok(())
     }
 
     #[rstest]
-    fn test_multihead_attention_wrapper_forward(vb: VarBuilder<'_>) {
+    fn test_multihead_attention_wrapper_forward(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out) = (3_usize, 5_usize);
         let num_heads = 3_usize;
         let multihead_attn = MultiHeadAttentionWrapper::new(
@@ -482,26 +489,25 @@ mod tests {
             0.5_f32,
             false,
             vb.pp("multihead_attn"),
-        )
-        .unwrap();
+        )?;
 
         // create batch
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
-        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
-        let context_vectors = multihead_attn.forward(&batch).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+        let context_vectors = multihead_attn.forward(&batch)?;
 
         assert_eq!(
             context_vectors.dims(),
             &[2_usize, input_length, num_heads * d_out]
         );
+        Ok(())
     }
 
     #[rstest]
-    fn test_mha_init(vb: VarBuilder<'_>) {
+    fn test_mha_init(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
-        let mha =
-            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+        let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn"))?;
 
         assert_eq!(mha.w_query.weight().dims(), &[d_out, d_in]);
         assert_eq!(mha.w_key.weight().dims(), &[d_out, d_in]);
@@ -509,6 +515,7 @@ mod tests {
         assert_eq!(mha.out_proj.weight().dims(), &[d_out, d_out]);
         assert_eq!(mha.head_dim, d_out / num_heads);
         assert_eq!(mha.drop_p, 0.5_f32);
+        Ok(())
     }
 
     #[rstest]
@@ -520,17 +527,17 @@ mod tests {
     }
 
     #[rstest]
-    fn test_mha_forward(vb: VarBuilder<'_>) {
+    fn test_mha_forward(vb: VarBuilder<'_>) -> Result<()> {
         let (d_in, d_out, num_heads) = (3_usize, 6_usize, 3_usize);
-        let mha =
-            MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+        let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn"))?;
 
         // create batch
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device()).unwrap();
-        let batch = Tensor::stack(&[&xs, &xs], 0).unwrap();
-        let context_vectors = mha.forward(&batch).unwrap();
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+        let context_vectors = mha.forward(&batch)?;
 
         assert_eq!(context_vectors.dims(), &[2_usize, input_length, d_out]);
+        Ok(())
     }
 }

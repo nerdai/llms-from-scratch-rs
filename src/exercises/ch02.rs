@@ -1,4 +1,5 @@
 use crate::Exercise;
+use anyhow::Result;
 
 /// 2.1
 pub struct X1;
@@ -22,15 +23,16 @@ impl Exercise for X1 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use tiktoken_rs::get_bpe_from_model;
 
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let tokenizer = get_bpe_from_model("gpt2")?;
         let token_ids = tokenizer.encode_with_special_tokens("Akwirw ier");
         println!("token ids: {:?}", token_ids);
 
-        let decoded_text = tokenizer.decode(token_ids).unwrap();
+        let decoded_text = tokenizer.decode(token_ids)?;
         println!("decoded text: {}", decoded_text);
+        Ok(())
     }
 }
 
@@ -53,7 +55,7 @@ impl Exercise for X2 {
         stmt.to_string()
     }
 
-    fn main(&self) {
+    fn main(&self) -> Result<()> {
         use crate::listings::ch02::create_dataloader_v1;
         use std::fs;
 
@@ -84,5 +86,6 @@ impl Exercise for X2 {
             Some(Err(err)) => panic!("{}", err),
             None => panic!("None"),
         }
+        Ok(())
     }
 }
