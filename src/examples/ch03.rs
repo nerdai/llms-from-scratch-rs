@@ -1,6 +1,5 @@
 use crate::Example;
 use anyhow::Result;
-use candle_nn::Module;
 
 /// Example 03.01
 pub struct EG01;
@@ -450,7 +449,7 @@ impl Example for EG10 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch03::MultiHeadAttentionWrapper;
-        use candle_core::{DType, Tensor};
+        use candle_core::{DType, Module, Tensor};
         use candle_nn::{VarBuilder, VarMap};
 
         // create batch
