@@ -190,9 +190,9 @@ impl Example for EG05 {
             ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model_with_shortcut"))?;
 
         println!("model_without_shortcut gradients:");
-        addons::print_gradients(model_without_shortcut, &sample_input);
+        addons::print_gradients(model_without_shortcut, &sample_input)?;
         println!("model_with_shortcut gradients:");
-        addons::print_gradients(model_with_shortcut, &sample_input);
+        addons::print_gradients(model_with_shortcut, &sample_input)?;
         Ok(())
     }
 }
@@ -300,7 +300,7 @@ impl Example for EG07 {
             .get("out_head.weight")
             .ok_or_else(|| {
                 Error::CannotFindTensor {
-                    path: "tok_emb.weight".to_string(),
+                    path: "out_head.weight".to_string(),
                 }
                 .bt()
             })?
@@ -386,7 +386,6 @@ mod addons {
         Tensor::from_vec(batch_tokens, (2_usize, 4_usize), &dev)
     }
 
-    #[allow(unused_variables, dead_code)]
     pub fn print_gradients(model: ExampleDeepNeuralNetwork, x: &Tensor) -> Result<()> {
         use candle_nn::loss::mse;
 

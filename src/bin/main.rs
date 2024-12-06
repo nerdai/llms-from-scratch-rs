@@ -109,8 +109,7 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Example { id } => {
             let eg = example_registry.get(&id[..]).unwrap();
-            eg.main();
-            Ok(())
+            eg.main()
         }
         Commands::Exercise { id } => {
             let ex = exercise_registry.get(&id[..]).unwrap();

@@ -239,7 +239,7 @@ impl Exercise for X4 {
         )?;
         let tokenizer = get_bpe_from_model("gpt2")?;
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
-        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false);
+        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false)?;
         let start_context = "Every effort moves you";
         let _ = train_model_simple(
             &model,
@@ -307,7 +307,7 @@ impl Exercise for X5 {
         load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers)?;
 
         // build train and val loaders with utility function from addons module
-        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false);
+        let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false)?;
 
         // compute train and val loss
         let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), None)?;
