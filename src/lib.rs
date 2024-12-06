@@ -22,5 +22,5 @@ pub trait Example: Send + Sync {
 
     fn page_source(&self) -> usize;
 
-    fn main(&self);
+    fn main(&self) -> Result<()>;
 }
