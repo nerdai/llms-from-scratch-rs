@@ -474,6 +474,7 @@ pub fn generate_text_simple(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use candle_core::test_utils;
     use candle_core::{DType, Device, IndexOp, Tensor};
     use candle_nn::{Activation, VarBuilder, VarMap};
@@ -493,9 +494,9 @@ mod tests {
     }
 
     #[rstest]
-    fn test_dummy_gpt_model_init(vb: VarBuilder<'_>) {
+    fn test_dummy_gpt_model_init(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
-        let model = DummyGPTModel::new(cfg, vb).unwrap();
+        let model = DummyGPTModel::new(cfg, vb)?;
 
         assert_eq!(model.pos_emb.hidden_size(), cfg.emb_dim);
         assert_eq!(model.tok_emb.hidden_size(), cfg.emb_dim);
@@ -504,143 +505,131 @@ mod tests {
             model.out_head.weight().dims(),
             &[cfg.vocab_size, cfg.emb_dim]
         );
+        Ok(())
     }
 
     #[rstest]
-    fn test_dummy_gpt_model_forward(vb: VarBuilder<'_>, batch_token_ids: Tensor) {
-        let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
+    fn test_dummy_gpt_model_forward(vb: VarBuilder<'_>, batch_token_ids: Tensor) -> Result<()> {
+        let (batch_size, seq_len) = batch_token_ids.dims2()?;
 
         let cfg = Config::gpt_sm_test();
-        let model = DummyGPTModel::new(cfg, vb).unwrap();
+        let model = DummyGPTModel::new(cfg, vb)?;
 
-        let logits = model.forward(&batch_token_ids).unwrap();
+        let logits = model.forward(&batch_token_ids)?;
 
         assert_eq!(logits.dims(), &[batch_size, seq_len, cfg.vocab_size]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_layer_norm_init(vb: VarBuilder<'_>) {
+    fn test_layer_norm_init(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
-        let layer_norm = LayerNorm::new(cfg.emb_dim, vb).unwrap();
+        let layer_norm = LayerNorm::new(cfg.emb_dim, vb)?;
         assert_eq!(layer_norm.eps, EPS);
         assert_eq!(layer_norm.scale.dims(), &[cfg.emb_dim]);
         assert_eq!(layer_norm.shift.dims(), &[cfg.emb_dim]);
-        assert_eq!(
-            layer_norm.scale.i(..=1).unwrap().to_vec1::<f32>().unwrap(),
-            &[1., 1.]
-        );
-        assert_eq!(
-            layer_norm.shift.i(..=1).unwrap().to_vec1::<f32>().unwrap(),
-            &[0., 0.]
-        );
+        assert_eq!(layer_norm.scale.i(..=1)?.to_vec1::<f32>()?, &[1., 1.]);
+        assert_eq!(layer_norm.shift.i(..=1)?.to_vec1::<f32>()?, &[0., 0.]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_layer_norm_forward(vb: VarBuilder<'_>) {
+    fn test_layer_norm_forward(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
         let batch_size = 2_usize;
-        let batch_example =
-            Tensor::rand(0f32, 1f32, (batch_size, cfg.emb_dim), vb.device()).unwrap();
-        let layer_norm = LayerNorm::new(cfg.emb_dim, vb.pp("layer_norm")).unwrap();
+        let batch_example = Tensor::rand(0f32, 1f32, (batch_size, cfg.emb_dim), vb.device())?;
+        let layer_norm = LayerNorm::new(cfg.emb_dim, vb.pp("layer_norm"))?;
 
-        let out_norm = layer_norm.forward(&batch_example).unwrap();
-        let mean = out_norm.mean_keepdim(D::Minus1).unwrap();
-        let var = out_norm.var_keepdim(D::Minus1).unwrap();
+        let out_norm = layer_norm.forward(&batch_example)?;
+        let mean = out_norm.mean_keepdim(D::Minus1)?;
+        let var = out_norm.var_keepdim(D::Minus1)?;
 
-        let mean_minus_zero = mean
-            .broadcast_sub(&mean.zeros_like().unwrap())
-            .unwrap()
-            .abs()
-            .unwrap();
-        let var_minus_one = var
-            .broadcast_sub(&var.ones_like().unwrap())
-            .unwrap()
-            .abs()
-            .unwrap();
+        let mean_minus_zero = mean.broadcast_sub(&mean.zeros_like()?)?.abs()?;
+        let var_minus_one = var.broadcast_sub(&var.ones_like()?)?.abs()?;
 
         assert_eq!(out_norm.dims(), &[batch_size, cfg.emb_dim]);
         assert_eq!(
-            test_utils::to_vec2_round(&mean_minus_zero, 2_i32).unwrap(),
+            test_utils::to_vec2_round(&mean_minus_zero, 2_i32)?,
             [[0.0], [0.0]]
         );
         assert_eq!(
-            test_utils::to_vec2_round(&var_minus_one, 2_i32).unwrap(),
+            test_utils::to_vec2_round(&var_minus_one, 2_i32)?,
             [[0.0], [0.0]]
         );
+        Ok(())
     }
 
     #[rstest]
-    fn test_gelu_impl() {
-        let dev = Device::cuda_if_available(0).unwrap();
-        let batch_example = Tensor::rand(0f32, 1f32, (2_usize, 3_usize), &dev).unwrap();
+    fn test_gelu_impl() -> Result<()> {
+        let dev = Device::cuda_if_available(0)?;
+        let batch_example = Tensor::rand(0f32, 1f32, (2_usize, 3_usize), &dev)?;
 
         // testing manual impl
         let gelu = GELU;
-        let out = gelu.forward(&batch_example).unwrap();
+        let out = gelu.forward(&batch_example)?;
 
         // reference impl
         let candle_gelu = Activation::Gelu;
-        let candle_out = candle_gelu.forward(&batch_example).unwrap();
+        let candle_out = candle_gelu.forward(&batch_example)?;
 
         // assert equality
         let tol: f64 = 1e-3;
-        let abs_diff = (out - candle_out).unwrap().abs().unwrap();
+        let abs_diff = (out - candle_out)?.abs()?;
         assert_eq!(
-            abs_diff
-                .lt(tol)
-                .unwrap()
-                .sum_all()
-                .unwrap()
-                .to_scalar::<u8>()
-                .unwrap(),
+            abs_diff.lt(tol)?.sum_all()?.to_scalar::<u8>()?,
             (2_usize * 3_usize) as u8
         );
+        Ok(())
     }
 
     #[rstest]
-    fn test_feedforward_init(vb: VarBuilder<'_>) {
-        let ff = FeedForward::new(Config::gpt_sm_test(), vb.pp("ff")).unwrap();
+    fn test_feedforward_init(vb: VarBuilder<'_>) -> Result<()> {
+        let ff = FeedForward::new(Config::gpt_sm_test(), vb.pp("ff"))?;
 
         assert_eq!(ff.layers.len(), 3_i64);
+        Ok(())
     }
 
     #[rstest]
-    fn test_feedforward_forward(vb: VarBuilder<'_>) {
+    fn test_feedforward_forward(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
-        let ff = FeedForward::new(cfg, vb.pp("ff")).unwrap();
+        let ff = FeedForward::new(cfg, vb.pp("ff"))?;
 
         // create test batch
         let (batch_size, seq_len) = (2_usize, 3_usize);
         let batch_example =
-            Tensor::rand(0f32, 1f32, (batch_size, seq_len, cfg.emb_dim), vb.device()).unwrap();
-        let out = ff.forward(&batch_example).unwrap();
+            Tensor::rand(0f32, 1f32, (batch_size, seq_len, cfg.emb_dim), vb.device())?;
+        let out = ff.forward(&batch_example)?;
 
         assert_eq!(out.dims(), &[batch_size, seq_len, cfg.emb_dim]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_example_deep_neural_network_init(vb: VarBuilder<'_>) {
+    fn test_example_deep_neural_network_init(vb: VarBuilder<'_>) -> Result<()> {
         let layer_sizes = &[3_usize, 2, 2, 1];
-        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb).unwrap();
+        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb)?;
 
         assert_eq!(model.layers.len(), layer_sizes.len() - 1usize);
         assert_eq!(model.use_shortcut, true);
+        Ok(())
     }
 
     #[rstest]
-    fn test_example_deep_neural_network_forward(vb: VarBuilder) {
+    fn test_example_deep_neural_network_forward(vb: VarBuilder) -> Result<()> {
         let layer_sizes = &[3_usize, 2, 2, 1];
-        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model")).unwrap();
-        let sample_input = Tensor::new(&[[1f32, 0., 1.], [0., 1., 0.]], vb.device()).unwrap();
+        let model = ExampleDeepNeuralNetwork::new(layer_sizes, true, vb.pp("model"))?;
+        let sample_input = Tensor::new(&[[1f32, 0., 1.], [0., 1., 0.]], vb.device())?;
 
-        let output = model.forward(&sample_input).unwrap();
+        let output = model.forward(&sample_input)?;
         assert_eq!(output.dims(), &[2_usize, 1_usize]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_transformer_block_init(vb: VarBuilder<'_>) {
+    fn test_transformer_block_init(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
-        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer"))?;
 
         assert_eq!(transformer_block.att.num_heads(), cfg.n_heads);
         assert_eq!(transformer_block.att.drop_p(), cfg.drop_rate);
@@ -660,12 +649,13 @@ mod tests {
         assert_eq!(transformer_block.ff.layers.len(), 3_i64);
         assert_eq!(transformer_block.norm1.scale.dims(), &[cfg.emb_dim]);
         assert_eq!(transformer_block.norm1.shift.dims(), &[cfg.emb_dim]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_transformer_block(vb: VarBuilder<'_>) {
+    fn test_transformer_block(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
-        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer"))?;
 
         let batch_size = 2_usize;
         let num_tokens = 4_usize;
@@ -674,17 +664,17 @@ mod tests {
             1f32,
             (batch_size, num_tokens, cfg.emb_dim),
             vb.device(),
-        )
-        .unwrap();
+        )?;
 
-        let out = transformer_block.forward(&batch_example).unwrap();
+        let out = transformer_block.forward(&batch_example)?;
         assert_eq!(out.dims(), batch_example.dims());
+        Ok(())
     }
 
     #[rstest]
-    fn test_gpt_model_init(vb: VarBuilder<'_>) {
+    fn test_gpt_model_init(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
-        let model = GPTModel::new(cfg, vb).unwrap();
+        let model = GPTModel::new(cfg, vb)?;
 
         assert_eq!(model.pos_emb.hidden_size(), cfg.emb_dim);
         assert_eq!(model.tok_emb.hidden_size(), cfg.emb_dim);
@@ -693,31 +683,33 @@ mod tests {
             model.out_head.weight().dims(),
             &[cfg.vocab_size, cfg.emb_dim]
         );
+        Ok(())
     }
 
     #[rstest]
-    fn test_gpt_model_forward(vb: VarBuilder<'_>, batch_token_ids: Tensor) {
-        let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
+    fn test_gpt_model_forward(vb: VarBuilder<'_>, batch_token_ids: Tensor) -> Result<()> {
+        let (batch_size, seq_len) = batch_token_ids.dims2()?;
 
         let cfg = Config::gpt_sm_test();
-        let model = GPTModel::new(cfg, vb).unwrap();
+        let model = GPTModel::new(cfg, vb)?;
 
-        let logits = model.forward(&batch_token_ids).unwrap();
+        let logits = model.forward(&batch_token_ids)?;
 
         assert_eq!(logits.dims(), &[batch_size, seq_len, cfg.vocab_size]);
+        Ok(())
     }
 
     #[rstest]
-    fn test_generate_text_simple(vb: VarBuilder<'_>, batch_token_ids: Tensor) {
+    fn test_generate_text_simple(vb: VarBuilder<'_>, batch_token_ids: Tensor) -> Result<()> {
         let cfg = Config::gpt_sm_test();
-        let model = GPTModel::new(cfg, vb).unwrap();
+        let model = GPTModel::new(cfg, vb)?;
 
         // create sample idx
-        let (batch_size, seq_len) = batch_token_ids.dims2().unwrap();
+        let (batch_size, seq_len) = batch_token_ids.dims2()?;
         let (context_size, max_new_tokens) = (2_usize, 3_usize);
-        let idx =
-            generate_text_simple(&model, batch_token_ids, max_new_tokens, context_size).unwrap();
+        let idx = generate_text_simple(&model, batch_token_ids, max_new_tokens, context_size)?;
 
         assert_eq!(idx.dims(), &[batch_size, seq_len + max_new_tokens]);
+        Ok(())
     }
 }
