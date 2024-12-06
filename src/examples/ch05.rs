@@ -564,7 +564,7 @@ pub struct EG10;
 
 impl Example for EG10 {
     fn description(&self) -> String {
-        String::from("Example for loading safetensors from HuggingFace Hub.")
+        String::from("Example for downloading safetensors from HuggingFace Hub.")
     }
 
     fn page_source(&self) -> usize {
@@ -573,7 +573,7 @@ impl Example for EG10 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch04::Config;
-        use candle_core::{Device, Error};
+        use candle_core::Device;
         use hf_hub::api::sync::Api;
 
         let api = Api::new()?;
@@ -587,15 +587,7 @@ impl Example for EG10 {
 
         println!("{:?}", cfg);
 
-        for key in weights.keys() {
-            println!(
-                "{key}: {:?}",
-                weights
-                    .get(key)
-                    .ok_or_else(|| { Error::Msg(format!("Missing weight: {}", key)).bt() })?
-                    .shape()
-            );
-        }
+        println!("{:?}", weights);
         Ok(())
     }
 }

@@ -194,7 +194,7 @@ impl Example for EG04 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch03::SelfAttentionV1;
-        use candle_core::{DType, Device, Module};
+        use candle_core::{DType, Module};
         use candle_nn::{VarBuilder, VarMap};
 
         let inputs = addons::get_inputs();
@@ -203,7 +203,7 @@ impl Example for EG04 {
 
         // construct self attention layer
         let varmap = VarMap::new();
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, inputs.device());
         let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn"))?;
 
         // run a random, embedded input sequence through self-attention
@@ -253,6 +253,21 @@ impl Example for EG05 {
 /// Example 03.06
 pub struct EG06;
 
+impl Example for EG06 {
+    fn description(&self) -> String {
+        String::from("Compute causal attention weights.")
+    }
+
+    fn page_source(&self) -> usize {
+        75_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        let _ = self.main_with_return()?;
+        Ok(())
+    }
+}
+
 impl EG06 {
     fn main_with_return(&self) -> Result<candle_core::Tensor> {
         use crate::listings::ch03::SelfAttentionV2;
@@ -294,21 +309,6 @@ impl EG06 {
         let attn_weights = masked_simple.broadcast_div(&row_sums)?;
         println!("masked_simple_norm: {:?}", attn_weights.to_vec2::<f32>());
         Ok(attn_weights)
-    }
-}
-
-impl Example for EG06 {
-    fn description(&self) -> String {
-        String::from("Compute causal attention weights.")
-    }
-
-    fn page_source(&self) -> usize {
-        75_usize
-    }
-
-    fn main(&self) -> Result<()> {
-        let _ = self.main_with_return()?;
-        Ok(())
     }
 }
 
