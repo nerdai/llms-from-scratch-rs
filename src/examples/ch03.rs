@@ -681,8 +681,10 @@ impl Example for EG11 {
 }
 
 pub mod addons {
+    //! Auxiliary module for examples::ch03
     use candle_core::{Device, Result, Tensor};
 
+    /// Helper function for getting the sample input token ids
     pub fn get_inputs() -> Tensor {
         let dev = Device::cuda_if_available(0).unwrap();
         Tensor::new(
@@ -699,7 +701,7 @@ pub mod addons {
         .unwrap()
     }
 
-    // use for cuda enabled dev
+    /// Helper function for providing a masked `Tensor` specifying `on_false` and `on_true`
     pub fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
         let shape = mask.shape();
         let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
