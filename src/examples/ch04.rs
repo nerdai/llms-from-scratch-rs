@@ -3,12 +3,27 @@
 use crate::Example;
 use anyhow::Result;
 
-/// Example 04.01
+/// # Getting logits with `DummyGPTModel`
+///
+/// #### Id
+/// 04.01
+///
+/// #### Page
+/// This example starts on page 97
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.01
+///
+/// # with cuda
+/// cargo run --features cuda example 04.01
+/// ```
 pub struct EG01;
 
 impl Example for EG01 {
     fn description(&self) -> String {
-        String::from("Getting logits with DummyGPTModel.")
+        String::from("Getting logits with `DummyGPTModel`.")
     }
 
     fn page_source(&self) -> usize {
@@ -38,7 +53,22 @@ impl Example for EG01 {
     }
 }
 
-/// Example 04.02
+/// # Manual computation of layer normalization
+///
+/// #### Id
+/// 04.02
+///
+/// #### Page
+/// This example starts on page 100
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.02
+///
+/// # with cuda
+/// cargo run --features cuda example 04.02
+/// ```
 pub struct EG02;
 
 impl Example for EG02 {
@@ -87,7 +117,22 @@ impl Example for EG02 {
     }
 }
 
-/// Example 04.03
+/// # Example usage of `LayerNorm`
+///
+/// #### Id
+/// 04.03
+///
+/// #### Page
+/// This example starts on page 104
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.03
+///
+/// # with cuda
+/// cargo run --features cuda example 04.03
+/// ```
 pub struct EG03;
 
 impl Example for EG03 {
@@ -125,12 +170,27 @@ impl Example for EG03 {
     }
 }
 
-/// Example 04.04
+/// # Example usage of `FeedForward` Module.
+///
+/// #### Id
+/// 04.04
+///
+/// #### Page
+/// This example starts on page 108
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.04
+///
+/// # with cuda
+/// cargo run --features cuda example 04.04
+/// ```
 pub struct EG04;
 
 impl Example for EG04 {
     fn description(&self) -> String {
-        String::from("Sample usage of `FeedForward` Module.")
+        String::from("Example usage of `FeedForward` Module.")
     }
 
     fn page_source(&self) -> usize {
@@ -162,7 +222,22 @@ impl Example for EG04 {
     }
 }
 
-/// Example 04.05
+/// # Comparison of gradients with and without shortcut connections
+///
+/// #### Id
+/// 04.05
+///
+/// #### Page
+/// This example starts on page 111
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.05
+///
+/// # with cuda
+/// cargo run --features cuda example 04.05
+/// ```
 pub struct EG05;
 
 impl Example for EG05 {
@@ -199,12 +274,27 @@ impl Example for EG05 {
     }
 }
 
-/// Example 04.06
+/// # Example usage of `TransformerBlock`
+///
+/// #### Id
+/// 04.06
+///
+/// #### Page
+/// This example starts on page 116
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.06
+///
+/// # with cuda
+/// cargo run --features cuda example 04.06
+/// ```
 pub struct EG06;
 
 impl Example for EG06 {
     fn description(&self) -> String {
-        String::from("Sample usage of `TransformerBlock`.")
+        String::from("Example usage of `TransformerBlock`.")
     }
 
     fn page_source(&self) -> usize {
@@ -247,12 +337,27 @@ impl Example for EG06 {
     }
 }
 
-/// EG 04.07
+/// # Example usage of `GPTModel`
+///
+/// #### Id
+/// 04.07
+///
+/// #### Page
+/// This example starts on page 120
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.07
+///
+/// # with cuda
+/// cargo run --features cuda example 04.07
+/// ```
 pub struct EG07;
 
 impl Example for EG07 {
     fn description(&self) -> String {
-        String::from("Example usage of GPTModel.")
+        String::from("Example usage of `GPTModel`.")
     }
 
     fn page_source(&self) -> usize {
@@ -324,7 +429,22 @@ impl Example for EG07 {
     }
 }
 
-/// Example 04.08
+/// # Example usage of `generate_text_simple`
+///
+/// #### Id
+/// 04.08
+///
+/// #### Page
+/// This example starts on page 125
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 04.08
+///
+/// # with cuda
+/// cargo run --features cuda example 04.08
+/// ```
 pub struct EG08;
 
 impl Example for EG08 {
@@ -370,11 +490,13 @@ impl Example for EG08 {
     }
 }
 
-mod addons {
+pub mod addons {
+    //! Auxiliary module for examples::ch04
     use crate::listings::ch04::ExampleDeepNeuralNetwork;
     use candle_core::{Device, Error, Module, Result, Tensor};
     use tiktoken_rs::get_bpe_from_model;
 
+    /// Helper function to a sample batch of tokens to feed into GPTs.
     pub fn get_batch_for_gpts() -> Result<Tensor> {
         let dev = Device::cuda_if_available(0)?;
 
@@ -388,6 +510,7 @@ mod addons {
         Tensor::from_vec(batch_tokens, (2_usize, 4_usize), &dev)
     }
 
+    /// Helper function for printing gradients of `ExampleDeepNeuralNetwork`
     pub fn print_gradients(model: ExampleDeepNeuralNetwork, x: &Tensor) -> Result<()> {
         use candle_nn::loss::mse;
 
