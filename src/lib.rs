@@ -13,9 +13,6 @@
 //! The lib crate consists of three modules: `examples`, `exercises` and `listings`.
 //! Additionally there is a companion binary crate that executes all of the examples
 //! and exercises.
-//!
-//! ## Examples
-//!
 
 use anyhow::Result;
 
