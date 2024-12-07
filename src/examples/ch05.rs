@@ -914,10 +914,13 @@ pub mod addons {
     /// Helper function to get the example next token logits used in the book
     ///
     /// ```rust
-    /// Tensor::new(
+    /// use candle_core::{Device, Tensor};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let next_token_logits = Tensor::new(
     ///     &[4.51_f32, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79],
     ///     &dev,
-    /// )
+    /// );
     /// ```
     pub fn get_next_token_logits() -> Result<Tensor> {
         #![allow(clippy::approx_constant)]
