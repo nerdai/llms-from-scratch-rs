@@ -1,3 +1,5 @@
+//! Examples from Chapter 5
+
 use crate::Example;
 use anyhow::Result;
 
