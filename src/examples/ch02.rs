@@ -1,7 +1,24 @@
+//! Examples from Chapter 2
+
 use crate::Example;
 use anyhow::Result;
 
-/// Example 02.01
+/// # Use candle to generate an Embedding Layer
+///
+/// #### Id
+/// 02.01
+///
+/// #### Page
+/// This example starts on page 42
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 02.01
+///
+/// # with cuda
+/// cargo run --features cuda example 02.01
+/// ```
 pub struct EG01;
 
 impl Example for EG01 {
@@ -37,7 +54,22 @@ impl Example for EG01 {
     }
 }
 
-/// Example 02.02
+/// # Create absolute positional embeddings
+///
+/// #### Id
+/// 02.02
+///
+/// #### Page
+/// This example starts on page 47
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 02.02
+///
+/// # with cuda
+/// cargo run --features cuda example 02.02
+/// ```
 pub struct EG02;
 
 impl Example for EG02 {

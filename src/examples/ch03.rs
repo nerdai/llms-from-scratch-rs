@@ -1,7 +1,24 @@
+//! Examples from Chapter 3
+
 use crate::Example;
 use anyhow::Result;
 
-/// Example 03.01
+/// # Computing attention scores as a dot product
+///
+/// #### Id
+/// 03.01
+///
+/// #### Page
+/// This example starts on page 57
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.01
+///
+/// # with cuda
+/// cargo run --features cuda example 03.01
+/// ```
 pub struct EG01;
 
 impl Example for EG01 {
@@ -71,7 +88,22 @@ impl Example for EG01 {
     }
 }
 
-/// Example 03.02
+/// # Manual computation of multiple context vectors simultaneously
+///
+/// #### Id
+/// 03.02
+///
+/// #### Page
+/// This example starts on page 62
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.02
+///
+/// # with cuda
+/// cargo run --features cuda example 03.02
+/// ```
 pub struct EG02;
 
 impl Example for EG02 {
@@ -110,7 +142,22 @@ impl Example for EG02 {
     }
 }
 
-/// Example 03.03
+/// # Implementing the self-attention mechanism with trainable weights
+///
+/// #### Id
+/// 03.03
+///
+/// #### Page
+/// This example starts on page 66
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.03
+///
+/// # with cuda
+/// cargo run --features cuda example 03.03
+/// ```
 pub struct EG03;
 
 impl Example for EG03 {
@@ -177,7 +224,22 @@ impl Example for EG03 {
     }
 }
 
-/// Example 03.04
+/// # Example usage of `SelfAttentionV1` to compute context vectors
+///
+/// #### Id
+/// 03.04
+///
+/// #### Page
+/// This example starts on page 71
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.04
+///
+/// # with cuda
+/// cargo run --features cuda example 03.04
+/// ```
 pub struct EG04;
 
 impl Example for EG04 {
@@ -213,7 +275,22 @@ impl Example for EG04 {
     }
 }
 
-/// Example 03.05
+/// # Example usage of `SelfAttentionV2` to compute context vectors
+///
+/// #### Id
+/// 03.05
+///
+/// #### Page
+/// This example starts on page 73
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.05
+///
+/// # with cuda
+/// cargo run --features cuda example 03.05
+/// ```
 pub struct EG05;
 
 impl Example for EG05 {
@@ -249,7 +326,22 @@ impl Example for EG05 {
     }
 }
 
-/// Example 03.06
+/// # Compute causal attention weights
+///
+/// #### Id
+/// 03.06
+///
+/// #### Page
+/// This example starts on page 75
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.06
+///
+/// # with cuda
+/// cargo run --features cuda example 03.06
+/// ```
 pub struct EG06;
 
 impl Example for EG06 {
@@ -311,8 +403,40 @@ impl EG06 {
     }
 }
 
-/// Example 03.07
+/// # Compute causal attention weights more efficiently with `f32::NEGATIVE_INFINITY`
+///
+/// #### Id
+/// 03.07
+///
+/// #### Page
+/// This example starts on page 77
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.07
+///
+/// # with cuda
+/// cargo run --features cuda example 03.07
+/// ```
 pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        let desc = "Compute causal attention weights more efficiently \
+        using `f32::NEGATIVE_INFINITY` and `masked_fill()`.";
+        String::from(desc)
+    }
+
+    fn page_source(&self) -> usize {
+        77_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        let _ = self.main_with_return()?;
+        Ok(())
+    }
+}
 
 impl EG07 {
     fn main_with_return(&self) -> Result<candle_core::Tensor> {
@@ -356,24 +480,22 @@ impl EG07 {
     }
 }
 
-impl Example for EG07 {
-    fn description(&self) -> String {
-        let desc = "Compute causal attention weights more efficiently \
-        using `f32::NEGATIVE_INFINITY` and `masked_fill()`.";
-        String::from(desc)
-    }
-
-    fn page_source(&self) -> usize {
-        77_usize
-    }
-
-    fn main(&self) -> Result<()> {
-        let _ = self.main_with_return()?;
-        Ok(())
-    }
-}
-
-/// Example 03.08
+/// # Dropout on attention weights
+///
+/// #### Id
+/// 03.08
+///
+/// #### Page
+/// This example starts on page 80
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.08
+///
+/// # with cuda
+/// cargo run --features cuda example 03.08
+/// ```
 pub struct EG08;
 
 impl Example for EG08 {
@@ -399,7 +521,22 @@ impl Example for EG08 {
     }
 }
 
-/// Example 03.09
+/// # Example usage of `CausalAttention`
+///
+/// #### Id
+/// 03.09
+///
+/// #### Page
+/// This example starts on page 81
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.09
+///
+/// # with cuda
+/// cargo run --features cuda example 03.09
+/// ```
 pub struct EG09;
 
 impl Example for EG09 {
@@ -435,7 +572,22 @@ impl Example for EG09 {
     }
 }
 
-/// Example 03.10
+/// # Example usage of `MultiHeadAttentionWrapper`
+///
+/// #### Id
+/// 03.10
+///
+/// #### Page
+/// This example starts on page 85
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.10
+///
+/// # with cuda
+/// cargo run --features cuda example 03.10
+/// ```
 pub struct EG10;
 
 impl Example for EG10 {
@@ -474,7 +626,22 @@ impl Example for EG10 {
     }
 }
 
-/// Example 03.11
+/// # Example usage of `MultiHeadAttention`
+///
+/// #### Id
+/// 03.11
+///
+/// #### Page
+/// This example starts on page 90
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 03.11
+///
+/// # with cuda
+/// cargo run --features cuda example 03.11
+/// ```
 pub struct EG11;
 
 impl Example for EG11 {
@@ -514,8 +681,10 @@ impl Example for EG11 {
 }
 
 pub mod addons {
+    //! Auxiliary module for examples::ch03
     use candle_core::{Device, Result, Tensor};
 
+    /// Helper function for getting the sample input token ids
     pub fn get_inputs() -> Tensor {
         let dev = Device::cuda_if_available(0).unwrap();
         Tensor::new(
@@ -532,7 +701,7 @@ pub mod addons {
         .unwrap()
     }
 
-    // use for cuda enabled dev
+    /// Helper function for providing a masked `Tensor` specifying `on_false` and `on_true`
     pub fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
         let shape = mask.shape();
         let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;

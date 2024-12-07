@@ -1,7 +1,24 @@
+//! Examples from Chapter 5
+
 use crate::Example;
 use anyhow::Result;
 
-/// Example 05.01
+/// # Example usage of `text_to_token_ids` and `token_ids_to_text`
+///
+/// #### Id
+/// 05.01
+///
+/// #### Page
+/// This example starts on page 132
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.01
+///
+/// # with cuda
+/// cargo run --features cuda example 05.01
+/// ```
 pub struct EG01;
 
 impl Example for EG01 {
@@ -50,7 +67,22 @@ impl Example for EG01 {
     }
 }
 
-/// Example 05.02
+/// # Example computation of cross-entropy and perplexity
+///
+/// #### Id
+/// 05.02
+///
+/// #### Page
+/// This example starts on page 133
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.02
+///
+/// # with cuda
+/// cargo run --features cuda example 05.02
+/// ```
 pub struct EG02;
 
 impl Example for EG02 {
@@ -146,7 +178,22 @@ impl Example for EG02 {
     }
 }
 
-/// Example 05.03
+/// # Split text into train and validation datasets and loaders
+///
+/// #### Id
+/// 05.03
+///
+/// #### Page
+/// This example starts on page 141
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.03
+///
+/// # with cuda
+/// cargo run --features cuda example 05.03
+/// ```
 pub struct EG03;
 
 impl Example for EG03 {
@@ -177,7 +224,22 @@ impl Example for EG03 {
     }
 }
 
-/// Example 05.04
+/// # Example usage of `calc_loss_loader
+///
+/// #### Id
+/// 05.04
+///
+/// #### Page
+/// This example starts on page 145
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.04
+///
+/// # with cuda
+/// cargo run --features cuda example 05.04
+/// ```
 pub struct EG04;
 
 impl Example for EG04 {
@@ -216,12 +278,27 @@ impl Example for EG04 {
     }
 }
 
-/// Example 05.05
+/// # Example usage of `train_model_simple` function
+///
+/// #### Id
+/// 05.05
+///
+/// #### Page
+/// This example starts on page 149
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.05
+///
+/// # with cuda
+/// cargo run --features cuda example 05.05
+/// ```
 pub struct EG05;
 
 impl Example for EG05 {
     fn description(&self) -> String {
-        String::from("Sample usage of `train_model_simple` function.")
+        String::from("Example usage of `train_model_simple` function.")
     }
 
     fn page_source(&self) -> usize {
@@ -283,7 +360,22 @@ impl Example for EG05 {
     }
 }
 
-/// Example 05.06
+/// # Manual multinomial with/without temperature scaling
+///
+/// #### Id
+/// 05.06
+///
+/// #### Page
+/// This example starts on page 152
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.06
+///
+/// # with cuda
+/// cargo run --features cuda example 05.06
+/// ```
 pub struct EG06;
 
 impl Example for EG06 {
@@ -344,7 +436,22 @@ impl Example for EG06 {
     }
 }
 
-/// Example 05.07
+/// # Example of extracting topk probas
+///
+/// #### Id
+/// 05.06
+///
+/// #### Page
+/// This example starts on page 156
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.07
+///
+/// # with cuda
+/// cargo run --features cuda example 05.07
+/// ```
 pub struct EG07;
 
 impl Example for EG07 {
@@ -387,7 +494,22 @@ impl Example for EG07 {
     }
 }
 
-/// Example 05.08
+/// # Example usage of `generate`
+///
+/// #### Id
+/// 05.08
+///
+/// #### Page
+/// This example starts on page 158
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.08
+///
+/// # with cuda
+/// cargo run --features cuda example 05.08
+/// ```
 pub struct EG08;
 
 impl Example for EG08 {
@@ -441,7 +563,22 @@ impl Example for EG08 {
     }
 }
 
-/// Example 05.09
+/// # Saving and loading a candle model
+///
+/// #### Id
+/// 05.09
+///
+/// #### Page
+/// This example starts on page 159
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.09
+///
+/// # with cuda
+/// cargo run --features cuda example 05.09
+/// ```
 pub struct EG09;
 
 impl Example for EG09 {
@@ -559,7 +696,22 @@ impl Example for EG09 {
     }
 }
 
-/// Example 05.10
+/// # Example for downloading safetensors from HuggingFace Hub
+///
+/// #### Id
+/// 05.10
+///
+/// #### Page
+/// This example starts on page 161
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.10
+///
+/// # with cuda
+/// cargo run --features cuda example 05.10
+/// ```
 pub struct EG10;
 
 impl Example for EG10 {
@@ -592,11 +744,27 @@ impl Example for EG10 {
     }
 }
 
+/// # Example usage of `load_weights_into_gpt`
+///
+/// #### Id
+/// 05.11
+///
+/// #### Page
+/// This example starts on page 167
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 05.11
+///
+/// # with cuda
+/// cargo run --features cuda example 05.11
+/// ```
 pub struct EG11;
 
 impl Example for EG11 {
     fn description(&self) -> String {
-        String::from("Sample usage of `load_weights_into_gpt`.")
+        String::from("Example usage of `load_weights_into_gpt`.")
     }
 
     fn page_source(&self) -> usize {
@@ -656,10 +824,12 @@ impl Example for EG11 {
 }
 
 pub mod addons {
+    //! Auxiliary module for examples::ch05
     use crate::listings::ch02::GPTDataLoader;
     use candle_core::{Device, IndexOp, Result, Tensor};
     use std::collections::HashMap;
 
+    /// Helper function to target_tokens of the _i-th_ input sequence
     pub fn get_target_token_probas_helper(
         text_idx: usize,
         targets: &Tensor,
@@ -677,6 +847,7 @@ pub mod addons {
         Tensor::from_vec(target_probas_1, target_tokens_1.len(), dev)
     }
 
+    /// Helper function for producing `GPTDataLoader` for train and val splits
     pub fn get_train_val_data_loaders(
         verbose: bool,
     ) -> anyhow::Result<(GPTDataLoader, GPTDataLoader)> {
@@ -719,6 +890,7 @@ pub mod addons {
         Ok((train_loader, val_loader))
     }
 
+    /// Helper function to get vocab and inversed vocab `HashMap`'s
     pub fn get_vocab_and_inversed_vocab() -> (HashMap<&'static str, u32>, HashMap<u32, &'static str>)
     {
         let vocab = HashMap::from([
@@ -739,6 +911,17 @@ pub mod addons {
         (vocab, inverse_vocab)
     }
 
+    /// Helper function to get the example next token logits used in the book
+    ///
+    /// ```rust
+    /// use candle_core::{Device, Tensor};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let next_token_logits = Tensor::new(
+    ///     &[4.51_f32, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79],
+    ///     &dev,
+    /// );
+    /// ```
     pub fn get_next_token_logits() -> Result<Tensor> {
         #![allow(clippy::approx_constant)]
         let dev = Device::cuda_if_available(0)?;

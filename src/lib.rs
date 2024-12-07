@@ -1,3 +1,19 @@
+//! # Build A Large Language Model From Scratch — Rust Translations
+//!
+//! #### Intro
+//!
+//! This crate provides Rust translations of the examples, exercises and listings
+//! found in the book Build A LLM From Scratch by Sebastian Raschka, which is
+//! a great resource for careful learning of LLMs. The book provides several
+//! examples and listings which are written in PyTorch in order to learn how to
+//! build a GPT (decoder-only) language model. This crate provides the Rust
+//! equivalent for nearly all of the code provided in the book using
+//! [candle](https://github.com/huggingface/candle) (a Minimalist ML framework for Rust).
+//!
+//! The lib crate consists of three modules: `examples`, `exercises` and `listings`.
+//! Additionally there is a companion binary crate that executes all of the examples
+//! and exercises.
+
 use anyhow::Result;
 
 pub mod candle_addons;
