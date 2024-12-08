@@ -1,7 +1,21 @@
+//! Exercises from Chapter 4
+
 use crate::Exercise;
 use anyhow::Result;
 
-/// Exercise 4.1
+/// # Number of parameters in feed forward and attention modules
+///
+/// #### Id
+/// 4.1
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 4.1
+///
+/// # with cuda
+/// cargo run --features cuda exercise 4.1
+/// ```
 pub struct X1;
 
 impl Exercise for X1 {
@@ -49,7 +63,19 @@ impl Exercise for X1 {
     }
 }
 
-/// Exercise 4.2
+/// # Initializing larger GPT models
+///
+/// #### Id
+/// 4.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 4.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 4.2
+/// ```
 pub struct X2;
 
 impl Exercise for X2 {
@@ -123,7 +149,19 @@ impl Exercise for X2 {
     }
 }
 
-/// Exercise 4.3
+/// # Using separate dropout parameters
+///
+/// #### Id
+/// 4.3
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 4.3
+///
+/// # with cuda
+/// cargo run --features cuda exercise 4.3
+/// ```
 pub struct X3;
 
 impl Exercise for X3 {
@@ -174,7 +212,8 @@ impl Exercise for X3 {
     }
 }
 
-mod addons {
+pub mod addons {
+    //! Auxiliary module for exercises::ch05
     use crate::{
         candle_addons::seqt,
         listings::{
@@ -185,7 +224,7 @@ mod addons {
     use candle_core::Result;
     use candle_nn::{embedding, linear_b, seq, Dropout, VarBuilder};
 
-    // For Exercise 4.3
+    /// A second `Config` variation for Exercise 4.3 to specify individual drop rates
     #[derive(Debug, Clone, Copy)]
     pub struct ConfigV2 {
         pub vocab_size: usize,
@@ -215,6 +254,7 @@ mod addons {
         }
     }
 
+    /// New `FeedForward` constructor using `ConfigV2`
     impl FeedForward {
         fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
             let layers = seq()
@@ -235,6 +275,7 @@ mod addons {
         }
     }
 
+    /// New `TransformerBlock` constructor using `ConfigV2`
     impl TransformerBlock {
         fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
             let att = MultiHeadAttention::new(
@@ -253,6 +294,7 @@ mod addons {
         }
     }
 
+    /// New `GPTModel` constructor using `ConfigV2`
     impl GPTModel {
         pub fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
             let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;

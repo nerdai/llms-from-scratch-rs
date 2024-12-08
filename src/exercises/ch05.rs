@@ -1,7 +1,21 @@
+//! Exercises from Chapter 5
+
 use crate::Exercise;
 use anyhow::Result;
 
-/// Exercise 5.1
+/// # Printing sampling frequencies with various temperatures
+///
+/// #### Id
+/// 5.1
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 5.1
+///
+/// # with cuda
+/// cargo run --features cuda exercise 5.1
+/// ```
 pub struct X1;
 
 impl Exercise for X1 {
@@ -45,7 +59,19 @@ impl Exercise for X1 {
     }
 }
 
-/// Exercise 5.2
+/// # Using various temperatures and top-k values
+///
+/// #### Id
+/// 5.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 5.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 5.2
+/// ```
 pub struct X2;
 
 impl Exercise for X2 {
@@ -112,7 +138,19 @@ impl Exercise for X2 {
     }
 }
 
-/// Exercise 5.3
+/// # Parameter values for deterministic sampling
+///
+/// #### Id
+/// 5.3
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 5.3
+///
+/// # with cuda
+/// cargo run --features cuda exercise 5.3
+/// ```
 pub struct X3;
 
 impl Exercise for X3 {
@@ -185,7 +223,19 @@ impl Exercise for X3 {
     }
 }
 
-/// Exercise 5.4
+/// # Continuing training from pre-loaded weights
+///
+/// #### Id
+/// 5.4
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 5.4
+///
+/// # with cuda
+/// cargo run --features cuda exercise 5.4
+/// ```
 pub struct X4;
 
 impl Exercise for X4 {
@@ -257,7 +307,19 @@ impl Exercise for X4 {
     }
 }
 
-/// Exercise 5.5
+/// # Training and validation losses with OpenAI weights
+///
+/// #### Id
+/// 5.5
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 5.5
+///
+/// # with cuda
+/// cargo run --features cuda exercise 5.5
+/// ```
 pub struct X5;
 
 impl Exercise for X5 {
@@ -319,7 +381,19 @@ impl Exercise for X5 {
     }
 }
 
-/// Exercise 5.6
+/// # Comparing generations with different GPT-2 model sizes
+///
+/// #### Id
+/// 5.6
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 5.6
+///
+/// # with cuda
+/// cargo run --features cuda exercise 5.6
+/// ```
 pub struct X6;
 
 impl Exercise for X6 {

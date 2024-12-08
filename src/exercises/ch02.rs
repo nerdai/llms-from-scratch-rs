@@ -1,7 +1,21 @@
+//! Exercises from Chapter 2
+
 use crate::Exercise;
 use anyhow::Result;
 
+/// # Byte pair encoding of unknown words
+///
+/// #### Id
 /// 2.1
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 2.1
+///
+/// # with cuda
+/// cargo run --features cuda exercise 2.1
+/// ```
 pub struct X1;
 
 impl Exercise for X1 {
@@ -36,7 +50,19 @@ impl Exercise for X1 {
     }
 }
 
+/// # Data loaders with different strides and context sizes
+///
+/// #### Id
 /// 2.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 2.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 2.2
+/// ```
 pub struct X2;
 
 impl Exercise for X2 {

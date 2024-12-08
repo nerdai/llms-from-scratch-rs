@@ -1,7 +1,21 @@
+//! Exercises from Chapter 3
+
 use crate::Exercise;
 use anyhow::Result;
 
+/// # Comparing `SelfAttention_v1` and `SelfAttention_v2`
+///
+/// #### Id
 /// 3.1
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 3.1
+///
+/// # with cuda
+/// cargo run --features cuda exercise 3.1
+/// ```
 pub struct X1;
 
 impl Exercise for X1 {
@@ -60,7 +74,19 @@ impl Exercise for X1 {
     }
 }
 
-/// Exercise 3.2
+/// # Returning two-dimensional embedding vectors
+///
+/// #### Id
+/// 3.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 3.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 3.2
+/// ```
 pub struct X2;
 
 impl Exercise for X2 {
@@ -108,7 +134,19 @@ impl Exercise for X2 {
     }
 }
 
-/// Exercise 3.3
+/// # Initializing GPT-2 size attention modules
+///
+/// #### Id
+/// 3.3
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 3.3
+///
+/// # with cuda
+/// cargo run --features cuda exercise 3.3
+/// ```
 pub struct X3;
 
 impl Exercise for X3 {

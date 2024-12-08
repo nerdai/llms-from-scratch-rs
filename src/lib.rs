@@ -3,7 +3,8 @@
 //! #### Intro
 //!
 //! This crate provides Rust translations of the examples, exercises and listings
-//! found in the book Build A LLM From Scratch by Sebastian Raschka, which is
+//! found in the book Build A LLM From Scratch by Sebastian Raschka
+//! ([github](https://github.com/rasbt/LLMs-from-scratch)), which is
 //! a great resource for careful learning of LLMs. The book provides several
 //! examples and listings which are written in PyTorch in order to learn how to
 //! build a GPT (decoder-only) language model. This crate provides the Rust
