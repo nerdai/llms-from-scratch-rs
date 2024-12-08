@@ -1,4 +1,7 @@
-/// Version of Sequential that supports ModuleT
+//! # Custom addons module to Candle
+//!
+//! #### Features
+//! - `SequentialT`: a version of `Sequential` that is `ModuleT`
 use candle_core::{ModuleT, Result, Tensor};
 
 /// A sequential layer combining multiple other layers.
