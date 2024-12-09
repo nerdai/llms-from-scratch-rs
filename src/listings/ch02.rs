@@ -1,3 +1,5 @@
+//! Listings from Chapter 2
+
 use candle_core::{Device, Result, Tensor};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use fancy_regex::{Captures, Regex};
@@ -6,7 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use tiktoken_rs::CoreBPE;
 
-/// Listing 2.3
+/// Listing 2.3 Implementing a simple text tokenizer
 #[derive(Default, Debug)]
 pub struct SimpleTokenizerV1 {
     str_to_int: HashMap<String, i32>,
@@ -45,7 +47,7 @@ impl SimpleTokenizerV1 {
     }
 }
 
-/// Listing 2.4
+/// Listing 2.4 A simple text tokenizer that handles unknown words
 #[derive(Default, Debug)]
 pub struct SimpleTokenizerV2 {
     str_to_int: HashMap<String, i32>,
@@ -107,14 +109,16 @@ impl SimpleTokenizerV2 {
     }
 }
 
-/// Listing 2.5 A dataset for batched inputs and targets
 pub struct GPTDatasetV1_ {
     input_ids: Vec<Vec<u32>>,
     target_ids: Vec<Vec<u32>>,
 }
 
-/// GPTDatasetV1
-/// These are refcounted so cloning is cheap.
+/// Listing 2.5 A dataset for batched inputs and targets
+///
+/// GPTDatasetV1 is a wrapper for `GPTDatasetV1_` which is refcounted.
+/// This makes cloning datasets cheap. I.e., when creating a batcher of a
+/// dataset.
 #[derive(Clone)]
 pub struct GPTDatasetV1(Rc<GPTDatasetV1_>);
 
@@ -175,7 +179,9 @@ impl GPTDatasetV1 {
     }
 }
 
-/// Listing 2.6 A data loader to generate batches with input-target pairs
+/// `GPTDatasetIter` analagous to PyTorch's `DataLoader` class/
+///
+/// A data loader to generate batches with input-target pairs
 /// We can use `GPTDatasetIter` with `candle_datasets::Batcher` to get desired
 /// batches of examples.
 pub struct GPTDatasetIter {
@@ -240,6 +246,7 @@ impl GPTDataLoader {
     }
 }
 
+/// Listing 2.6 A data loader to generate batches with input-output pairs
 pub fn create_dataloader_v1(
     txt: &str,
     batch_size: usize,
