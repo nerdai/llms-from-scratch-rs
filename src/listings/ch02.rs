@@ -220,7 +220,7 @@ impl GPTDatasetIter {
     /// let stride = 1_usize;
     /// let max_length = 3_usize;
     /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
-    /// let mut iter = GPTDatasetIter::new(dataset.clone(), false);
+    /// let iter = GPTDatasetIter::new(dataset.clone(), false);
     /// ```
     pub fn new(dataset: GPTDatasetV1, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
