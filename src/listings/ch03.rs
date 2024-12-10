@@ -145,7 +145,7 @@ impl Module for SelfAttentionV2 {
     }
 }
 
-/// Listing 3.1
+/// Listing 3.3 A compact causal attention class
 pub struct CausalAttention {
     w_query: Linear,
     w_key: Linear,
@@ -156,6 +156,19 @@ pub struct CausalAttention {
 }
 
 impl CausalAttention {
+    /// Creates a new `CausalAttention`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::CausalAttention;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out) = (3_usize, 5_usize);
+    /// let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(
         d_in: usize,
         d_out: usize,
