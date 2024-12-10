@@ -18,9 +18,10 @@ fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor>
     Ok(m)
 }
 
-/// Listing 3.1
+/// Listing 3.1 A compact self-attention class
+///
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
-/// It follows a similar interface to other candle `Module`s.
+/// It follows a similar interface to other candle `Module`'s.
 pub struct SelfAttentionV1 {
     pub w_query: Tensor,
     pub w_key: Tensor,
@@ -29,6 +30,19 @@ pub struct SelfAttentionV1 {
 }
 
 impl SelfAttentionV1 {
+    /// Creates a new `SelfAttentionV1`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::SelfAttentionV1;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out) = (3_usize, 5_usize);
+    /// let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(d_in: usize, d_out: usize, vb: VarBuilder<'_>) -> Result<Self> {
         let init = candle_nn::init::DEFAULT_KAIMING_NORMAL;
         let w_query = vb.get_with_hints((d_in, d_out), "query", init)?;
