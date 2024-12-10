@@ -84,8 +84,7 @@ impl Module for SelfAttentionV1 {
     }
 }
 
-/// Listing 3.2
-/// Note: `candle_nn::linear` takes in dimensions in reverse.  
+/// Listing 3.2 A self-attention class using candle_nn::Linear
 pub struct SelfAttentionV2 {
     w_query: Linear,
     w_key: Linear,
@@ -94,6 +93,19 @@ pub struct SelfAttentionV2 {
 }
 
 impl SelfAttentionV2 {
+    /// Creates a new `SelfAttentionV2`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::SelfAttentionV2;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out) = (3_usize, 5_usize);
+    /// let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(d_in: usize, d_out: usize, qkv_bias: bool, vb: VarBuilder<'_>) -> Result<Self> {
         let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
         let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
