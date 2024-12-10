@@ -1,3 +1,5 @@
+//! Listings from Chapter 3
+
 use candle_core::{Device, Module, ModuleT, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
