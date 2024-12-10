@@ -137,6 +137,19 @@ impl std::ops::Deref for GPTDatasetV1 {
 }
 
 impl GPTDatasetV1 {
+    /// Creates a new `GPTDatasetV1`.
+    ///
+    /// ```rust
+    /// use tiktoken_rs::get_bpe_from_model;
+    /// use llms_from_scratch_rs::listings::ch02::GPTDatasetV1;
+    ///
+    /// let txt = "In the heart of the city";
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let token_ids = tokenizer.encode_with_special_tokens(&txt[..]);
+    /// let stride = 1_usize;
+    /// let max_length = 3_usize;
+    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
+    /// ```
     pub fn new(txt: &str, tokenizer: CoreBPE, max_length: usize, stride: usize) -> Self {
         let token_ids = tokenizer.encode_with_special_tokens(txt);
 
@@ -158,22 +171,27 @@ impl GPTDatasetV1 {
         Self(Rc::new(dataset_))
     }
 
+    /// Gets the number of input-target sequences in the dataset.
     pub fn len(&self) -> usize {
         self.input_ids.len()
     }
 
+    /// Checks whether the dataset is empty or has no input-target sequences.
     pub fn is_empty(&self) -> bool {
         self.input_ids.len() == 0
     }
 
+    /// Returns the input tokens for all input sequences.
     pub fn input_ids(&self) -> &Vec<Vec<u32>> {
         &self.input_ids
     }
 
+    /// Returns the target token ides for all input sequences.
     pub fn target_ids(&self) -> &Vec<Vec<u32>> {
         &self.target_ids
     }
 
+    /// Returns the input-target pair at the specified index.
     pub fn get_pair_at_index(&self, idx: usize) -> (&Vec<u32>, &Vec<u32>) {
         (&self.input_ids[idx], &self.target_ids[idx])
     }
