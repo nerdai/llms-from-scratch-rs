@@ -1,3 +1,5 @@
+//! Listings from Chapter 3
+
 use candle_core::{Device, Module, ModuleT, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
@@ -16,9 +18,10 @@ fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor>
     Ok(m)
 }
 
-/// Listing 3.1
+/// Listing 3.1 A compact self-attention class
+///
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
-/// It follows a similar interface to other candle `Module`s.
+/// It follows a similar interface to other candle `Module`'s.
 pub struct SelfAttentionV1 {
     pub w_query: Tensor,
     pub w_key: Tensor,
@@ -27,6 +30,19 @@ pub struct SelfAttentionV1 {
 }
 
 impl SelfAttentionV1 {
+    /// Creates a new `SelfAttentionV1`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::SelfAttentionV1;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out) = (3_usize, 5_usize);
+    /// let attn_v1_layer = SelfAttentionV1::new(d_in, d_out, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(d_in: usize, d_out: usize, vb: VarBuilder<'_>) -> Result<Self> {
         let init = candle_nn::init::DEFAULT_KAIMING_NORMAL;
         let w_query = vb.get_with_hints((d_in, d_out), "query", init)?;
@@ -68,8 +84,7 @@ impl Module for SelfAttentionV1 {
     }
 }
 
-/// Listing 3.2
-/// Note: `candle_nn::linear` takes in dimensions in reverse.  
+/// Listing 3.2 A self-attention class using candle_nn::Linear
 pub struct SelfAttentionV2 {
     w_query: Linear,
     w_key: Linear,
@@ -78,6 +93,19 @@ pub struct SelfAttentionV2 {
 }
 
 impl SelfAttentionV2 {
+    /// Creates a new `SelfAttentionV2`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::SelfAttentionV2;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out) = (3_usize, 5_usize);
+    /// let attn_v2_layer = SelfAttentionV2::new(d_in, d_out, false, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(d_in: usize, d_out: usize, qkv_bias: bool, vb: VarBuilder<'_>) -> Result<Self> {
         let w_query = linear_b(d_in, d_out, qkv_bias, vb.pp("query"))?;
         let w_key = linear_b(d_in, d_out, qkv_bias, vb.pp("key"))?;
@@ -117,7 +145,7 @@ impl Module for SelfAttentionV2 {
     }
 }
 
-/// Listing 3.1
+/// Listing 3.3 A compact causal attention class
 pub struct CausalAttention {
     w_query: Linear,
     w_key: Linear,
@@ -128,6 +156,19 @@ pub struct CausalAttention {
 }
 
 impl CausalAttention {
+    /// Creates a new `CausalAttention`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::CausalAttention;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out) = (3_usize, 5_usize);
+    /// let casual_attn = CausalAttention::new(d_in, d_out, 0.5_f32, false, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(
         d_in: usize,
         d_out: usize,
@@ -194,12 +235,32 @@ impl Module for CausalAttention {
     }
 }
 
-/// Listing 3.4
+/// Listing 3.4 A wrapper to implement multi-head attention
 pub struct MultiHeadAttentionWrapper {
     heads: Vec<CausalAttention>,
 }
 
 impl MultiHeadAttentionWrapper {
+    /// Creates a new `MultiHeadAttentionWrapper`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::MultiHeadAttentionWrapper;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out, num_heads) = (3_usize, 6_usize, 3_usize);
+    /// let multihead_attn = MultiHeadAttentionWrapper::new(
+    ///     num_heads,
+    ///     d_in,
+    ///     d_out,
+    ///     0.5_f32,
+    ///     false,
+    ///     vb.pp("multihead_attn"),
+    /// ).unwrap();
+    /// ```
     pub fn new(
         num_heads: usize,
         d_in: usize,
@@ -233,8 +294,7 @@ impl Module for MultiHeadAttentionWrapper {
     }
 }
 
-/// Listing 3.5
-/// An efficient implementation of Multi-Head Attention
+/// Listing 3.5 An efficient multi-head attention type
 pub struct MultiHeadAttention {
     num_heads: usize,
     d_out: usize,
@@ -249,6 +309,19 @@ pub struct MultiHeadAttention {
 }
 
 impl MultiHeadAttention {
+    /// Creates a new `MultiHeadAttention`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::MultiHeadAttention;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+    /// let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(
         d_in: usize,
         d_out: usize,
@@ -311,6 +384,11 @@ impl MultiHeadAttention {
         self.num_heads
     }
 
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
