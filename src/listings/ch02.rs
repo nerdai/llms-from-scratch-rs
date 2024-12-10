@@ -257,6 +257,8 @@ impl Iterator for GPTDatasetIter {
 /// This struct is responsible for getting batches from a type that implements
 /// the `Iterator` Trait.
 pub type GPTDataBatcher = Batcher<IterResult2<GPTDatasetIter>>;
+
+/// A type for building a `Batcher` over a `GPTDataset` with specified params.
 pub struct GPTDataLoader {
     dataset: GPTDatasetV1,
     batch_size: usize,
@@ -265,6 +267,23 @@ pub struct GPTDataLoader {
 }
 
 impl GPTDataLoader {
+    /// Creates a new GPTDataLoader.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::{GPTDatasetV1, GPTDataLoader};
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let txt = "In the heart of the city";
+    /// let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
+    /// let max_length = 3_usize;
+    /// let stride = 1_usize;
+    /// let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
+    ///
+    /// let batch_size = 2_usize;
+    /// let shuffle = false;
+    /// let drop_last = false;
+    /// let data_loader = GPTDataLoader::new(dataset, batch_size, shuffle, drop_last);
+    /// ```
     pub fn new(dataset: GPTDatasetV1, batch_size: usize, shuffle: bool, drop_last: bool) -> Self {
         Self {
             dataset,
@@ -274,6 +293,8 @@ impl GPTDataLoader {
         }
     }
 
+    /// Returns a `GPTDataBatcher` that itself provides batches over the
+    /// associated dataset.
     pub fn batcher(&self) -> GPTDataBatcher {
         let iter = GPTDatasetIter::new(self.dataset.clone(), self.shuffle);
         Batcher::new_r2(iter)
