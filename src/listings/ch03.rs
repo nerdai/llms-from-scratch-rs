@@ -235,7 +235,7 @@ impl Module for CausalAttention {
     }
 }
 
-/// Listing 3.4
+/// Listing 3.4 A wrapper to implement multi-head attention
 pub struct MultiHeadAttentionWrapper {
     heads: Vec<CausalAttention>,
 }
@@ -274,8 +274,7 @@ impl Module for MultiHeadAttentionWrapper {
     }
 }
 
-/// Listing 3.5
-/// An efficient implementation of Multi-Head Attention
+/// Listing 3.5 An efficient multi-head attention type
 pub struct MultiHeadAttention {
     num_heads: usize,
     d_out: usize,
@@ -290,6 +289,19 @@ pub struct MultiHeadAttention {
 }
 
 impl MultiHeadAttention {
+    /// Creates a new `MultiHeadAttention`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::MultiHeadAttention;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+    /// let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+    /// ```
     pub fn new(
         d_in: usize,
         d_out: usize,
@@ -352,6 +364,11 @@ impl MultiHeadAttention {
         self.num_heads
     }
 
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
