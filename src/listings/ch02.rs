@@ -265,6 +265,19 @@ impl GPTDataLoader {
 }
 
 /// Listing 2.6 A data loader to generate batches with input-output pairs
+///
+/// ```rust
+/// use llms_from_scratch_rs::listings::ch02::create_dataloader_v1;
+///
+/// let txt = "In the heart of the city";
+/// let batch_size = 2_usize;
+/// let stride = 1_usize;
+/// let max_length = 3_usize;
+/// let shuffle = false;
+/// let drop_last = false;
+/// let data_loader =
+///     create_dataloader_v1(txt, batch_size, max_length, stride, shuffle, drop_last);
+/// ```
 pub fn create_dataloader_v1(
     txt: &str,
     batch_size: usize,
@@ -454,7 +467,7 @@ mod tests {
         let stride = 1_usize;
         let max_length = 3_usize;
         let shuffle = false;
-        let drop_last = false; // unused
+        let drop_last = false;
         let data_loader =
             create_dataloader_v1(txt, batch_size, max_length, stride, shuffle, drop_last);
 
