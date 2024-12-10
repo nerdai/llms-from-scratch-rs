@@ -16,6 +16,20 @@ pub struct SimpleTokenizerV1 {
 }
 
 impl SimpleTokenizerV1 {
+    /// Creates a new `SimpleTokenizerV1` from a vocab.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::SimpleTokenizerV1;
+    /// use std::collections::HashMap;
+    ///
+    /// let vocab: HashMap<&str, i32> = HashMap::from([
+    ///     ("this", 1_i32),
+    ///     ("is", 2_i32),
+    ///     ("a", 3_i32),
+    ///     ("test", 4_i32)
+    /// ]);
+    /// let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
+    /// ```
     pub fn from_vocab(vocab: HashMap<&str, i32>) -> Self {
         Self {
             str_to_int: vocab.iter().map(|(k, v)| (String::from(*k), *v)).collect(),
@@ -23,6 +37,7 @@ impl SimpleTokenizerV1 {
         }
     }
 
+    /// Encode a text into its token ids.
     pub fn encode(&self, text: &str) -> Vec<i32> {
         let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
         let preprocessed: Vec<&str> = re.split(text).map(|x| x.unwrap()).collect();
@@ -33,6 +48,7 @@ impl SimpleTokenizerV1 {
             .collect()
     }
 
+    /// Decode token ids into its text.
     pub fn decode(&self, ids: Vec<i32>) -> String {
         let text_vec: Vec<String> = ids
             .iter()
@@ -55,6 +71,21 @@ pub struct SimpleTokenizerV2 {
 }
 
 impl SimpleTokenizerV2 {
+    /// Creates a new `SimpleTokenizerV2` from a vocab.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::SimpleTokenizerV2;
+    /// use std::collections::HashMap;
+    ///
+    /// let vocab: HashMap<&str, i32> = HashMap::from([
+    ///     ("this", 1_i32),
+    ///     ("is", 2_i32),
+    ///     ("a", 3_i32),
+    ///     ("test", 4_i32)
+    /// ]);
+    /// // Any words not in the vocab will be encoded as "<|unk|>" token
+    /// let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
+    /// ```
     pub fn from_vocab(vocab: HashMap<&str, i32>) -> Self {
         // add special tokens to vocab if needed
         let mut next_token_id = vocab.len() as i32 + 1_i32;
@@ -81,6 +112,7 @@ impl SimpleTokenizerV2 {
         }
     }
 
+    /// Encode a text into its token ids.
     pub fn encode(&self, text: &str) -> Vec<i32> {
         let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
         let preprocessed: Vec<&str> = re.split(text).map(|x| x.unwrap()).collect();
@@ -95,6 +127,7 @@ impl SimpleTokenizerV2 {
             .collect()
     }
 
+    /// Decode token ids into its text.
     pub fn decode(&self, ids: Vec<i32>) -> String {
         let text_vec: Vec<String> = ids
             .iter()
@@ -137,6 +170,19 @@ impl std::ops::Deref for GPTDatasetV1 {
 }
 
 impl GPTDatasetV1 {
+    /// Creates a new `GPTDatasetV1`.
+    ///
+    /// ```rust
+    /// use tiktoken_rs::get_bpe_from_model;
+    /// use llms_from_scratch_rs::listings::ch02::GPTDatasetV1;
+    ///
+    /// let txt = "In the heart of the city";
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let token_ids = tokenizer.encode_with_special_tokens(&txt[..]);
+    /// let stride = 1_usize;
+    /// let max_length = 3_usize;
+    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
+    /// ```
     pub fn new(txt: &str, tokenizer: CoreBPE, max_length: usize, stride: usize) -> Self {
         let token_ids = tokenizer.encode_with_special_tokens(txt);
 
@@ -158,22 +204,27 @@ impl GPTDatasetV1 {
         Self(Rc::new(dataset_))
     }
 
+    /// Gets the number of input-target sequences in the dataset.
     pub fn len(&self) -> usize {
         self.input_ids.len()
     }
 
+    /// Checks whether the dataset is empty or has no input-target sequences.
     pub fn is_empty(&self) -> bool {
         self.input_ids.len() == 0
     }
 
+    /// Returns the input tokens for all input sequences.
     pub fn input_ids(&self) -> &Vec<Vec<u32>> {
         &self.input_ids
     }
 
+    /// Returns the target token ides for all input sequences.
     pub fn target_ids(&self) -> &Vec<Vec<u32>> {
         &self.target_ids
     }
 
+    /// Returns the input-target pair at the specified index.
     pub fn get_pair_at_index(&self, idx: usize) -> (&Vec<u32>, &Vec<u32>) {
         (&self.input_ids[idx], &self.target_ids[idx])
     }
@@ -190,6 +241,20 @@ pub struct GPTDatasetIter {
 }
 
 impl GPTDatasetIter {
+    /// Creates a new `GPTDatasetIter`.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::{GPTDatasetV1, GPTDatasetIter} ;
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let txt = "In the heart of the city";
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    ///
+    /// let stride = 1_usize;
+    /// let max_length = 3_usize;
+    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
+    /// let iter = GPTDatasetIter::new(dataset.clone(), false);
+    /// ```
     pub fn new(dataset: GPTDatasetV1, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
@@ -220,7 +285,13 @@ impl Iterator for GPTDatasetIter {
     }
 }
 
+/// A type alias for candle_datasets::Batcher
+///
+/// This struct is responsible for getting batches from a type that implements
+/// the `Iterator` Trait.
 pub type GPTDataBatcher = Batcher<IterResult2<GPTDatasetIter>>;
+
+/// A type for building a `Batcher` over a `GPTDataset` with specified params.
 pub struct GPTDataLoader {
     dataset: GPTDatasetV1,
     batch_size: usize,
@@ -229,6 +300,23 @@ pub struct GPTDataLoader {
 }
 
 impl GPTDataLoader {
+    /// Creates a new GPTDataLoader.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::{GPTDatasetV1, GPTDataLoader};
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let txt = "In the heart of the city";
+    /// let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
+    /// let max_length = 3_usize;
+    /// let stride = 1_usize;
+    /// let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
+    ///
+    /// let batch_size = 2_usize;
+    /// let shuffle = false;
+    /// let drop_last = false;
+    /// let data_loader = GPTDataLoader::new(dataset, batch_size, shuffle, drop_last);
+    /// ```
     pub fn new(dataset: GPTDatasetV1, batch_size: usize, shuffle: bool, drop_last: bool) -> Self {
         Self {
             dataset,
@@ -238,6 +326,8 @@ impl GPTDataLoader {
         }
     }
 
+    /// Returns a `GPTDataBatcher` that itself provides batches over the
+    /// associated dataset.
     pub fn batcher(&self) -> GPTDataBatcher {
         let iter = GPTDatasetIter::new(self.dataset.clone(), self.shuffle);
         Batcher::new_r2(iter)
@@ -247,6 +337,19 @@ impl GPTDataLoader {
 }
 
 /// Listing 2.6 A data loader to generate batches with input-output pairs
+///
+/// ```rust
+/// use llms_from_scratch_rs::listings::ch02::create_dataloader_v1;
+///
+/// let txt = "In the heart of the city";
+/// let batch_size = 2_usize;
+/// let stride = 1_usize;
+/// let max_length = 3_usize;
+/// let shuffle = false;
+/// let drop_last = false;
+/// let data_loader =
+///     create_dataloader_v1(txt, batch_size, max_length, stride, shuffle, drop_last);
+/// ```
 pub fn create_dataloader_v1(
     txt: &str,
     batch_size: usize,
@@ -296,7 +399,7 @@ mod tests {
 
     #[rstest]
     fn test_simple_tokenizer_init(vocab: HashMap<&str, i32>) -> Result<()> {
-        let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
+        let tokenizer: SimpleTokenizerV1 = SimpleTokenizerV1::from_vocab(vocab);
 
         // assert
         assert_eq!(tokenizer.str_to_int.get(&String::from("this")), Some(&1));
@@ -436,7 +539,7 @@ mod tests {
         let stride = 1_usize;
         let max_length = 3_usize;
         let shuffle = false;
-        let drop_last = false; // unused
+        let drop_last = false;
         let data_loader =
             create_dataloader_v1(txt, batch_size, max_length, stride, shuffle, drop_last);
 
