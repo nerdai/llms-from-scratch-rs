@@ -16,6 +16,20 @@ pub struct SimpleTokenizerV1 {
 }
 
 impl SimpleTokenizerV1 {
+    /// Creates a new `SimpleTokenizerV1` from a vocab.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::SimpleTokenizerV1;
+    /// use std::collections::HashMap;
+    ///
+    /// let vocab: HashMap<&str, i32> = HashMap::from([
+    ///     ("this", 1_i32),
+    ///     ("is", 2_i32),
+    ///     ("a", 3_i32),
+    ///     ("test", 4_i32)
+    /// ]);
+    /// let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
+    /// ```
     pub fn from_vocab(vocab: HashMap<&str, i32>) -> Self {
         Self {
             str_to_int: vocab.iter().map(|(k, v)| (String::from(*k), *v)).collect(),
@@ -23,6 +37,7 @@ impl SimpleTokenizerV1 {
         }
     }
 
+    /// Encode a text into its token ids.
     pub fn encode(&self, text: &str) -> Vec<i32> {
         let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
         let preprocessed: Vec<&str> = re.split(text).map(|x| x.unwrap()).collect();
@@ -33,6 +48,7 @@ impl SimpleTokenizerV1 {
             .collect()
     }
 
+    /// Decode token ids into its text.
     pub fn decode(&self, ids: Vec<i32>) -> String {
         let text_vec: Vec<String> = ids
             .iter()
@@ -55,6 +71,21 @@ pub struct SimpleTokenizerV2 {
 }
 
 impl SimpleTokenizerV2 {
+    /// Creates a new `SimpleTokenizerV2` from a vocab.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::SimpleTokenizerV2;
+    /// use std::collections::HashMap;
+    ///
+    /// let vocab: HashMap<&str, i32> = HashMap::from([
+    ///     ("this", 1_i32),
+    ///     ("is", 2_i32),
+    ///     ("a", 3_i32),
+    ///     ("test", 4_i32)
+    /// ]);
+    /// // Any words not in the vocab will be encoded as "<|unk|>" token
+    /// let tokenizer = SimpleTokenizerV2::from_vocab(vocab);
+    /// ```
     pub fn from_vocab(vocab: HashMap<&str, i32>) -> Self {
         // add special tokens to vocab if needed
         let mut next_token_id = vocab.len() as i32 + 1_i32;
@@ -81,6 +112,7 @@ impl SimpleTokenizerV2 {
         }
     }
 
+    /// Encode a text into its token ids.
     pub fn encode(&self, text: &str) -> Vec<i32> {
         let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
         let preprocessed: Vec<&str> = re.split(text).map(|x| x.unwrap()).collect();
@@ -95,6 +127,7 @@ impl SimpleTokenizerV2 {
             .collect()
     }
 
+    /// Decode token ids into its text.
     pub fn decode(&self, ids: Vec<i32>) -> String {
         let text_vec: Vec<String> = ids
             .iter()
@@ -366,7 +399,7 @@ mod tests {
 
     #[rstest]
     fn test_simple_tokenizer_init(vocab: HashMap<&str, i32>) -> Result<()> {
-        let tokenizer = SimpleTokenizerV1::from_vocab(vocab);
+        let tokenizer: SimpleTokenizerV1 = SimpleTokenizerV1::from_vocab(vocab);
 
         // assert
         assert_eq!(tokenizer.str_to_int.get(&String::from("this")), Some(&1));
