@@ -208,6 +208,20 @@ pub struct GPTDatasetIter {
 }
 
 impl GPTDatasetIter {
+    /// Creates a new `GPTDatasetIter`.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch02::{GPTDatasetV1, GPTDatasetIter} ;
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let txt = "In the heart of the city";
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    ///
+    /// let stride = 1_usize;
+    /// let max_length = 3_usize;
+    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
+    /// let mut iter = GPTDatasetIter::new(dataset.clone(), false);
+    /// ```
     pub fn new(dataset: GPTDatasetV1, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
@@ -238,6 +252,10 @@ impl Iterator for GPTDatasetIter {
     }
 }
 
+/// A type alias for candle_datasets::Batcher
+///
+/// This struct is responsible for getting batches from a type that implements
+/// the `Iterator` Trait.
 pub type GPTDataBatcher = Batcher<IterResult2<GPTDatasetIter>>;
 pub struct GPTDataLoader {
     dataset: GPTDatasetV1,
