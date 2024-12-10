@@ -1,3 +1,5 @@
+//! Listings from Chapter 4
+
 use super::ch03::MultiHeadAttention;
 use crate::candle_addons::{seqt, SequentialT};
 use candle_core::{IndexOp, Module, ModuleT, Result, Tensor, TensorId, D};
