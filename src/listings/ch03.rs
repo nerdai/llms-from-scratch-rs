@@ -241,6 +241,26 @@ pub struct MultiHeadAttentionWrapper {
 }
 
 impl MultiHeadAttentionWrapper {
+    /// Creates a new `MultiHeadAttentionWrapper`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarMap, VarBuilder};
+    /// use llms_from_scratch_rs::listings::ch03::MultiHeadAttentionWrapper;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    /// let (d_in, d_out, num_heads) = (3_usize, 6_usize, 3_usize);
+    /// let multihead_attn = MultiHeadAttentionWrapper::new(
+    ///     num_heads,
+    ///     d_in,
+    ///     d_out,
+    ///     0.5_f32,
+    ///     false,
+    ///     vb.pp("multihead_attn"),
+    /// ).unwrap();
+    /// ```
     pub fn new(
         num_heads: usize,
         d_in: usize,
