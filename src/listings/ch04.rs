@@ -399,6 +399,11 @@ impl TransformerBlock {
         })
     }
 
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
@@ -410,7 +415,7 @@ impl ModuleT for TransformerBlock {
         let mut x = xs.to_owned();
         x = self.norm1.forward(&x)?;
         x = self.att.forward_t(&x, train)?;
-        x = self.drop_shortcut.forward(&x, train)?; // todo: should be configurable
+        x = self.drop_shortcut.forward(&x, train)?;
         x = (x + shortcut)?;
 
         let shortcut = x.clone();
@@ -422,8 +427,7 @@ impl ModuleT for TransformerBlock {
     }
 }
 
-/// Listing 4.7
-/// GPTModel
+/// [Listing 4.7] The GPT model architecture implementation
 pub struct GPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
@@ -434,6 +438,20 @@ pub struct GPTModel {
 }
 
 impl GPTModel {
+    /// Creates a new `GPTModel`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, GPTModel};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let model = GPTModel::new(cfg, vb).unwrap();
+    /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
         let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
@@ -477,6 +495,11 @@ impl GPTModel {
         &self.pos_emb
     }
 
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
