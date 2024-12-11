@@ -1,3 +1,5 @@
+//! Listings from Chapter 4
+
 use super::ch03::MultiHeadAttention;
 use crate::candle_addons::{seqt, SequentialT};
 use candle_core::{IndexOp, Module, ModuleT, Result, Tensor, TensorId, D};
@@ -9,6 +11,7 @@ use std::cmp;
 
 const EPS: f32 = 1e-5;
 
+/// Config for specifying parameters of a GPT-2 model
 #[derive(Debug, Clone, Copy)]
 pub struct Config {
     pub vocab_size: usize,
@@ -21,6 +24,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Returns configuration for GPT-2 small
     #[allow(dead_code)]
     pub fn gpt2_124m() -> Self {
         Self {
@@ -34,6 +38,7 @@ impl Config {
         }
     }
 
+    /// Returns configuration for GPT-2 medium
     #[allow(dead_code)]
     pub fn gpt2_medium() -> Self {
         Self {
@@ -47,6 +52,7 @@ impl Config {
         }
     }
 
+    /// Returns configuration for GPT-2 large
     #[allow(dead_code)]
     pub fn gpt2_large() -> Self {
         Self {
@@ -60,6 +66,7 @@ impl Config {
         }
     }
 
+    /// Returns configuration for GPT-2 x-large
     #[allow(dead_code)]
     pub fn gpt2_xlarge() -> Self {
         Self {
@@ -73,6 +80,7 @@ impl Config {
         }
     }
 
+    /// Returns a custom configuration for GPT-2 to be used in unit tests
     #[allow(dead_code)]
     pub fn gpt_sm_test() -> Self {
         Self {
@@ -87,8 +95,7 @@ impl Config {
     }
 }
 
-/// Listing 4.1
-/// DummyGPTModel
+/// [Listing 4.1] A placeholder GPT model architecture struct
 pub struct DummyGPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
@@ -137,8 +144,7 @@ impl Module for DummyGPTModel {
     }
 }
 
-/// Listing 4.1 auxiliary
-/// DummyLayerNorm
+/// A placeholder LayerNorm struct (used in Listing 4.1)
 pub struct DummyLayerNorm {}
 
 impl DummyLayerNorm {
@@ -154,8 +160,7 @@ impl Module for DummyLayerNorm {
     }
 }
 
-/// Listing 4.1 auxiliary
-///DummyTransformerBlock
+/// A placeholder TransformerBlock struct (used in Listing 4.1)
 pub struct DummyTransformerBlock {}
 
 impl DummyTransformerBlock {
@@ -171,7 +176,7 @@ impl Module for DummyTransformerBlock {
     }
 }
 
-/// Listing 4.2
+/// [Listing 4.2] A layer normalization struct
 pub struct LayerNorm {
     eps: f32,
     scale: Tensor,
@@ -179,6 +184,20 @@ pub struct LayerNorm {
 }
 
 impl LayerNorm {
+    /// Creates a new `LayerNorm`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, LayerNorm};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let layer_norm = LayerNorm::new(cfg.emb_dim, vb).unwrap();
+    /// ```
     pub fn new(emb_dim: usize, vb: VarBuilder<'_>) -> Result<Self> {
         let scale = vb.get_with_hints(emb_dim, "scale", candle_nn::Init::Const(1.))?;
         let shift = vb.get_with_hints(emb_dim, "shift", candle_nn::Init::Const(0.))?;
@@ -204,8 +223,9 @@ impl Module for LayerNorm {
     }
 }
 
-/// Listing 4.3
-/// An implementation of GELU activation
+/// [Listing 4.3] An implementation of the GELU activation function
+///
+/// A unit struct in order to implement `candle_core::Module` trait
 pub struct GELU;
 
 impl Module for GELU {
@@ -218,12 +238,26 @@ impl Module for GELU {
     }
 }
 
-/// Listing 4.4
+/// [Listing 4.4] A feed forward neural network module
 pub struct FeedForward {
     layers: Sequential,
 }
 
 impl FeedForward {
+    /// Creates a new `FeedForward` via a `Config`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, FeedForward};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let ff = FeedForward::new(cfg, vb.pp("ff")).unwrap();
+    /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let layers = seq()
             .add(linear_b(
@@ -253,12 +287,15 @@ impl Module for FeedForward {
     }
 }
 
-/// Listing 4.5
-/// ExampleDeepNeuralNetwork
+/// [Listing 4.5] A neural network to illustrate shortcut connections
+///
+/// NOTE: `tensor_ids` are maintained to be able to print gradients from GradStore
+/// however, this may be doable without explicit storing of these ids (left as
+/// a TODO item.)
 pub struct ExampleDeepNeuralNetwork {
     use_shortcut: bool,
     pub layers: Vec<Sequential>,
-    pub tensor_ids: Vec<TensorId>, // to be able to print gradients from GradStore
+    pub tensor_ids: Vec<TensorId>,
 }
 
 impl ExampleDeepNeuralNetwork {
@@ -300,8 +337,7 @@ impl Module for ExampleDeepNeuralNetwork {
     }
 }
 
-/// Listing 4.6
-/// TransformerBlock
+/// [Listing 4.6] The transformer block component of GPT
 pub struct TransformerBlock {
     att: MultiHeadAttention,
     ff: FeedForward,
@@ -311,6 +347,20 @@ pub struct TransformerBlock {
 }
 
 impl TransformerBlock {
+    /// Creates a new `TransformerBlock`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, TransformerBlock};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+    /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let att = MultiHeadAttention::new(
             cfg.emb_dim,
@@ -349,6 +399,11 @@ impl TransformerBlock {
         })
     }
 
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
@@ -360,7 +415,7 @@ impl ModuleT for TransformerBlock {
         let mut x = xs.to_owned();
         x = self.norm1.forward(&x)?;
         x = self.att.forward_t(&x, train)?;
-        x = self.drop_shortcut.forward(&x, train)?; // todo: should be configurable
+        x = self.drop_shortcut.forward(&x, train)?;
         x = (x + shortcut)?;
 
         let shortcut = x.clone();
@@ -372,8 +427,7 @@ impl ModuleT for TransformerBlock {
     }
 }
 
-/// Listing 4.7
-/// GPTModel
+/// [Listing 4.7] The GPT model architecture implementation
 pub struct GPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
@@ -384,6 +438,20 @@ pub struct GPTModel {
 }
 
 impl GPTModel {
+    /// Creates a new `GPTModel`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, GPTModel};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let model = GPTModel::new(cfg, vb).unwrap();
+    /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
         let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
@@ -427,6 +495,11 @@ impl GPTModel {
         &self.pos_emb
     }
 
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
@@ -449,7 +522,7 @@ impl ModuleT for GPTModel {
     }
 }
 
-/// Listing 4.8
+/// [Listing 4.8] A function for the GPT model to generate text
 pub fn generate_text_simple(
     model: &GPTModel,
     idx: Tensor,
