@@ -18,7 +18,7 @@ fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor>
     Ok(m)
 }
 
-/// Listing 3.1 A compact self-attention class
+/// [Listing 3.1] A compact self-attention class
 ///
 /// `SelfAttentionV1` is a simple implementation of a self-attention layer.
 /// It follows a similar interface to other candle `Module`'s.
@@ -84,7 +84,7 @@ impl Module for SelfAttentionV1 {
     }
 }
 
-/// Listing 3.2 A self-attention class using candle_nn::Linear
+/// [Listing 3.2] A self-attention class using candle_nn::Linear
 pub struct SelfAttentionV2 {
     w_query: Linear,
     w_key: Linear,
@@ -145,7 +145,7 @@ impl Module for SelfAttentionV2 {
     }
 }
 
-/// Listing 3.3 A compact causal attention class
+/// [Listing 3.3] A compact causal attention class
 pub struct CausalAttention {
     w_query: Linear,
     w_key: Linear,
@@ -235,7 +235,7 @@ impl Module for CausalAttention {
     }
 }
 
-/// Listing 3.4 A wrapper to implement multi-head attention
+/// [Listing 3.4] A wrapper to implement multi-head attention
 pub struct MultiHeadAttentionWrapper {
     heads: Vec<CausalAttention>,
 }
@@ -294,7 +294,7 @@ impl Module for MultiHeadAttentionWrapper {
     }
 }
 
-/// Listing 3.5 An efficient multi-head attention type
+/// [Listing 3.5] An efficient multi-head attention type
 pub struct MultiHeadAttention {
     num_heads: usize,
     d_out: usize,
