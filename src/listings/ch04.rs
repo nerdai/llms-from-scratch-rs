@@ -11,6 +11,7 @@ use std::cmp;
 
 const EPS: f32 = 1e-5;
 
+/// Config for specifying parameters of a GPT-2 model
 #[derive(Debug, Clone, Copy)]
 pub struct Config {
     pub vocab_size: usize,
@@ -23,6 +24,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Returns configuration for GPT-2 small
     #[allow(dead_code)]
     pub fn gpt2_124m() -> Self {
         Self {
@@ -36,6 +38,7 @@ impl Config {
         }
     }
 
+    /// Returns configuration for GPT-2 medium
     #[allow(dead_code)]
     pub fn gpt2_medium() -> Self {
         Self {
@@ -49,6 +52,7 @@ impl Config {
         }
     }
 
+    /// Returns configuration for GPT-2 large
     #[allow(dead_code)]
     pub fn gpt2_large() -> Self {
         Self {
@@ -62,6 +66,7 @@ impl Config {
         }
     }
 
+    /// Returns configuration for GPT-2 x-large
     #[allow(dead_code)]
     pub fn gpt2_xlarge() -> Self {
         Self {
@@ -75,6 +80,7 @@ impl Config {
         }
     }
 
+    /// Returns a custom configuration for GPT-2 to be used in unit tests
     #[allow(dead_code)]
     pub fn gpt_sm_test() -> Self {
         Self {
@@ -89,8 +95,7 @@ impl Config {
     }
 }
 
-/// Listing 4.1
-/// DummyGPTModel
+/// [Listing 4.1] A placeholder GPT model architecture struct
 pub struct DummyGPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
@@ -139,8 +144,7 @@ impl Module for DummyGPTModel {
     }
 }
 
-/// Listing 4.1 auxiliary
-/// DummyLayerNorm
+/// A placeholder LayerNorm struct (used in Listing 4.1)
 pub struct DummyLayerNorm {}
 
 impl DummyLayerNorm {
@@ -156,8 +160,7 @@ impl Module for DummyLayerNorm {
     }
 }
 
-/// Listing 4.1 auxiliary
-///DummyTransformerBlock
+/// A placeholder TransformerBlock struct (used in Listing 4.1)
 pub struct DummyTransformerBlock {}
 
 impl DummyTransformerBlock {
@@ -173,7 +176,7 @@ impl Module for DummyTransformerBlock {
     }
 }
 
-/// Listing 4.2
+/// [Listing 4.2] A layer normalization struct
 pub struct LayerNorm {
     eps: f32,
     scale: Tensor,
@@ -181,6 +184,20 @@ pub struct LayerNorm {
 }
 
 impl LayerNorm {
+    /// Creates a new `LayerNorm`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, LayerNorm};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let layer_norm = LayerNorm::new(cfg.emb_dim, vb).unwrap();
+    /// ```
     pub fn new(emb_dim: usize, vb: VarBuilder<'_>) -> Result<Self> {
         let scale = vb.get_with_hints(emb_dim, "scale", candle_nn::Init::Const(1.))?;
         let shift = vb.get_with_hints(emb_dim, "shift", candle_nn::Init::Const(0.))?;
