@@ -223,8 +223,9 @@ impl Module for LayerNorm {
     }
 }
 
-/// Listing 4.3
-/// An implementation of GELU activation
+/// [Listing 4.3] An implementation of the GELU activation function
+///
+/// A unit struct in order to implement `candle_core::Module` trait
 pub struct GELU;
 
 impl Module for GELU {
@@ -237,12 +238,26 @@ impl Module for GELU {
     }
 }
 
-/// Listing 4.4
+/// [Listing 4.4] A feed forward neural network module
 pub struct FeedForward {
     layers: Sequential,
 }
 
 impl FeedForward {
+    /// Creates a new `FeedForward`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, FeedForward};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let ff = FeedForward::new(cfg, vb.pp("ff")).unwrap();
+    /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let layers = seq()
             .add(linear_b(
