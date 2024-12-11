@@ -522,7 +522,7 @@ impl ModuleT for GPTModel {
     }
 }
 
-/// Listing 4.8
+/// [Listing 4.8] A function for the GPT model to generate text
 pub fn generate_text_simple(
     model: &GPTModel,
     idx: Tensor,
