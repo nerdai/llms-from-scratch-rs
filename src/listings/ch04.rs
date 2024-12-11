@@ -244,7 +244,7 @@ pub struct FeedForward {
 }
 
 impl FeedForward {
-    /// Creates a new `FeedForward`
+    /// Creates a new `FeedForward` via a `Config`
     ///
     /// ```rust
     /// use candle_core::{Device, DType};
@@ -287,12 +287,15 @@ impl Module for FeedForward {
     }
 }
 
-/// Listing 4.5
-/// ExampleDeepNeuralNetwork
+/// [Listing 4.5] A neural network to illustrate shortcut connections
+///
+/// NOTE: `tensor_ids` are maintained to be able to print gradients from GradStore
+/// however, this may be doable without explicit storing of these ids (left as
+/// a TODO item.)
 pub struct ExampleDeepNeuralNetwork {
     use_shortcut: bool,
     pub layers: Vec<Sequential>,
-    pub tensor_ids: Vec<TensorId>, // to be able to print gradients from GradStore
+    pub tensor_ids: Vec<TensorId>,
 }
 
 impl ExampleDeepNeuralNetwork {
@@ -334,8 +337,7 @@ impl Module for ExampleDeepNeuralNetwork {
     }
 }
 
-/// Listing 4.6
-/// TransformerBlock
+/// [Listing 4.6] The transformer block component of GPT
 pub struct TransformerBlock {
     att: MultiHeadAttention,
     ff: FeedForward,
@@ -345,6 +347,20 @@ pub struct TransformerBlock {
 }
 
 impl TransformerBlock {
+    /// Creates a new `TransformerBlock`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, TransformerBlock};
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+    /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let att = MultiHeadAttention::new(
             cfg.emb_dim,
