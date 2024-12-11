@@ -1,3 +1,5 @@
+//! Listings from Chapter 5
+
 use super::{
     ch02::GPTDataLoader,
     ch04::{generate_text_simple, GPTModel},
