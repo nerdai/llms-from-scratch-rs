@@ -2,6 +2,7 @@
 //!
 //! #### Features
 //! - `SequentialT`: a version of `Sequential` that is `ModuleT`
+//! - `TopK`: a trait for extracting top-k elements and positions of a `Tensor`
 use candle_core::{Device, IndexOp, ModuleT, Result, Tensor};
 
 /// A sequential layer combining multiple other layers.
