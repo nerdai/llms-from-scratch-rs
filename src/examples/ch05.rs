@@ -465,7 +465,7 @@ impl Example for EG07 {
 
     #[allow(dead_code, unused_variables)]
     fn main(&self) -> Result<()> {
-        use crate::listings::ch05::TopK;
+        use crate::candle_addons::TopK;
         use candle_core::{Tensor, D};
         use candle_nn::ops::softmax;
 
