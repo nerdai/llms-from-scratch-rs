@@ -217,7 +217,7 @@ pub fn print_sampled_tokens(
     Ok(())
 }
 
-/// Listing 5.4
+/// [Listing 5.4] A modified text generation function with more diversity
 #[allow(clippy::too_many_arguments)]
 pub fn generate(
     model: &GPTModel,
@@ -286,6 +286,7 @@ pub fn generate(
     Ok(idx)
 }
 
+/// A lazily loaded constant `HashMap` specifying mapping between our `GPTModel` and GPT-2 on HuggingFace.
 static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HashMap<&'static str, HuggingFaceWeight>>> =
     LazyLock::new(|| {
         HashMap::from([
@@ -411,6 +412,7 @@ static WEIGHTS_MAPPING: LazyLock<HashMap<&'static str, HashMap<&'static str, Hug
 
 const HF_TRANSFORMER_PREFIX: &str = "h";
 
+/// A convenience type for loading weights from HuggingFace Hub
 struct HuggingFaceWeight {
     name: String,
     transpose: bool,
@@ -423,6 +425,7 @@ impl Display for HuggingFaceWeight {
     }
 }
 
+/// Builder pattern for `HuggingFaceWeight`
 struct HuggingFaceWeightBuilder {
     name: String,
     transpose: bool,
@@ -468,7 +471,7 @@ impl HuggingFaceWeightBuilder {
     }
 }
 
-// helper fn for loading weights into gpt
+/// A helper fn for loading weights from a `HashMap` into a `VarMap`
 fn load_from_weights_mapping(
     gpt_varmap: &VarMap,
     weights: &mut HashMap<String, Tensor>,
@@ -519,7 +522,7 @@ fn load_from_weights_mapping(
     Ok(())
 }
 
-/// Listing 5.5
+/// [Listing 5.5] Loading OpenAI weights into our GPT model code
 #[allow(unused_variables)]
 pub fn load_weights_into_gpt(
     gpt_varmap: &VarMap,
