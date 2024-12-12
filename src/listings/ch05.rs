@@ -1,8 +1,11 @@
 //! Listings from Chapter 5
 
-use super::{
-    ch02::GPTDataLoader,
-    ch04::{generate_text_simple, GPTModel},
+use crate::{
+    candle_addons::TopK,
+    listings::{
+        ch02::GPTDataLoader,
+        ch04::{generate_text_simple, GPTModel},
+    },
 };
 use candle_core::{Device, Error, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::{ops::softmax, Optimizer, VarMap};
@@ -21,7 +24,7 @@ use std::{
 };
 use tiktoken_rs::CoreBPE;
 
-/// Listing 5.1
+/// [Listing 5.1 part 1] Utility function for text to token ID conversion
 pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Result<Tensor> {
     let allowed_special = HashSet::from(["<|endoftext|>"]);
     let encoded = tokenizer.encode(text, allowed_special);
@@ -30,12 +33,13 @@ pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Resul
     Tensor::from_vec(encoded, (1_usize, num_tokens), dev)
 }
 
-/// Listing 5.1
+/// [Listing 5.1 part 2] Utility function for token ID to text ID conversion
 pub fn token_ids_to_text(token_ids: Tensor, tokenizer: &CoreBPE) -> anyhow::Result<String> {
     let flat = token_ids.squeeze(0)?;
     tokenizer.decode(flat.to_vec1::<u32>()?)
 }
 
+/// Calculate the cross entropy loss of a given batch
 pub fn calc_loss_batch(
     input_batch: &Tensor,
     target_batch: &Tensor,
@@ -54,7 +58,7 @@ pub fn calc_loss_batch(
     Ok(loss)
 }
 
-/// Listing 5.2
+/// [Listing 5.2] Function to compute the training and validation loss
 pub fn calc_loss_loader(
     data_loader: &GPTDataLoader,
     model: &GPTModel,
@@ -89,7 +93,7 @@ pub fn calc_loss_loader(
     }
 }
 
-/// Listing 5.3
+/// [Listing 5.3] The main function for pretraining LLMs
 #[allow(clippy::too_many_arguments)]
 pub fn train_model_simple<T: Optimizer>(
     model: &GPTModel,
@@ -141,6 +145,7 @@ pub fn train_model_simple<T: Optimizer>(
     Ok((train_losses, val_losses, track_tokens_seen))
 }
 
+/// Returns train and validation loss of a `GPTModel`
 pub fn evaluate_model(
     model: &GPTModel,
     train_loader: &GPTDataLoader,
@@ -153,6 +158,10 @@ pub fn evaluate_model(
     Ok((train_loss, val_loss))
 }
 
+/// Print a generation sample of model
+///
+/// This is a convenience function used for qualitative assessment of a model
+/// during training.
 pub fn generate_and_print_sample(
     model: &GPTModel,
     tokenizer: &CoreBPE,
@@ -167,13 +176,16 @@ pub fn generate_and_print_sample(
     Ok(())
 }
 
-// Can also use candle_transformers::LogitProcessor
+/// Randomly draws a single observation from from a multinomial distribution
+///
+/// NOTE: Can also use `candle_transformers::LogitProcessor`
 pub fn sample_multinomial(rng: &mut StdRng, prs: &Vec<f32>) -> Result<u32> {
     let dist = WeightedIndex::new(prs).map_err(candle_core::Error::wrap)?;
     let sample = dist.sample(rng) as u32;
     Ok(sample)
 }
 
+/// A convenience function for drawing a random sample from a Multinomial distriubtion
 pub fn print_sampled_tokens(
     probas: &Vec<f32>,
     inverse_vocab: &HashMap<u32, &str>,
@@ -203,42 +215,6 @@ pub fn print_sampled_tokens(
         }
     }
     Ok(())
-}
-
-pub trait TopK {
-    fn topk_last_dim0(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
-
-    fn topk_last_dim1(&self, top_k: usize) -> Result<(Tensor, Tensor)>;
-}
-
-impl TopK for Tensor {
-    fn topk_last_dim0(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
-        let top_pos = self.arg_sort_last_dim(false)?;
-        let top_pos = top_pos.i(..top_k)?;
-        let top_els = self.i(top_pos.to_vec1::<u32>()?)?;
-        Ok((top_els, top_pos))
-    }
-
-    fn topk_last_dim1(&self, top_k: usize) -> Result<(Tensor, Tensor)> {
-        // get CUDA error sometimes when using `.arg_sort_last_dim`
-        // moving to CPU to carry out the op
-        let top_pos = self.to_device(&Device::Cpu)?.arg_sort_last_dim(false)?;
-        let top_pos = top_pos.to_device(&Device::cuda_if_available(0)?)?;
-        let (batch_size, vocab_size) = top_pos.dims2()?;
-        let top_pos = top_pos.i((.., ..top_k))?.flatten_all()?;
-
-        // get appropriate sum starting index
-        let aux = Tensor::arange(0u32, batch_size as u32, self.device())?;
-        let aux = (vocab_size as f64 * aux.broadcast_left(top_k)?.t()?.flatten_all()?)?;
-        let top_pos = (top_pos + &aux)?;
-        let top_els = self.flatten_all()?.i(top_pos.to_vec1::<u32>()?)?;
-
-        // reshape
-        let top_els = top_els.reshape((batch_size, top_k))?;
-        let top_pos = (top_pos - &aux)?;
-        let top_pos = top_pos.reshape((batch_size, top_k))?;
-        Ok((top_els, top_pos))
-    }
 }
 
 /// Listing 5.4
