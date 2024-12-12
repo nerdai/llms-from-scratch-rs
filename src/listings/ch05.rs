@@ -524,29 +524,7 @@ fn load_from_weights_mapping(
 
 /// [Listing 5.5] Loading OpenAI weights into our GPT model code
 ///
-/// ```rust
-/// use candle_core::{DType, Device};
-/// use candle_nn::{VarBuilder, VarMap};
-/// use hf_hub::api::sync::Api;
-/// use rand::{rngs::StdRng, SeedableRng};
-/// use tiktoken_rs::get_bpe_from_model;
-///
-/// let dev = Device::cuda_if_available(0).unwrap();
-/// let varmap = VarMap::new();
-/// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-/// let mut cfg = Config::gpt2_124m();
-/// cfg.qkv_bias = true;
-/// let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
-///
-/// // get weights from HF Hub
-/// let api = Api::new().unwrap();
-/// let repo = api.model("openai-community/gpt2".to_string());
-/// let weights = repo.get("model.safetensors").unwrap();
-/// let weights = candle_core::safetensors::load(weights, &dev).unwrap();
-///
-/// // load weights into the varmap
-/// load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers).unwrap();
-/// ```
+/// See EG 05.11 for an example usage of this function.
 #[allow(unused_variables)]
 pub fn load_weights_into_gpt(
     gpt_varmap: &VarMap,
