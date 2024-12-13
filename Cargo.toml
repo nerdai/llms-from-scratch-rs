@@ -1,8 +1,12 @@
 [package]
 name = "llms-from-scratch-rs"
-version = "0.1.0"
+version = "0.1.0-a0"
 edition = "2021"
+repository = "https://github.com/nerdai/llms-from-scratch-rs"
 author = "Val Andrei Fajardo <andrei@nerdai.io>"
+keywords = ["machine-learning", "llms", "gpt"]
+categories = ["science"]
+license = "MIT"
 
 [dependencies]
 anyhow = "1.0.94"
