@@ -8,6 +8,10 @@ keywords = ["machine-learning", "llms", "gpt"]
 categories = ["science"]
 license = "MIT"
 
+exclude = [
+    "data/*",
+]
+
 [dependencies]
 anyhow = "1.0.94"
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
