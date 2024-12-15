@@ -1,5 +1,9 @@
 # LLMs from scratch - Rust
 
+<p align="center">
+  <img height="400" src="https://d3ddy8balm3goa.cloudfront.net/llms-from-scratch-rs/title.svg" alt="cover">
+</p>
+
 This project aims to provide Rust code that follows the incredible text,
 Build An LLM From Scratch by Sebastian Raschka. The book provides arguably
 the most clearest step by step walkthrough for building a GPT-style LLM. With
