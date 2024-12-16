@@ -1,7 +1,7 @@
 # LLMs from scratch - Rust
 
 <p align="center">
-  <img height="400" src="https://d3ddy8balm3goa.cloudfront.net/llms-from-scratch-rs/cover.svg" alt="cover">
+  <img height="400" src="https://d3ddy8balm3goa.cloudfront.net/llms-from-scratch-rs/main-image.svg" alt="cover">
 </p>
 
 This project aims to provide Rust code that follows the incredible text,
