@@ -9,7 +9,7 @@ use anyhow::Result;
 /// 02.01
 ///
 /// #### Page
-/// This example starts on page 42
+/// This example starts on page 22
 ///
 /// #### CLI command
 /// ```sh
