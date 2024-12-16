@@ -19,8 +19,9 @@ below are the titles for each of the 7 Chapters of the book.
 
 The code (see associated [github repo](https://github.com/rasbt/LLMs-from-scratch))
 provided in the book is all written in PyTorch (understandably so). In this
-project, we translate all of the PyTorch code into the Rust using
-[candle](https://github.com/huggingface/candle)'s minimalist ML framework.
+project, we translate all of the PyTorch code into Rust code by using the
+[Candle](https://github.com/huggingface/candle) crate, which is a minimalist ML
+Framework.
 
 ## Usage
 

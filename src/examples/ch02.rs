@@ -43,7 +43,7 @@ impl Example for EG01 {
 /// 02.02
 ///
 /// #### Page
-/// This example starts on page 42
+/// This example starts on page 25
 ///
 /// #### CLI command
 /// ```sh
@@ -56,6 +56,38 @@ impl Example for EG01 {
 pub struct EG02;
 
 impl Example for EG02 {
+    fn description(&self) -> String {
+        todo!()
+    }
+
+    fn page_source(&self) -> usize {
+        todo!()
+    }
+
+    fn main(&self) -> Result<()> {
+        todo!()
+    }
+}
+
+/// # Use candle to generate an Embedding Layer
+///
+/// #### Id
+/// 02.03
+///
+/// #### Page
+/// This example starts on page 42
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 02.03
+///
+/// # with cuda
+/// cargo run --features cuda example 02.03
+/// ```
+pub struct EG03;
+
+impl Example for EG03 {
     fn description(&self) -> String {
         String::from("Use candle to generate an Embedding Layer.")
     }
@@ -91,7 +123,7 @@ impl Example for EG02 {
 /// # Create absolute positional embeddings
 ///
 /// #### Id
-/// 02.03
+/// 02.04
 ///
 /// #### Page
 /// This example starts on page 47
@@ -99,14 +131,14 @@ impl Example for EG02 {
 /// #### CLI command
 /// ```sh
 /// # without cuda
-/// cargo run example 02.03
+/// cargo run example 02.04
 ///
 /// # with cuda
-/// cargo run --features cuda example 02.03
+/// cargo run --features cuda example 02.04
 /// ```
-pub struct EG03;
+pub struct EG04;
 
-impl Example for EG03 {
+impl Example for EG04 {
     fn description(&self) -> String {
         String::from("Create absolute postiional embeddings.")
     }
