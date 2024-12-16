@@ -32,7 +32,7 @@ impl Example for EG01 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch02::sample_read_text;
-        let _raw_text = sample_read_text()?;
+        let _raw_text = sample_read_text(true)?;
         Ok(())
     }
 }
@@ -57,15 +57,25 @@ pub struct EG02;
 
 impl Example for EG02 {
     fn description(&self) -> String {
-        todo!()
+        String::from("Example usage of `listings::ch02::sample_create_vocab`")
     }
 
     fn page_source(&self) -> usize {
-        todo!()
+        25_usize
     }
 
     fn main(&self) -> Result<()> {
-        todo!()
+        use crate::listings::ch02::sample_create_vocab;
+
+        let vocab = sample_create_vocab()?;
+        // Note: this iter is not sorted
+        for (i, item) in vocab.iter().enumerate() {
+            println!("{:?}", item);
+            if i >= 50 {
+                break;
+            }
+        }
+        Ok(())
     }
 }
 
