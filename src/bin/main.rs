@@ -73,7 +73,7 @@ static EXAMPLE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Example>>> = Laz
 
 /// CLI
 #[derive(Debug, Parser)]
-#[command(name = "llms-from-scratch-rs")]
+#[command(bin_name = "llms-from-scratch-rs")]
 #[command(about = "A CLI for running examples and exercises.", long_about = None)]
 struct Cli {
     #[command(subcommand)]
