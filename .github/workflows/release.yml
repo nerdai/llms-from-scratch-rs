@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 jobs:
-  release_crates:
+  publish_crate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -27,6 +27,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
 
   release_github:
+    needs: publish_crate 
     runs-on: ubuntu-latest
     steps:
       - name: Create GitHub Release
