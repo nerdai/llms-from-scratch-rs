@@ -59,7 +59,7 @@ the `main` binary.
 cargo run example 05.07
 
 # Run code for Exercise 5.5
-cargo run exercsise 5.5
+cargo run exercise 5.5
 ```
 
 If using a cuda-enabled device, you turn on the cuda feature via the `--features cuda`
@@ -70,7 +70,7 @@ flag:
 cargo run --features cuda example 05.07
 
 # Run code for Exercise 5.5
-cargo run --features cuda exercsise 5.5
+cargo run --features cuda exercise 5.5
 ```
 
 ### Listing `Examples`
@@ -107,7 +107,7 @@ EXAMPLES:
 One can similarly list the `Exercises` using:
 
 ```sh
-cargo run list --examples
+cargo run list --exercises
 ```
 
 ```sh
