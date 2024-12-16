@@ -5,8 +5,17 @@ use candle_datasets::{batcher::IterResult2, Batcher};
 use fancy_regex::{Captures, Regex};
 use rand::{seq::SliceRandom, thread_rng};
 use std::collections::HashMap;
+use std::fs;
 use std::rc::Rc;
 use tiktoken_rs::CoreBPE;
+
+/// [Listing 2.1] Reading in a short story as text sample into Rust
+pub fn sample_read_text() -> Result<()> {
+    let raw_text = fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
+    println!("Total number of character: {:?}", raw_text.len());
+    println!("{:?}", &raw_text[..99]);
+    Ok(())
+}
 
 /// [Listing 2.3] Implementing a simple text tokenizer
 #[derive(Default, Debug)]
