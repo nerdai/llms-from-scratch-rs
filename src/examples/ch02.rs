@@ -3,13 +3,13 @@
 use crate::Example;
 use anyhow::Result;
 
-/// # Use candle to generate an Embedding Layer
+/// # Example of reading text files into Rust
 ///
 /// #### Id
 /// 02.01
 ///
 /// #### Page
-/// This example starts on page 42
+/// This example starts on page 22
 ///
 /// #### CLI command
 /// ```sh
@@ -22,6 +22,40 @@ use anyhow::Result;
 pub struct EG01;
 
 impl Example for EG01 {
+    fn description(&self) -> String {
+        String::from("Example usage of `listings::ch02::sample_read_text`")
+    }
+
+    fn page_source(&self) -> usize {
+        22_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch02::sample_read_text;
+        sample_read_text()?;
+        Ok(())
+    }
+}
+
+/// # Use candle to generate an Embedding Layer
+///
+/// #### Id
+/// 02.02
+///
+/// #### Page
+/// This example starts on page 42
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 02.02
+///
+/// # with cuda
+/// cargo run --features cuda example 02.02
+/// ```
+pub struct EG02;
+
+impl Example for EG02 {
     fn description(&self) -> String {
         String::from("Use candle to generate an Embedding Layer.")
     }
@@ -57,7 +91,7 @@ impl Example for EG01 {
 /// # Create absolute positional embeddings
 ///
 /// #### Id
-/// 02.02
+/// 02.03
 ///
 /// #### Page
 /// This example starts on page 47
@@ -65,14 +99,14 @@ impl Example for EG01 {
 /// #### CLI command
 /// ```sh
 /// # without cuda
-/// cargo run example 02.02
+/// cargo run example 02.03
 ///
 /// # with cuda
-/// cargo run --features cuda example 02.02
+/// cargo run --features cuda example 02.03
 /// ```
-pub struct EG02;
+pub struct EG03;
 
-impl Example for EG02 {
+impl Example for EG03 {
     fn description(&self) -> String {
         String::from("Create absolute postiional embeddings.")
     }
