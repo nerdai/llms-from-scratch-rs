@@ -19,7 +19,18 @@ pub fn sample_read_text() -> Result<String> {
 
 /// [Listing 2.2] Creating a vocabulary
 pub fn sample_create_vocab() -> Result<HashMap<String, i32>> {
-    todo!()
+    let raw_text = sample_read_text()?;
+    let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
+    let mut preprocessed: Vec<&str> = re.split(&raw_text[..]).map(|x| x.unwrap()).collect();
+    preprocessed.sort();
+
+    let vocab: HashMap<String, i32> = HashMap::from_iter(
+        preprocessed
+            .iter()
+            .enumerate()
+            .map(|(idx, el)| (el.to_string(), idx as i32)),
+    );
+    Ok(vocab)
 }
 
 /// [Listing 2.3] Implementing a simple text tokenizer
