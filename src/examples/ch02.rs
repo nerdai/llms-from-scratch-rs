@@ -32,12 +32,12 @@ impl Example for EG01 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch02::sample_read_text;
-        sample_read_text()?;
+        let _raw_text = sample_read_text()?;
         Ok(())
     }
 }
 
-/// # Use candle to generate an Embedding Layer
+/// # Example of building a vocabulary
 ///
 /// #### Id
 /// 02.02
