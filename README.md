@@ -6,11 +6,21 @@
 
 This project aims to provide Rust code that follows the incredible text,
 Build An LLM From Scratch by Sebastian Raschka. The book provides arguably
-the most clearest step by step walkthrough for building a GPT-style LLM. With
-that being said, the code provided in the book is written in PyTorch (understandably
-so). In this project, we instead use the candle crate offered by HuggingFace to
-convert all the PyTorch code into Rust -- providing the means to learn both candle
-and LLMs simultaneously.
+the most clearest step by step walkthrough for building a GPT-style LLM. Listed
+below are the titles for each of the 7 Chapters of the book.
+
+1. Understanding large language models
+2. Working with text data
+3. Coding attention mechanisms
+4. Implementing a GPT model from scratch to generate text
+5. Pretraining an unlabeled data
+6. Fine-tuning for classification
+7. Fine-tuning to follow instructions
+
+The code (see associated [github repo](https://github.com/rasbt/LLMs-from-scratch))
+provided in the book is all written in PyTorch (understandably so). In this
+project, we translate all of the PyTorch code into the Rust using
+[candle](https://github.com/huggingface/candle)'s minimalist ML framework.
 
 ## Setup
 
