@@ -10,11 +10,29 @@ use std::rc::Rc;
 use tiktoken_rs::CoreBPE;
 
 /// [Listing 2.1] Reading in a short story as text sample into Rust
-pub fn sample_read_text() -> Result<()> {
+pub fn sample_read_text(verbose: bool) -> Result<String> {
     let raw_text = fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
-    println!("Total number of character: {:?}", raw_text.len());
-    println!("{:?}", &raw_text[..99]);
-    Ok(())
+    if verbose {
+        println!("Total number of character: {:?}", raw_text.len());
+        println!("{:?}", &raw_text[..99]);
+    }
+    Ok(raw_text)
+}
+
+/// [Listing 2.2] Creating a vocabulary
+pub fn sample_create_vocab() -> Result<HashMap<i32, String>> {
+    let raw_text = sample_read_text(false)?;
+    let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
+    let mut preprocessed: Vec<&str> = re.split(&raw_text[..]).map(|x| x.unwrap()).collect();
+    preprocessed.sort();
+
+    let vocab: HashMap<i32, String> = HashMap::from_iter(
+        preprocessed
+            .iter()
+            .enumerate()
+            .map(|(idx, el)| (idx as i32, el.to_string())),
+    );
+    Ok(vocab)
 }
 
 /// [Listing 2.3] Implementing a simple text tokenizer

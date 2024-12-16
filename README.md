@@ -19,8 +19,9 @@ below are the titles for each of the 7 Chapters of the book.
 
 The code (see associated [github repo](https://github.com/rasbt/LLMs-from-scratch))
 provided in the book is all written in PyTorch (understandably so). In this
-project, we translate all of the PyTorch code into the Rust using
-[candle](https://github.com/huggingface/candle)'s minimalist ML framework.
+project, we translate all of the PyTorch code into Rust code by using the
+[Candle](https://github.com/huggingface/candle) crate, which is a minimalist ML
+Framework.
 
 ## Usage
 
@@ -81,7 +82,7 @@ To list the `Examples`, use the following command:
 cargo run list --examples
 ```
 
-The first few lines of output are pasted below.
+A snippet of the output is pasted below.
 
 ```sh
 EXAMPLES:
@@ -95,13 +96,14 @@ EXAMPLES:
 | 02.03 | Create absolute postiional embeddings.                               |
 |-------+----------------------------------------------------------------------|
 | 03.01 | Computing attention scores as a dot product.                         |
-|-------+----------------------------------------------------------------------|
-| 03.02 | Manual computation of multiple context vectors simultaneously.       |
-|-------+----------------------------------------------------------------------|
-| 03.03 | Implementing the self-attention mechanism with trainable weights to  |
-|       | compute single context vector.                                       |
-|-------+----------------------------------------------------------------------|
 ...
+|-------+----------------------------------------------------------------------|
+| 05.09 | Saving and loading a candle model.                                   |
+|-------+----------------------------------------------------------------------|
+| 05.10 | Example for downloading safetensors from HuggingFace Hub.            |
+|-------+----------------------------------------------------------------------|
+| 05.11 | Example usage of `load_weights_into_gpt`.                            |
++-------+----------------------------------------------------------------------+
 ```
 
 ### Listing `Exercises`
@@ -133,6 +135,14 @@ EXERCISES:
 |     | with different settings such as `max_length=2` and `stride=2`, and     |
 |     | `max_length=8` and `stride=2`.                                         |
 |-----+------------------------------------------------------------------------|
+...
+|-----+------------------------------------------------------------------------|
+| 5.6 | Comparing generations with different GPT-2 model sizes                 |
+|     |                                                                        |
+|     | Experiment with GPT-2 models of different sizes—for example, the       |
+|     | largest 1,558 million parameter model—and compare the generated text   |
+|     | to the 124 million model.                                              |
++-----+------------------------------------------------------------------------+
 ```
 
 
