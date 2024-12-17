@@ -41,6 +41,9 @@ pub fn download_and_unzip_spam_data(
     Ok(())
 }
 
+/// Helper function to unzip file using `zip::ZipArchive`
+///
+/// NOTE: adapted from https://github.com/zip-rs/zip2/blob/master/examples/extract.rs
 fn _unzip_file(filename: &str) -> anyhow::Result<()> {
     let file = File::open(filename)?;
 
