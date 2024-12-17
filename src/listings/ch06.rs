@@ -29,7 +29,6 @@ pub fn download_and_unzip_spam_data(
     // rename file
     let mut original_file_path = PathBuf::from("data");
     original_file_path.push(EXTRACTED_FILENAME);
-    println!("{:?}", original_file_path);
 
     let mut data_file_path: PathBuf = original_file_path.clone();
     data_file_path.set_extension("tsv");
@@ -85,17 +84,4 @@ fn _unzip_file(filename: &str) -> anyhow::Result<()> {
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use anyhow::Result;
-    use rstest::*;
-
-    #[rstest]
-    fn test_download_and_unzip_spam_data() -> Result<()> {
-        download_and_unzip_spam_data(&URL, &ZIP_PATH, &EXTRACTED_PATH)?;
-        Ok(())
-    }
 }
