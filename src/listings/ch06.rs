@@ -26,10 +26,9 @@ pub fn download_and_unzip_spam_data(
     // unzip file
     _unzip_file(zip_path)?;
 
-    // rename file
+    // rename file to add .tsv extension
     let mut original_file_path = PathBuf::from("data");
     original_file_path.push(EXTRACTED_FILENAME);
-
     let mut data_file_path: PathBuf = original_file_path.clone();
     data_file_path.set_extension("tsv");
     rename(original_file_path, data_file_path)?;
