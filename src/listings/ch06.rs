@@ -1,9 +1,10 @@
 //! Listings from Chapter 6
 
+use anyhow::Error;
 use bytes::Bytes;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip";
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
@@ -35,9 +36,23 @@ pub fn download_and_unzip_spam_data(
 
     // remove zip file and readme file
     let readme_file: PathBuf = ["data", "readme"].iter().collect();
-    remove_file(readme_file)?;
-    remove_file(ZIP_PATH)?;
+    remove_file_if_exists(readme_file)?;
+    remove_file_if_exists(ZIP_PATH)?;
     Ok(())
+}
+
+/// A wrapper for std::fs::remove_file that passes on any ErrorKind::NotFound
+fn remove_file_if_exists<P: AsRef<Path>>(fname: P) -> anyhow::Result<()> {
+    match remove_file(fname) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            if e.kind() == io::ErrorKind::NotFound {
+                Ok(())
+            } else {
+                Err(Error::from(e))
+            }
+        }
+    }
 }
 
 /// Helper function to unzip file using `zip::ZipArchive`
