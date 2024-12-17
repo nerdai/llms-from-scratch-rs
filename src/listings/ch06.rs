@@ -2,14 +2,14 @@
 
 use bytes::Bytes;
 use candle_core::Result;
-use std::fs::{create_dir_all, File};
+use std::fs::{create_dir_all, rename, File};
 use std::io;
 use std::path::PathBuf;
 
 pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip";
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
 pub const EXTRACTED_PATH: &str = "sms_spam_collection";
-pub const DATA_FILE_PATH: &str = "sms_spam_collection/SMSSPamCollection.tsv";
+pub const EXTRACTED_FILENAME: &str = "SMSSpamCollection";
 
 /// [Listing 6.1] Downloading and unzipping the dataset
 #[allow(unused_variables)]
@@ -17,13 +17,24 @@ pub fn download_and_unzip_spam_data(
     url: &str,
     zip_path: &str,
     extracted_path: &str,
-    datafile_path: &str,
-) -> Result<()> {
-    let resp = reqwest::blocking::get(url).map_err(candle_core::Error::wrap)?;
-    let content: Bytes = resp.bytes().map_err(candle_core::Error::wrap)?;
+) -> anyhow::Result<()> {
+    // download zip file
+    let resp = reqwest::blocking::get(url)?;
+    let content: Bytes = resp.bytes()?;
     let mut out = File::create(zip_path)?;
-    io::copy(&mut content.as_ref(), &mut out).map_err(candle_core::Error::wrap)?;
+    io::copy(&mut content.as_ref(), &mut out)?;
+
+    // unzip file
     _unzip_file(zip_path)?;
+
+    // rename file
+    let mut original_file_path = PathBuf::from("data");
+    original_file_path.push(EXTRACTED_FILENAME);
+    println!("{:?}", original_file_path);
+
+    let mut data_file_path: PathBuf = original_file_path.clone();
+    data_file_path.set_extension("tsv");
+    rename(original_file_path, data_file_path)?;
     Ok(())
 }
 
@@ -80,7 +91,7 @@ mod tests {
 
     #[rstest]
     fn test_download_and_unzip_spam_data() -> Result<()> {
-        download_and_unzip_spam_data(&URL, &ZIP_PATH, &EXTRACTED_PATH, &DATA_FILE_PATH)?;
+        download_and_unzip_spam_data(&URL, &ZIP_PATH, &EXTRACTED_PATH)?;
         Ok(())
     }
 }
