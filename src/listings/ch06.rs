@@ -1,8 +1,7 @@
 //! Listings from Chapter 6
 
 use bytes::Bytes;
-use candle_core::Result;
-use std::fs::{create_dir_all, rename, File};
+use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
 use std::path::PathBuf;
 
@@ -35,16 +34,21 @@ pub fn download_and_unzip_spam_data(
     let mut data_file_path: PathBuf = original_file_path.clone();
     data_file_path.set_extension("tsv");
     rename(original_file_path, data_file_path)?;
+
+    // remove zip file and readme file
+    let readme_file: PathBuf = ["data", "readme"].iter().collect();
+    remove_file(readme_file)?;
+    remove_file(ZIP_PATH)?;
     Ok(())
 }
 
-fn _unzip_file(filename: &str) -> Result<()> {
+fn _unzip_file(filename: &str) -> anyhow::Result<()> {
     let file = File::open(filename)?;
 
-    let mut archive = zip::ZipArchive::new(file).map_err(candle_core::Error::wrap)?;
+    let mut archive = zip::ZipArchive::new(file)?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(candle_core::Error::wrap)?;
+        let mut file = archive.by_index(i)?;
         let outpath = match file.enclosed_name() {
             Some(path) => {
                 let mut retval = PathBuf::from("data");
@@ -63,7 +67,7 @@ fn _unzip_file(filename: &str) -> Result<()> {
 
         if file.is_dir() {
             println!("File {} extracted to \"{}\"", i, outpath.display());
-            create_dir_all(&outpath).unwrap();
+            create_dir_all(&outpath)?;
         } else {
             println!(
                 "File {} extracted to \"{}\" ({} bytes)",
@@ -73,11 +77,11 @@ fn _unzip_file(filename: &str) -> Result<()> {
             );
             if let Some(p) = outpath.parent() {
                 if !p.exists() {
-                    create_dir_all(p).unwrap();
+                    create_dir_all(p)?;
                 }
             }
-            let mut outfile = File::create(&outpath).unwrap();
-            io::copy(&mut file, &mut outfile).unwrap();
+            let mut outfile = File::create(&outpath)?;
+            io::copy(&mut file, &mut outfile)?;
         }
     }
     Ok(())
