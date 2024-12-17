@@ -1,8 +1,10 @@
 //! Listings from Chapter 6
 
+use bytes::Bytes;
 use candle_core::Result;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io;
+use std::path::PathBuf;
 
 pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip";
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
@@ -18,9 +20,55 @@ pub fn download_and_unzip_spam_data(
     datafile_path: &str,
 ) -> Result<()> {
     let resp = reqwest::blocking::get(url).map_err(candle_core::Error::wrap)?;
-    let body = resp.text().map_err(candle_core::Error::wrap)?;
+    let content: Bytes = resp.bytes().map_err(candle_core::Error::wrap)?;
     let mut out = File::create(zip_path)?;
-    io::copy(&mut body.as_bytes(), &mut out).map_err(candle_core::Error::wrap)?;
+    io::copy(&mut content.as_ref(), &mut out).map_err(candle_core::Error::wrap)?;
+    _unzip_file(zip_path)?;
+    Ok(())
+}
+
+fn _unzip_file(filename: &str) -> Result<()> {
+    let file = File::open(filename)?;
+
+    let mut archive = zip::ZipArchive::new(file).map_err(candle_core::Error::wrap)?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(candle_core::Error::wrap)?;
+        let outpath = match file.enclosed_name() {
+            Some(path) => {
+                let mut retval = PathBuf::from("data");
+                retval.push(path);
+                retval
+            }
+            None => continue,
+        };
+
+        {
+            let comment = file.comment();
+            if !comment.is_empty() {
+                println!("File {i} comment: {comment}");
+            }
+        }
+
+        if file.is_dir() {
+            println!("File {} extracted to \"{}\"", i, outpath.display());
+            create_dir_all(&outpath).unwrap();
+        } else {
+            println!(
+                "File {} extracted to \"{}\" ({} bytes)",
+                i,
+                outpath.display(),
+                file.size()
+            );
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    create_dir_all(p).unwrap();
+                }
+            }
+            let mut outfile = File::create(&outpath).unwrap();
+            io::copy(&mut file, &mut outfile).unwrap();
+        }
+    }
     Ok(())
 }
 
