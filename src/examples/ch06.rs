@@ -66,7 +66,24 @@ impl Example for EG02 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch06::{download_smsspam_parquet, PARQUET_URL};
+        use polars::prelude::*;
+
+        // download parquet file
         download_smsspam_parquet(PARQUET_URL)?;
+
+        let mut file = std::fs::File::open("data/train-00000-of-00001.parquet").unwrap();
+        let df = ParquetReader::new(&mut file).finish().unwrap();
+        let result = df
+            .clone()
+            .lazy()
+            .with_column(
+                when(col("label").eq(0))
+                    .then(lit("ham"))
+                    .otherwise(lit("spam"))
+                    .alias("label_text"),
+            )
+            .collect()?;
+        println!("{}", result);
         Ok(())
     }
 }
@@ -99,22 +116,14 @@ impl Example for EG03 {
     }
 
     fn main(&self) -> Result<()> {
-        // use crate::listings::ch06::create_balanced_dataset;
+        use crate::listings::ch06::create_balanced_dataset;
         use polars::prelude::*;
 
         let mut file = std::fs::File::open("data/train-00000-of-00001.parquet").unwrap();
         let df = ParquetReader::new(&mut file).finish().unwrap();
-        let result = df
-            .clone()
-            .lazy()
-            .with_column(
-                when(col("label").eq(0))
-                    .then(lit("ham"))
-                    .otherwise(lit("spam"))
-                    .alias("label_text"),
-            )
-            .collect()?;
-        println!("{}", result);
+
+        let _balanced_df = create_balanced_dataset(df)?;
+
         Ok(())
     }
 }
