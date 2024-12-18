@@ -2,9 +2,11 @@
 
 use anyhow::Error;
 use bytes::Bytes;
+use polars::prelude::{col, DataFrame, IntoLazy};
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
 use std::path::{Path, PathBuf};
+use zip::ZipArchive;
 
 pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip";
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
@@ -61,7 +63,7 @@ fn remove_file_if_exists<P: AsRef<Path>>(fname: P) -> anyhow::Result<()> {
 fn _unzip_file(filename: &str) -> anyhow::Result<()> {
     let file = File::open(filename)?;
 
-    let mut archive = zip::ZipArchive::new(file)?;
+    let mut archive = ZipArchive::new(file)?;
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
@@ -101,4 +103,15 @@ fn _unzip_file(filename: &str) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+/// [Listing 6.2] Creating a balanced dataset
+pub fn create_balanced_dataset(df: DataFrame) -> anyhow::Result<DataFrame> {
+    let result = df
+        .clone()
+        .lazy()
+        .filter(col("Label").eq("spam"))
+        .collect()?;
+    println!("{}", result);
+    Ok(result)
 }
