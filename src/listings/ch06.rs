@@ -15,7 +15,7 @@ pub const EXTRACTED_FILENAME: &str = "SMSSpamCollection";
 pub const PARQUET_URL: &str = "https://huggingface.co/datasets/ucirvine/sms_spam/resolve/main/plain_text/train-00000-of-00001.parquet?download=true";
 pub const PARQUET_FILENAME: &str = "train-00000-of-00001.parquet";
 
-/// [Listing 6.1 (modified)] Download spam parquet dataset from HuggingFace
+/// [Listing 6.1 (parquet)] Download spam parquet dataset from HuggingFace
 pub fn download_smsspam_parquet(url: &str) -> anyhow::Result<()> {
     // download parquet file
     let resp = reqwest::blocking::get(url)?;
@@ -28,7 +28,7 @@ pub fn download_smsspam_parquet(url: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// [Listing 6.1 (for reference only)] Downloading and unzipping the dataset
+/// [Listing 6.1] Downloading and unzipping the dataset
 #[allow(unused_variables)]
 pub fn download_and_unzip_spam_data(
     url: &str,

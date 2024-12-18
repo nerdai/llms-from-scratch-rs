@@ -32,7 +32,38 @@ impl Example for EG01 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch06::{download_and_unzip_spam_data, EXTRACTED_PATH, URL, ZIP_PATH};
+        use polars::prelude::*;
+        use std::sync::Arc;
+
+        // download sms spam .tsv file
         download_and_unzip_spam_data(URL, ZIP_PATH, EXTRACTED_PATH)?;
+
+        // load in .tsv as a DataFrame
+        let f1 = Field::new("Label".into(), DataType::String);
+        let f2 = Field::new("Text".into(), DataType::String);
+        let sc = Arc::new(Schema::from_iter(vec![f1, f2]));
+        let parse_options = CsvParseOptions::default()
+            .with_separator(b'\t')
+            .with_quote_char(None);
+        let df = CsvReadOptions::default()
+            .with_parse_options(parse_options)
+            .with_schema(Some(sc))
+            .with_has_header(false)
+            .try_into_reader_with_file_path(Some("data/SMSSpamCollection.tsv".into()))
+            .unwrap()
+            .finish()?;
+        println!("{}", df);
+
+        // get value counts for label
+        let result = df
+            .clone()
+            .lazy()
+            .select([col("Label")
+                .value_counts(false, false, "count", false)
+                .alias("value_counts")])
+            .collect()?;
+
+        println!("{}", result);
         Ok(())
     }
 }
