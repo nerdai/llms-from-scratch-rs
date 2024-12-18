@@ -77,7 +77,7 @@ impl Example for EG02 {
         file_path.push(PARQUET_FILENAME);
         let mut file = std::fs::File::open(file_path)?;
         let df = ParquetReader::new(&mut file).finish()?;
-        let result = df
+        let df = df
             .clone()
             .lazy()
             .with_column(
@@ -87,7 +87,19 @@ impl Example for EG02 {
                     .alias("label_text"),
             )
             .collect()?;
+        println!("{}", df);
+
+        // get value counts for label
+        let result = df
+            .clone()
+            .lazy()
+            .select([col("label_text")
+                .value_counts(false, false, "count", false)
+                .alias("value_counts")])
+            .collect()?;
+
         println!("{}", result);
+
         Ok(())
     }
 }
