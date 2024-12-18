@@ -12,8 +12,23 @@ pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+co
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
 pub const EXTRACTED_PATH: &str = "sms_spam_collection";
 pub const EXTRACTED_FILENAME: &str = "SMSSpamCollection";
+pub const PARQUET_URL: &str = "https://huggingface.co/datasets/ucirvine/sms_spam/resolve/main/plain_text/train-00000-of-00001.parquet?download=true";
+pub const PARQUET_FILENAME: &str = "train-00000-of-00001.parquet";
 
-/// [Listing 6.1] Downloading and unzipping the dataset
+/// [Listing 6.1 (modified)] Download spam parquet dataset from HuggingFace
+pub fn download_smsspam_parquet(url: &str) -> anyhow::Result<()> {
+    // download parquet file
+    let resp = reqwest::blocking::get(url)?;
+    let content: Bytes = resp.bytes()?;
+
+    let mut out_path = PathBuf::from("data");
+    out_path.push(PARQUET_FILENAME);
+    let mut out = File::create(out_path)?;
+    io::copy(&mut content.as_ref(), &mut out)?;
+    Ok(())
+}
+
+/// [Listing 6.1 (for reference only)] Downloading and unzipping the dataset
 #[allow(unused_variables)]
 pub fn download_and_unzip_spam_data(
     url: &str,

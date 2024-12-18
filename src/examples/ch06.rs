@@ -37,6 +37,40 @@ impl Example for EG01 {
     }
 }
 
+/// # Example usage of `download_smsspam_parquet`
+///
+/// #### Id
+/// 06.02
+///
+/// #### Page
+/// This example starts on page 173
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.02
+///
+/// # with cuda
+/// cargo run --features cuda example 06.0r
+/// ```
+pub struct EG02;
+
+impl Example for EG02 {
+    fn description(&self) -> String {
+        String::from("Sample usage of `download_smsspam_parquet`")
+    }
+
+    fn page_source(&self) -> usize {
+        173_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch06::{download_smsspam_parquet, PARQUET_URL};
+        download_smsspam_parquet(PARQUET_URL)?;
+        Ok(())
+    }
+}
+
 /// # Example usage of `download_and_unzip_spam_data`
 ///
 /// #### Id
@@ -53,9 +87,9 @@ impl Example for EG01 {
 /// # with cuda
 /// cargo run --features cuda example 06.01
 /// ```
-pub struct EG02;
+pub struct EG03;
 
-impl Example for EG02 {
+impl Example for EG03 {
     fn description(&self) -> String {
         String::from("Sample usage of `create_balanced_dataset`")
     }
