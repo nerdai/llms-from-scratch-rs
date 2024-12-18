@@ -51,7 +51,7 @@ impl Example for EG01 {
 /// cargo run example 06.02
 ///
 /// # with cuda
-/// cargo run --features cuda example 06.0r
+/// cargo run --features cuda example 06.02
 /// ```
 pub struct EG02;
 
@@ -65,14 +65,18 @@ impl Example for EG02 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch06::{download_smsspam_parquet, PARQUET_URL};
+        use crate::listings::ch06::{download_smsspam_parquet, PARQUET_FILENAME, PARQUET_URL};
         use polars::prelude::*;
+        use std::path::PathBuf;
 
         // download parquet file
         download_smsspam_parquet(PARQUET_URL)?;
 
-        let mut file = std::fs::File::open("data/train-00000-of-00001.parquet").unwrap();
-        let df = ParquetReader::new(&mut file).finish().unwrap();
+        // load parquet
+        let mut file_path = PathBuf::from("data");
+        file_path.push(PARQUET_FILENAME);
+        let mut file = std::fs::File::open(file_path)?;
+        let df = ParquetReader::new(&mut file).finish()?;
         let result = df
             .clone()
             .lazy()
