@@ -71,27 +71,27 @@ impl Example for EG02 {
     }
 }
 
-/// # Example usage of `download_and_unzip_spam_data`
+/// # Example usage of `create_balanced_dataset`
 ///
 /// #### Id
-/// 06.01
+/// 06.03
 ///
 /// #### Page
-/// This example starts on page 173
+/// This example starts on page 174
 ///
 /// #### CLI command
 /// ```sh
 /// # without cuda
-/// cargo run example 06.01
+/// cargo run example 06.03
 ///
 /// # with cuda
-/// cargo run --features cuda example 06.01
+/// cargo run --features cuda example 06.03
 /// ```
 pub struct EG03;
 
 impl Example for EG03 {
     fn description(&self) -> String {
-        String::from("Sample usage of `create_balanced_dataset`")
+        String::from("Example usage of `create_balanced_dataset`")
     }
 
     fn page_source(&self) -> usize {
@@ -102,17 +102,19 @@ impl Example for EG03 {
         // use crate::listings::ch06::create_balanced_dataset;
         use polars::prelude::*;
 
-        let parse_options = CsvParseOptions::default().with_separator(b'\t');
-        let df = CsvReadOptions::default()
-            .with_parse_options(parse_options)
-            .with_has_header(false)
-            .try_into_reader_with_file_path(Some("data/SMSSpamCollection.tsv".into()))
-            .unwrap()
-            .finish()?;
-
-        // let mut file = std::fs::File::open("data/train-00000-of-00001.parquet").unwrap();
-        // let df = ParquetReader::new(&mut file).finish().unwrap();
-        println!("{}", df);
+        let mut file = std::fs::File::open("data/train-00000-of-00001.parquet").unwrap();
+        let df = ParquetReader::new(&mut file).finish().unwrap();
+        let result = df
+            .clone()
+            .lazy()
+            .with_column(
+                when(col("label").eq(0))
+                    .then(lit("ham"))
+                    .otherwise(lit("spam"))
+                    .alias("label_text"),
+            )
+            .collect()?;
+        println!("{}", result);
         Ok(())
     }
 }
