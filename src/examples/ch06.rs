@@ -1,5 +1,7 @@
 //! Examples from Chapter 6
 
+use std::path::PathBuf;
+
 use crate::Example;
 use anyhow::Result;
 
@@ -163,13 +165,35 @@ impl Example for EG03 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch06::create_balanced_dataset;
+        use crate::listings::ch06::{
+            create_balanced_dataset, download_smsspam_parquet, PARQUET_FILENAME, PARQUET_URL,
+        };
         use polars::prelude::*;
 
-        let mut file = std::fs::File::open("data/train-00000-of-00001.parquet").unwrap();
+        // download parquet
+        download_smsspam_parquet(PARQUET_URL)?;
+
+        // load parquet
+        let mut file_path = PathBuf::from("data");
+        file_path.push(PARQUET_FILENAME);
+        let mut file = std::fs::File::open(file_path).unwrap();
         let df = ParquetReader::new(&mut file).finish().unwrap();
 
-        let _balanced_df = create_balanced_dataset(df)?;
+        // balance dataset
+        let balanced_df = create_balanced_dataset(df)?;
+
+        println!("{}", balanced_df);
+
+        // get value counts for label
+        let result = balanced_df
+            .clone()
+            .lazy()
+            .select([col("label")
+                .value_counts(false, false, "count", false)
+                .alias("value_counts")])
+            .collect()?;
+
+        println!("{}", result);
 
         Ok(())
     }
