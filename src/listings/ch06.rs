@@ -1,12 +1,12 @@
 //! Listings from Chapter 6
 
+use ::zip::ZipArchive;
 use anyhow::Error;
 use bytes::Bytes;
-use polars::prelude::{col, DataFrame, IntoLazy};
+use polars::prelude::*;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
 use std::path::{Path, PathBuf};
-use zip::ZipArchive;
 
 pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip";
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
@@ -122,11 +122,51 @@ fn _unzip_file(filename: &str) -> anyhow::Result<()> {
 
 /// [Listing 6.2] Creating a balanced dataset
 pub fn create_balanced_dataset(df: DataFrame) -> anyhow::Result<DataFrame> {
-    let result = df
-        .clone()
-        .lazy()
-        .filter(col("Label").eq("spam"))
-        .collect()?;
-    println!("{}", result);
-    Ok(result)
+    // balance by undersampling
+    let mask = df.column("label")?.i64()?.equal(1);
+    let spam_subset = df.filter(&mask)?;
+    let num_spam = spam_subset.shape().0;
+
+    let mask = df.column("label")?.i64()?.equal(0);
+    let ham_subset = df.filter(&mask)?;
+    let n = Series::from_iter([num_spam as i32].iter());
+    let undersampled_ham_subset = ham_subset.sample_n(&n, false, true, Some(1234_u64))?;
+
+    let balanced_df = concat(
+        [
+            spam_subset.clone().lazy(),
+            undersampled_ham_subset.clone().lazy(),
+        ],
+        UnionArgs::default(),
+    )?
+    .collect()?;
+
+    Ok(balanced_df)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use rstest::*;
+
+    #[fixture]
+    pub fn sms_spam_df() -> (DataFrame, usize) {
+        let df = df!(
+            "sms"=> &["sms1", "sms2", "sms3", "sms4", "sms5"],
+            "label"=> &[0_i64, 0, 1, 1, 0],
+        )
+        .unwrap();
+        (df, 2usize)
+    }
+
+    #[rstest]
+    pub fn test_create_balanced_dataset(
+        #[from(sms_spam_df)] (df, num_spam): (DataFrame, usize),
+    ) -> Result<()> {
+        let balanced_df = create_balanced_dataset(df)?;
+
+        assert_eq!(balanced_df.shape(), (num_spam * 2_usize, 2));
+        Ok(())
+    }
 }

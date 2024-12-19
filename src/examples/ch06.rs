@@ -1,5 +1,7 @@
 //! Examples from Chapter 6
 
+use std::path::PathBuf;
+
 use crate::Example;
 use anyhow::Result;
 
@@ -55,15 +57,9 @@ impl Example for EG01 {
         println!("{}", df);
 
         // get value counts for label
-        let result = df
-            .clone()
-            .lazy()
-            .select([col("Label")
-                .value_counts(false, false, "count", false)
-                .alias("value_counts")])
-            .collect()?;
+        let value_counts = addons::get_value_counts(&df, "Label")?;
+        println!("{}", value_counts);
 
-        println!("{}", result);
         Ok(())
     }
 }
@@ -121,15 +117,8 @@ impl Example for EG02 {
         println!("{}", df);
 
         // get value counts for label
-        let result = df
-            .clone()
-            .lazy()
-            .select([col("label_text")
-                .value_counts(false, false, "count", false)
-                .alias("value_counts")])
-            .collect()?;
-
-        println!("{}", result);
+        let value_counts = addons::get_value_counts(&df, "label_text")?;
+        println!("{}", value_counts);
 
         Ok(())
     }
@@ -163,14 +152,45 @@ impl Example for EG03 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch06::create_balanced_dataset;
+        use crate::listings::ch06::{
+            create_balanced_dataset, download_smsspam_parquet, PARQUET_FILENAME, PARQUET_URL,
+        };
         use polars::prelude::*;
 
-        let mut file = std::fs::File::open("data/train-00000-of-00001.parquet").unwrap();
+        // download parquet
+        download_smsspam_parquet(PARQUET_URL)?;
+
+        // load parquet
+        let mut file_path = PathBuf::from("data");
+        file_path.push(PARQUET_FILENAME);
+        let mut file = std::fs::File::open(file_path).unwrap();
         let df = ParquetReader::new(&mut file).finish().unwrap();
 
-        let _balanced_df = create_balanced_dataset(df)?;
+        // balance dataset
+        let balanced_df = create_balanced_dataset(df)?;
+        println!("{}", balanced_df);
+
+        // get value counts for label
+        let value_counts = addons::get_value_counts(&balanced_df, "label")?;
+        println!("{}", value_counts);
 
         Ok(())
+    }
+}
+
+pub mod addons {
+    //! Auxiliary module for examples::ch06
+    use polars::prelude::*;
+
+    /// Helper function to get value counts for a polars::DataFrame for a specified column
+    pub fn get_value_counts(df: &DataFrame, cname: &str) -> anyhow::Result<DataFrame> {
+        let result = df
+            .clone()
+            .lazy()
+            .select([col(cname)
+                .value_counts(false, false, "count", false)
+                .alias("value_counts")])
+            .collect()?;
+        Ok(result)
     }
 }
