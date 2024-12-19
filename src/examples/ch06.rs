@@ -57,15 +57,9 @@ impl Example for EG01 {
         println!("{}", df);
 
         // get value counts for label
-        let result = df
-            .clone()
-            .lazy()
-            .select([col("Label")
-                .value_counts(false, false, "count", false)
-                .alias("value_counts")])
-            .collect()?;
+        let value_counts = addons::get_value_counts(&df, "Label")?;
+        println!("{}", value_counts);
 
-        println!("{}", result);
         Ok(())
     }
 }
@@ -123,15 +117,8 @@ impl Example for EG02 {
         println!("{}", df);
 
         // get value counts for label
-        let result = df
-            .clone()
-            .lazy()
-            .select([col("label_text")
-                .value_counts(false, false, "count", false)
-                .alias("value_counts")])
-            .collect()?;
-
-        println!("{}", result);
+        let value_counts = addons::get_value_counts(&df, "label_text")?;
+        println!("{}", value_counts);
 
         Ok(())
     }
@@ -181,20 +168,29 @@ impl Example for EG03 {
 
         // balance dataset
         let balanced_df = create_balanced_dataset(df)?;
-
         println!("{}", balanced_df);
 
         // get value counts for label
-        let result = balanced_df
+        let value_counts = addons::get_value_counts(&balanced_df, "label")?;
+        println!("{}", value_counts);
+
+        Ok(())
+    }
+}
+
+pub mod addons {
+    //! Auxiliary module for examples::ch06
+    use polars::prelude::*;
+
+    /// Helper function to get value counts for a polars::DataFrame for a specified column
+    pub fn get_value_counts(df: &DataFrame, cname: &str) -> anyhow::Result<DataFrame> {
+        let result = df
             .clone()
             .lazy()
-            .select([col("label")
+            .select([col(cname)
                 .value_counts(false, false, "count", false)
                 .alias("value_counts")])
             .collect()?;
-
-        println!("{}", result);
-
-        Ok(())
+        Ok(result)
     }
 }
