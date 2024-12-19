@@ -143,3 +143,30 @@ pub fn create_balanced_dataset(df: DataFrame) -> anyhow::Result<DataFrame> {
 
     Ok(balanced_df)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use rstest::*;
+
+    #[fixture]
+    pub fn sms_spam_df() -> (DataFrame, usize) {
+        let df = df!(
+            "sms"=> &["sms1", "sms2", "sms3", "sms4", "sms5"],
+            "label"=> &[0_i64, 0, 1, 1, 0],
+        )
+        .unwrap();
+        (df, 2usize)
+    }
+
+    #[rstest]
+    pub fn test_create_balanced_dataset(
+        #[from(sms_spam_df)] (df, num_spam): (DataFrame, usize),
+    ) -> Result<()> {
+        let balanced_df = create_balanced_dataset(df)?;
+
+        assert_eq!(balanced_df.shape(), (num_spam * 2_usize, 2));
+        Ok(())
+    }
+}
