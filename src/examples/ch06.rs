@@ -178,6 +178,65 @@ impl Example for EG03 {
     }
 }
 
+/// # Example usage of `random_split`
+///
+/// #### Id
+/// 06.04
+///
+/// #### Page
+/// This example starts on page 175
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.04
+///
+/// # with cuda
+/// cargo run --features cuda example 06.04
+/// ```
+pub struct EG04;
+
+impl Example for EG04 {
+    fn description(&self) -> String {
+        String::from("Example usage of `random_split`")
+    }
+
+    fn page_source(&self) -> usize {
+        174_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch06::{
+            create_balanced_dataset, download_smsspam_parquet, random_split, PARQUET_FILENAME,
+            PARQUET_URL,
+        };
+        use polars::prelude::*;
+
+        // download parquet
+        download_smsspam_parquet(PARQUET_URL)?;
+
+        // load parquet
+        let mut file_path = PathBuf::from("data");
+        file_path.push(PARQUET_FILENAME);
+        let mut file = std::fs::File::open(file_path).unwrap();
+        let df = ParquetReader::new(&mut file).finish().unwrap();
+
+        // balance dataset
+        let balanced_df = create_balanced_dataset(df)?;
+        println!("{}", balanced_df);
+
+        // create train, test, val splits
+        let (train_df, validation_df, test_df) = random_split(&balanced_df, 0.7_f32, 0.1_f32)?;
+        println!("{}", train_df);
+        println!("{}", validation_df);
+        println!("{}", test_df);
+
+        // save dfs to csv
+
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
