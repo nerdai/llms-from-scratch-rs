@@ -1,6 +1,6 @@
 //! Examples from Chapter 6
 
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use crate::Example;
 use anyhow::Result;
@@ -225,12 +225,20 @@ impl Example for EG04 {
         let balanced_df = create_balanced_dataset(df)?;
 
         // create train, test, val splits
-        let (train_df, validation_df, test_df) = random_split(&balanced_df, 0.7_f32, 0.1_f32)?;
+        let (mut train_df, mut validation_df, mut test_df) =
+            random_split(&balanced_df, 0.7_f32, 0.1_f32)?;
         println!("{}", train_df);
         println!("{}", validation_df);
         println!("{}", test_df);
 
         // save dfs to csv
+        let train_path = PathBuf::from_str("data/train.csv")?;
+        let validation_path = PathBuf::from_str("data/validation.csv")?;
+        let test_path = PathBuf::from_str("data/test.csv")?;
+
+        addons::write_csv(&mut train_df, train_path)?;
+        addons::write_csv(&mut validation_df, validation_path)?;
+        addons::write_csv(&mut test_df, test_path)?;
 
         Ok(())
     }
@@ -239,6 +247,7 @@ impl Example for EG04 {
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
+    use std::path::Path;
 
     /// Helper function to get value counts for a polars::DataFrame for a specified column
     pub fn get_value_counts(df: &DataFrame, cname: &str) -> anyhow::Result<DataFrame> {
@@ -250,5 +259,11 @@ pub mod addons {
                 .alias("value_counts")])
             .collect()?;
         Ok(result)
+    }
+
+    pub fn write_csv<P: AsRef<Path>>(df: &mut DataFrame, fname: P) -> anyhow::Result<()> {
+        let mut file = std::fs::File::create(fname).unwrap();
+        CsvWriter::new(&mut file).finish(df).unwrap();
+        Ok(())
     }
 }
