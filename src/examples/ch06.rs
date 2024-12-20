@@ -1,6 +1,6 @@
 //! Examples from Chapter 6
 
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use crate::Example;
 use anyhow::Result;
@@ -178,9 +178,76 @@ impl Example for EG03 {
     }
 }
 
+/// # Example usage of `random_split`
+///
+/// #### Id
+/// 06.04
+///
+/// #### Page
+/// This example starts on page 175
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.04
+///
+/// # with cuda
+/// cargo run --features cuda example 06.04
+/// ```
+pub struct EG04;
+
+impl Example for EG04 {
+    fn description(&self) -> String {
+        String::from("Example usage of `random_split` to create our train, test, val splits")
+    }
+
+    fn page_source(&self) -> usize {
+        174_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch06::{
+            create_balanced_dataset, download_smsspam_parquet, random_split, PARQUET_FILENAME,
+            PARQUET_URL,
+        };
+        use polars::prelude::*;
+
+        // download parquet
+        download_smsspam_parquet(PARQUET_URL)?;
+
+        // load parquet
+        let mut file_path = PathBuf::from("data");
+        file_path.push(PARQUET_FILENAME);
+        let mut file = std::fs::File::open(file_path).unwrap();
+        let df = ParquetReader::new(&mut file).finish().unwrap();
+
+        // balance dataset
+        let balanced_df = create_balanced_dataset(df)?;
+
+        // create train, test, val splits
+        let (mut train_df, mut validation_df, mut test_df) =
+            random_split(&balanced_df, 0.7_f32, 0.1_f32)?;
+        println!("{}", train_df);
+        println!("{}", validation_df);
+        println!("{}", test_df);
+
+        // save dfs to csv
+        let train_path = PathBuf::from_str("data/train.csv")?;
+        let validation_path = PathBuf::from_str("data/validation.csv")?;
+        let test_path = PathBuf::from_str("data/test.csv")?;
+
+        addons::write_csv(&mut train_df, train_path)?;
+        addons::write_csv(&mut validation_df, validation_path)?;
+        addons::write_csv(&mut test_df, test_path)?;
+
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
+    use std::path::Path;
 
     /// Helper function to get value counts for a polars::DataFrame for a specified column
     pub fn get_value_counts(df: &DataFrame, cname: &str) -> anyhow::Result<DataFrame> {
@@ -192,5 +259,11 @@ pub mod addons {
                 .alias("value_counts")])
             .collect()?;
         Ok(result)
+    }
+
+    pub fn write_csv<P: AsRef<Path>>(df: &mut DataFrame, fname: P) -> anyhow::Result<()> {
+        let mut file = std::fs::File::create(fname).unwrap();
+        CsvWriter::new(&mut file).finish(df).unwrap();
+        Ok(())
     }
 }
