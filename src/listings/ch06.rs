@@ -147,7 +147,7 @@ pub fn create_balanced_dataset(df: DataFrame) -> anyhow::Result<DataFrame> {
 /// [Listing 6.3] Splitting the dataset
 #[allow(unused_variables)]
 pub fn random_split(
-    df: DataFrame,
+    df: &DataFrame,
     train_frac: f32,
     validation_frac: f32,
 ) -> anyhow::Result<(DataFrame, DataFrame, DataFrame)> {
@@ -190,6 +190,30 @@ mod tests {
         let balanced_df = create_balanced_dataset(df)?;
 
         assert_eq!(balanced_df.shape(), (num_spam * 2_usize, 2));
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_random_split(
+        #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
+    ) -> Result<()> {
+        let train_frac = 0.4_f32;
+        let validation_frac = 0.4_f32;
+        let test_frac = 1_f32 - train_frac - validation_frac;
+        let (train_df, validation_df, test_df) = random_split(&df, train_frac, validation_frac)?;
+
+        assert_eq!(
+            train_df.shape(),
+            ((train_frac * df.shape().0 as f32) as usize, 2)
+        );
+        assert_eq!(
+            validation_df.shape(),
+            ((validation_frac * df.shape().0 as f32) as usize, 2)
+        );
+        assert_eq!(
+            test_df.shape(),
+            ((test_frac * df.shape().0 as f32) as usize, 2)
+        );
         Ok(())
     }
 }
