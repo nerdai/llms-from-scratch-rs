@@ -223,7 +223,6 @@ impl Example for EG04 {
 
         // balance dataset
         let balanced_df = create_balanced_dataset(df)?;
-        println!("{}", balanced_df);
 
         // create train, test, val splits
         let (train_df, validation_df, test_df) = random_split(&balanced_df, 0.7_f32, 0.1_f32)?;
