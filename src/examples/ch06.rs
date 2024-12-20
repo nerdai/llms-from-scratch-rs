@@ -198,7 +198,7 @@ pub struct EG04;
 
 impl Example for EG04 {
     fn description(&self) -> String {
-        String::from("Example usage of `random_split`")
+        String::from("Example usage of `random_split` to create our train, test, val splits")
     }
 
     fn page_source(&self) -> usize {
