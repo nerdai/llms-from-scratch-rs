@@ -144,6 +144,29 @@ pub fn create_balanced_dataset(df: DataFrame) -> anyhow::Result<DataFrame> {
     Ok(balanced_df)
 }
 
+/// [Listing 6.3] Splitting the dataset
+#[allow(unused_variables)]
+pub fn random_split(
+    df: &DataFrame,
+    train_frac: f32,
+    validation_frac: f32,
+) -> anyhow::Result<(DataFrame, DataFrame, DataFrame)> {
+    let frac = Series::from_iter([1_f32].iter());
+    let shuffled_df = df.sample_frac(&frac, false, true, Some(123_u64))?;
+
+    let df_size = df.shape().0;
+    let train_size = (df.shape().0 as f32 * train_frac) as usize;
+    let validation_size = (df.shape().0 as f32 * validation_frac) as usize;
+
+    let train_df = shuffled_df.slice(0_i64, train_size);
+    let validation_df = shuffled_df.slice(train_size as i64, validation_size);
+    let test_df = shuffled_df.slice(
+        (train_size + validation_size) as i64,
+        df_size - train_size - validation_size,
+    );
+    Ok((train_df, validation_df, test_df))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,6 +190,30 @@ mod tests {
         let balanced_df = create_balanced_dataset(df)?;
 
         assert_eq!(balanced_df.shape(), (num_spam * 2_usize, 2));
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_random_split(
+        #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
+    ) -> Result<()> {
+        let train_frac = 0.4_f32;
+        let validation_frac = 0.4_f32;
+        let test_frac = 1_f32 - train_frac - validation_frac;
+        let (train_df, validation_df, test_df) = random_split(&df, train_frac, validation_frac)?;
+
+        assert_eq!(
+            train_df.shape(),
+            ((train_frac * df.shape().0 as f32) as usize, 2)
+        );
+        assert_eq!(
+            validation_df.shape(),
+            ((validation_frac * df.shape().0 as f32) as usize, 2)
+        );
+        assert_eq!(
+            test_df.shape(),
+            ((test_frac * df.shape().0 as f32) as usize, 2)
+        );
         Ok(())
     }
 }
