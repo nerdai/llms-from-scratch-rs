@@ -219,6 +219,11 @@ impl SpamDataset {
         self.data.is_empty()
     }
 
+    /// Returns the input tokens for all input sequences.
+    pub fn max_length(&self) -> usize {
+        self.max_length
+    }
+
     /// Returns the input-target pair at the specified index.
     #[allow(unused_variables)]
     pub fn get_item_at_index(&self, idx: usize) -> (&Vec<u32>, &Vec<u32>) {
