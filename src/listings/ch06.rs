@@ -3,6 +3,7 @@
 use ::zip::ZipArchive;
 use anyhow::Error;
 use bytes::Bytes;
+use candle_core::{Device, Result, Tensor};
 use polars::prelude::*;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
@@ -216,6 +217,43 @@ impl SpamDataset {
     /// Checks whether the dataset is empty or has no finetuning examples.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    /// Returns the input-target pair at the specified index.
+    #[allow(unused_variables)]
+    pub fn get_item_at_index(&self, idx: usize) -> (&Vec<u32>, &Vec<u32>) {
+        todo!()
+    }
+}
+
+#[allow(dead_code)]
+pub struct SpamDatasetIter {
+    dataset: SpamDataset,
+    remaining_indices: Vec<usize>,
+}
+
+impl SpamDatasetIter {
+    #[allow(unused_variables)]
+    pub fn new(dataset: SpamDataset, shuffle: bool) -> Self {
+        todo!()
+    }
+}
+
+impl Iterator for SpamDatasetIter {
+    type Item = Result<(Tensor, Tensor)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.remaining_indices.pop() {
+            let (encoded, label) = self.dataset.get_item_at_index(idx);
+
+            // turn into Tensors and return
+            let dev = Device::cuda_if_available(0).unwrap();
+            let encoded_tensor = Tensor::new(&encoded[..], &dev);
+            let label_tensor = Tensor::new(&label[..], &dev);
+            Some(candle_core::error::zip(encoded_tensor, label_tensor))
+        } else {
+            None
+        }
     }
 }
 
