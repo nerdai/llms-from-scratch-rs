@@ -7,6 +7,8 @@ use polars::prelude::*;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use tiktoken_rs::CoreBPE;
 
 pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip";
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
@@ -165,6 +167,56 @@ pub fn random_split(
         df_size - train_size - validation_size,
     );
     Ok((train_df, validation_df, test_df))
+}
+
+#[allow(dead_code)]
+pub struct SpamDataset_ {
+    data: DataFrame,
+    encoded_texts: Vec<Vec<u32>>,
+    max_length: usize,
+    pad_token_id: u32,
+}
+
+/// [Listing 6.4] Setting up a `SpamDataset` struct
+///
+/// SpamDataset is a wrapper for `SpamDataset_` which is refcounted.
+#[derive(Clone)]
+pub struct SpamDataset(Rc<SpamDataset_>);
+
+impl AsRef<SpamDataset> for SpamDataset {
+    fn as_ref(&self) -> &SpamDataset {
+        self
+    }
+}
+
+impl std::ops::Deref for SpamDataset {
+    type Target = SpamDataset_;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+impl SpamDataset {
+    #[allow(unused_variables)]
+    pub fn new<P: AsRef<Path>>(
+        csv_file: P,
+        tokenizer: CoreBPE,
+        max_length: usize,
+        pad_token_id: u32,
+    ) -> Self {
+        todo!()
+    }
+
+    /// Gets the number of finetuning examples.
+    pub fn len(&self) -> usize {
+        self.data.shape().0
+    }
+
+    /// Checks whether the dataset is empty or has no finetuning examples.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 }
 
 #[cfg(test)]
