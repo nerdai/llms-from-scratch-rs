@@ -1,7 +1,7 @@
 //! Listings from Chapter 6
 
 use ::zip::ZipArchive;
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use polars::prelude::*;
@@ -226,8 +226,18 @@ impl SpamDataset {
 
     /// Returns the input-target pair at the specified index.
     #[allow(unused_variables)]
-    pub fn get_item_at_index(&self, idx: usize) -> (&Vec<u32>, &Vec<u32>) {
-        todo!()
+    pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<(&Vec<u32>, Vec<i64>)> {
+        let encoded = &self.encoded_texts[idx];
+        let binding = self.data.select(["label"])?;
+        let label = match &binding.get_row(idx)?.0[0] {
+            AnyValue::Int64(label_value) => Ok(label_value),
+            _ => Err(anyhow!(
+                "There was a problem in getting the Label from the dataframe."
+            )),
+        }?
+        .to_owned();
+
+        Ok((encoded, vec![label]))
     }
 }
 
@@ -249,7 +259,7 @@ impl Iterator for SpamDatasetIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(idx) = self.remaining_indices.pop() {
-            let (encoded, label) = self.dataset.get_item_at_index(idx);
+            let (encoded, label) = self.dataset.get_item_at_index(idx).unwrap();
 
             // turn into Tensors and return
             let dev = Device::cuda_if_available(0).unwrap();
