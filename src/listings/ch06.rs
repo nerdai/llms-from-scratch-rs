@@ -350,14 +350,9 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use rstest::*;
-    use std::{
-        ops::Not,
-        path::{Path, PathBuf},
-    };
+    use std::path::PathBuf;
+    use tempfile::NamedTempFile;
     use tiktoken_rs::get_bpe_from_model;
-
-    const TEST_PARQUET_FILENAME: &str = "test_spam.parquet";
-    const DATA_DIR: &str = "data";
 
     #[fixture]
     pub fn sms_spam_df() -> (DataFrame, usize) {
@@ -375,21 +370,13 @@ mod tests {
     }
 
     #[fixture]
-    pub fn test_parquet_path() -> PathBuf {
-        let test_parquet_path = Path::new(DATA_DIR).join(TEST_PARQUET_FILENAME);
-        if test_parquet_path.exists().not() {
-            // create a small parquet from the main parquet file
-            download_smsspam_parquet(PARQUET_URL).unwrap();
-            let file_path = Path::new(DATA_DIR).join(PARQUET_FILENAME);
-            let mut file = std::fs::File::open(file_path).unwrap();
-            let df = ParquetReader::new(&mut file).finish().unwrap();
-
-            let mut test_file = std::fs::File::create(test_parquet_path.as_path()).unwrap();
-            ParquetWriter::new(&mut test_file)
-                .finish(&mut df.head(Some(5)))
-                .unwrap();
-        }
-        return test_parquet_path;
+    pub fn test_parquet_path(
+        #[from(sms_spam_df)] (mut df, _num_spam): (DataFrame, usize),
+    ) -> PathBuf {
+        let mut test_file = NamedTempFile::new().unwrap();
+        ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
+        let path = test_file.into_temp_path().keep().unwrap();
+        path
     }
 
     #[rstest]
@@ -427,9 +414,9 @@ mod tests {
     }
 
     #[rstest]
-    #[case(None, 51_usize)]
+    #[case(None, 33_usize)]
     #[case(Some(10_usize), 10_usize)]
-    #[case(Some(60_usize), 51_usize)]
+    #[case(Some(60_usize), 33_usize)]
     pub fn test_spam_dataset_init(
         test_parquet_path: PathBuf,
         #[case] max_length: Option<usize>,
