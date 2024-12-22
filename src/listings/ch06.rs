@@ -1,12 +1,16 @@
 //! Listings from Chapter 6
 
 use ::zip::ZipArchive;
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 use bytes::Bytes;
+use candle_core::{Device, Result, Tensor};
 use polars::prelude::*;
+use std::cmp;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use tiktoken_rs::CoreBPE;
 
 pub const URL: &str = "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip";
 pub const ZIP_PATH: &str = "data/sms_spam_collection.zip";
@@ -165,6 +169,163 @@ pub fn random_split(
         df_size - train_size - validation_size,
     );
     Ok((train_df, validation_df, test_df))
+}
+
+#[allow(dead_code)]
+pub struct SpamDataset_ {
+    data: DataFrame,
+    encoded_texts: Vec<Vec<u32>>,
+    max_length: usize,
+    pad_token_id: u32,
+}
+
+/// [Listing 6.4] Setting up a `SpamDataset` struct
+///
+/// SpamDataset is a wrapper for `SpamDataset_` which is refcounted.
+#[derive(Clone)]
+pub struct SpamDataset(Rc<SpamDataset_>);
+
+impl AsRef<SpamDataset> for SpamDataset {
+    fn as_ref(&self) -> &SpamDataset {
+        self
+    }
+}
+
+impl std::ops::Deref for SpamDataset {
+    type Target = SpamDataset_;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+impl SpamDataset {
+    #[allow(unused_variables)]
+    pub fn new<P: AsRef<Path>>(
+        parquet_file: P,
+        tokenizer: CoreBPE,
+        max_length: Option<usize>,
+        pad_token_id: u32,
+    ) -> Self {
+        let mut file = std::fs::File::open(parquet_file).unwrap();
+        let df = ParquetReader::new(&mut file).finish().unwrap();
+
+        let text_series = df.column("text").unwrap().clone();
+        let text_vec: Vec<Option<&str>> = text_series.str().unwrap().into_iter().collect();
+        let encodings = text_vec
+            .iter()
+            .map(|el| {
+                if let Some(txt) = el {
+                    Ok(tokenizer.encode_with_special_tokens(txt))
+                } else {
+                    Err(anyhow!("There was a problem encoding texts."))
+                }
+            })
+            .collect::<anyhow::Result<Vec<Vec<u32>>>>()
+            .unwrap();
+
+        // assign max_length
+        let max_length = if let Some(v) = max_length {
+            v
+        } else {
+            // get max encodings
+            *encodings
+                .iter()
+                .map(|v| v.len())
+                .collect::<Vec<_>>()
+                .iter()
+                .max()
+                .unwrap()
+        };
+
+        // get paddings
+        let encodings = encodings
+            .into_iter()
+            .map(|mut v| {
+                let num_pad = cmp::max(0isize, max_length as isize - v.len() as isize) as usize;
+                if num_pad > 0 {
+                    let padding = std::iter::repeat(pad_token_id)
+                        .take(num_pad)
+                        .collect::<Vec<u32>>();
+                    v.extend(padding);
+                    v
+                } else {
+                    v
+                }
+            })
+            .collect();
+
+        let dataset_ = SpamDataset_ {
+            data: df,
+            encoded_texts: encodings,
+            max_length,
+            pad_token_id,
+        };
+
+        Self(Rc::new(dataset_))
+    }
+
+    /// Gets the number of finetuning examples.
+    pub fn len(&self) -> usize {
+        self.data.shape().0
+    }
+
+    /// Checks whether the dataset is empty or has no finetuning examples.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// Returns the input tokens for all input sequences.
+    pub fn max_length(&self) -> usize {
+        self.max_length
+    }
+
+    /// Returns the input-target pair at the specified index.
+    #[allow(unused_variables)]
+    pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<(&Vec<u32>, Vec<i64>)> {
+        let encoded = &self.encoded_texts[idx];
+        let binding = self.data.select(["label"])?;
+        let label = match &binding.get_row(idx)?.0[0] {
+            AnyValue::Int64(label_value) => Ok(label_value),
+            _ => Err(anyhow!(
+                "There was a problem in getting the Label from the dataframe."
+            )),
+        }?
+        .to_owned();
+
+        Ok((encoded, vec![label]))
+    }
+}
+
+#[allow(dead_code)]
+pub struct SpamDatasetIter {
+    dataset: SpamDataset,
+    remaining_indices: Vec<usize>,
+}
+
+impl SpamDatasetIter {
+    #[allow(unused_variables)]
+    pub fn new(dataset: SpamDataset, shuffle: bool) -> Self {
+        todo!()
+    }
+}
+
+impl Iterator for SpamDatasetIter {
+    type Item = Result<(Tensor, Tensor)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.remaining_indices.pop() {
+            let (encoded, label) = self.dataset.get_item_at_index(idx).unwrap();
+
+            // turn into Tensors and return
+            let dev = Device::cuda_if_available(0).unwrap();
+            let encoded_tensor = Tensor::new(&encoded[..], &dev);
+            let label_tensor = Tensor::new(&label[..], &dev);
+            Some(candle_core::error::zip(encoded_tensor, label_tensor))
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]

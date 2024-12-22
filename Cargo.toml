@@ -25,7 +25,7 @@ fancy-regex = "0.14.0"
 hf-hub = "0.3.2"
 itertools = "0.13.0"
 phf = { version = "0.11.2", features = ["macros"] }
-polars = { version = "0.45.1", features = ["csv", "dtype-struct", "lazy", "parquet"] }
+polars = { version = "0.45.1", features = ["csv", "dtype-struct", "lazy", "parquet", "rows"] }
 rand = "0.8.5"
 reqwest = { version = "0.12.9", features = ["blocking", "json"] }
 rstest = "0.23.0"
