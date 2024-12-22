@@ -210,7 +210,7 @@ impl SpamDataset {
         let mut file = std::fs::File::open(parquet_file).unwrap();
         let df = ParquetReader::new(&mut file).finish().unwrap();
 
-        let text_series = df.column("text").unwrap().clone();
+        let text_series = df.column("sms").unwrap().clone();
         let text_vec: Vec<Option<&str>> = text_series.str().unwrap().into_iter().collect();
         let encodings = text_vec
             .iter()
@@ -333,6 +333,14 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use rstest::*;
+    use std::{
+        ops::Not,
+        path::{Path, PathBuf},
+    };
+    use tiktoken_rs::get_bpe_from_model;
+
+    const TEST_PARQUET_FILENAME: &str = "test_spam.parquet";
+    const DATA_DIR: &str = "data";
 
     #[fixture]
     pub fn sms_spam_df() -> (DataFrame, usize) {
@@ -342,6 +350,24 @@ mod tests {
         )
         .unwrap();
         (df, 2usize)
+    }
+
+    #[fixture]
+    pub fn test_parquet_path() -> PathBuf {
+        let test_parquet_path = Path::new(DATA_DIR).join(TEST_PARQUET_FILENAME);
+        if test_parquet_path.exists().not() {
+            // create a small parquet from the main parquet file
+            download_smsspam_parquet(PARQUET_URL).unwrap();
+            let file_path = Path::new(DATA_DIR).join(PARQUET_FILENAME);
+            let mut file = std::fs::File::open(file_path).unwrap();
+            let df = ParquetReader::new(&mut file).finish().unwrap();
+
+            let mut test_file = std::fs::File::create(test_parquet_path.as_path()).unwrap();
+            ParquetWriter::new(&mut test_file)
+                .finish(&mut df.head(Some(5)))
+                .unwrap();
+        }
+        return test_parquet_path;
     }
 
     #[rstest]
@@ -375,6 +401,16 @@ mod tests {
             test_df.shape(),
             ((test_frac * df.shape().0 as f32) as usize, 2)
         );
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_spam_dataset_init(test_parquet_path: PathBuf) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let spam_dataset = SpamDataset::new(test_parquet_path, tokenizer, None, 50_256_u32);
+
+        assert_eq!(spam_dataset.len(), 5);
+
         Ok(())
     }
 }
