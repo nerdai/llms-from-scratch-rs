@@ -362,8 +362,13 @@ mod tests {
     #[fixture]
     pub fn sms_spam_df() -> (DataFrame, usize) {
         let df = df!(
-            "sms"=> &["sms1", "sms2", "sms3", "sms4", "sms5"],
-            "label"=> &[0_i64, 0, 1, 1, 0],
+            "sms"=> &[
+                "Got it. Seventeen pounds for seven hundred ml – hope ok.", 
+                "Great News! Call FREEFONE 08006344447 to claim your guaranteed £1000 CASH or £2000 gift. Speak to a live operator NOW!",
+                "No chikku nt yet.. Ya i'm free",
+                "S:-)if we have one good partnership going we will take lead:)",
+                "18 days to Euro2004 kickoff! U will be kept informed of all the latest news and results daily. Unsubscribe send GET EURO STOP to 83222."],
+            "label"=> &[0_i64, 1, 0, 0, 1],
         )
         .unwrap();
         (df, 2usize)
@@ -442,4 +447,32 @@ mod tests {
 
         Ok(())
     }
+
+    // #[rstest]
+    // pub fn test_spam_dataset_iter(test_parquet_path: PathBuf) -> Result<()> {
+    //     let tokenizer = get_bpe_from_model("gpt2")?;
+    //     let spam_dataset = SpamDataset::new(test_parquet_path, tokenizer, Some(10), 50_256_u32);
+    //     let mut iter = SpamDatasetIter::new(spam_dataset.clone(), false);
+    //     let mut count = 0_usize;
+
+    //     // user iter to sequentially get next pair checking equality with dataset
+    //     while let Some(Ok((this_inputs, this_targets))) = iter.next() {
+    //         let this_inputs_vec: Vec<u32> = this_inputs.to_vec1::<u32>()?;
+    //         let this_targets_vec: Vec<u32> = this_targets.to_vec1::<u32>()?;
+
+    //         assert!(this_inputs.shape().dims()[0] == max_length);
+    //         assert!(this_targets.shape().dims()[0] == max_length);
+
+    //         for (idx, token_id) in this_inputs_vec.iter().enumerate() {
+    //             assert_eq!(*token_id, dataset.input_ids[count][idx]);
+    //         }
+    //         for (idx, token_id) in this_targets_vec.iter().enumerate() {
+    //             assert_eq!(*token_id, dataset.target_ids[count][idx]);
+    //         }
+
+    //         count += 1;
+    //     }
+    //     assert_eq!(count, dataset.len());
+    //     Ok(())
+    // }
 }
