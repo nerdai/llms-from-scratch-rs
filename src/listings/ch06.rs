@@ -405,11 +405,18 @@ mod tests {
     }
 
     #[rstest]
-    pub fn test_spam_dataset_init(test_parquet_path: PathBuf) -> Result<()> {
+    #[case(None, 51_usize)]
+    #[case(Some(10_usize), 10_usize)]
+    pub fn test_spam_dataset_init(
+        test_parquet_path: PathBuf,
+        #[case] max_length: Option<usize>,
+        #[case] expected_max_length: usize,
+    ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let spam_dataset = SpamDataset::new(test_parquet_path, tokenizer, None, 50_256_u32);
+        let spam_dataset = SpamDataset::new(test_parquet_path, tokenizer, max_length, 50_256_u32);
 
         assert_eq!(spam_dataset.len(), 5);
+        assert_eq!(spam_dataset.max_length, expected_max_length);
 
         Ok(())
     }
