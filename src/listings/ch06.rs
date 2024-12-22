@@ -5,6 +5,7 @@ use anyhow::{anyhow, Error};
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use polars::prelude::*;
+use std::cmp;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -203,7 +204,7 @@ impl SpamDataset {
     pub fn new<P: AsRef<Path>>(
         parquet_file: P,
         tokenizer: CoreBPE,
-        max_length: usize,
+        max_length: Option<usize>,
         pad_token_id: u32,
     ) -> Self {
         let mut file = std::fs::File::open(parquet_file).unwrap();
@@ -223,8 +224,36 @@ impl SpamDataset {
             .collect::<anyhow::Result<Vec<Vec<u32>>>>()
             .unwrap();
 
-        // apply padding
-        // let encodings = encodings;
+        // assign max_length
+        let max_length = if let Some(v) = max_length {
+            v
+        } else {
+            // get max encodings
+            *encodings
+                .iter()
+                .map(|v| v.len())
+                .collect::<Vec<_>>()
+                .iter()
+                .max()
+                .unwrap()
+        };
+
+        // get paddings
+        let encodings = encodings
+            .into_iter()
+            .map(|mut v| {
+                let num_pad = cmp::max(0isize, max_length as isize - v.len() as isize) as usize;
+                if num_pad > 0 {
+                    let padding = std::iter::repeat(pad_token_id)
+                        .take(num_pad)
+                        .collect::<Vec<u32>>();
+                    v.extend(padding);
+                    v
+                } else {
+                    v
+                }
+            })
+            .collect();
 
         let dataset_ = SpamDataset_ {
             data: df,
