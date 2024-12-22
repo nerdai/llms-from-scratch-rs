@@ -201,12 +201,39 @@ impl std::ops::Deref for SpamDataset {
 impl SpamDataset {
     #[allow(unused_variables)]
     pub fn new<P: AsRef<Path>>(
-        csv_file: P,
+        parquet_file: P,
         tokenizer: CoreBPE,
         max_length: usize,
         pad_token_id: u32,
     ) -> Self {
-        todo!()
+        let mut file = std::fs::File::open(parquet_file).unwrap();
+        let df = ParquetReader::new(&mut file).finish().unwrap();
+
+        let text_series = df.column("text").unwrap().clone();
+        let text_vec: Vec<Option<&str>> = text_series.str().unwrap().into_iter().collect();
+        let encodings = text_vec
+            .iter()
+            .map(|el| {
+                if let Some(txt) = el {
+                    Ok(tokenizer.encode_with_special_tokens(txt))
+                } else {
+                    Err(anyhow!("There was a problem encoding texts."))
+                }
+            })
+            .collect::<anyhow::Result<Vec<Vec<u32>>>>()
+            .unwrap();
+
+        // apply padding
+        // let encodings = encodings;
+
+        let dataset_ = SpamDataset_ {
+            data: df,
+            encoded_texts: encodings,
+            max_length,
+            pad_token_id,
+        };
+
+        Self(Rc::new(dataset_))
     }
 
     /// Gets the number of finetuning examples.
