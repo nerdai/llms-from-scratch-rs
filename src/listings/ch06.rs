@@ -436,6 +436,9 @@ mod tests {
         assert_eq!(spam_dataset.len(), 5);
         assert_eq!(spam_dataset.max_length, expected_max_length);
         // assert all encoded texts have length == max_length
+        for text_enc in spam_dataset.encoded_texts.iter() {
+            assert_eq!(text_enc.len(), expected_max_length);
+        }
 
         Ok(())
     }
