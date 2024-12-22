@@ -5,6 +5,7 @@ use anyhow::{anyhow, Error};
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use polars::prelude::*;
+use rand::{seq::SliceRandom, thread_rng};
 use std::cmp;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
@@ -323,7 +324,14 @@ pub struct SpamDatasetIter {
 impl SpamDatasetIter {
     #[allow(unused_variables)]
     pub fn new(dataset: SpamDataset, shuffle: bool) -> Self {
-        todo!()
+        let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
+        if shuffle {
+            remaining_indices.shuffle(&mut thread_rng());
+        }
+        Self {
+            dataset,
+            remaining_indices,
+        }
     }
 }
 
@@ -435,31 +443,22 @@ mod tests {
         Ok(())
     }
 
-    // #[rstest]
-    // pub fn test_spam_dataset_iter(test_parquet_path: PathBuf) -> Result<()> {
-    //     let tokenizer = get_bpe_from_model("gpt2")?;
-    //     let spam_dataset = SpamDataset::new(test_parquet_path, tokenizer, Some(10), 50_256_u32);
-    //     let mut iter = SpamDatasetIter::new(spam_dataset.clone(), false);
-    //     let mut count = 0_usize;
+    #[rstest]
+    pub fn test_spam_dataset_iter(test_parquet_path: PathBuf) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let max_length = 10_usize;
+        let spam_dataset =
+            SpamDataset::new(test_parquet_path, tokenizer, Some(max_length), 50_256_u32);
+        let mut iter = SpamDatasetIter::new(spam_dataset.clone(), false);
+        let mut count = 0_usize;
 
-    //     // user iter to sequentially get next pair checking equality with dataset
-    //     while let Some(Ok((this_inputs, this_targets))) = iter.next() {
-    //         let this_inputs_vec: Vec<u32> = this_inputs.to_vec1::<u32>()?;
-    //         let this_targets_vec: Vec<u32> = this_targets.to_vec1::<u32>()?;
-
-    //         assert!(this_inputs.shape().dims()[0] == max_length);
-    //         assert!(this_targets.shape().dims()[0] == max_length);
-
-    //         for (idx, token_id) in this_inputs_vec.iter().enumerate() {
-    //             assert_eq!(*token_id, dataset.input_ids[count][idx]);
-    //         }
-    //         for (idx, token_id) in this_targets_vec.iter().enumerate() {
-    //             assert_eq!(*token_id, dataset.target_ids[count][idx]);
-    //         }
-
-    //         count += 1;
-    //     }
-    //     assert_eq!(count, dataset.len());
-    //     Ok(())
-    // }
+        // user iter to sequentially get next pair checking equality with dataset
+        while let Some(Ok((this_encodings, this_label))) = iter.next() {
+            assert!(this_encodings.shape().dims()[0] == max_length);
+            assert!(this_label.shape().dims()[0] == 1_usize);
+            count += 1;
+        }
+        assert_eq!(count, spam_dataset.len());
+        Ok(())
+    }
 }
