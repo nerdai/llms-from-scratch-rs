@@ -212,7 +212,7 @@ impl SpamDataset {
 
         let text_series = df.column("sms").unwrap().clone();
         let text_vec: Vec<Option<&str>> = text_series.str().unwrap().into_iter().collect();
-        let encodings = text_vec
+        let mut encodings = text_vec
             .iter()
             .map(|el| {
                 if let Some(txt) = el {
@@ -225,17 +225,20 @@ impl SpamDataset {
             .unwrap();
 
         // assign max_length
+        let raw_max_length = Self::get_raw_max_length(&encodings).unwrap();
         let max_length = if let Some(v) = max_length {
-            v
+            if v < raw_max_length {
+                encodings = encodings
+                    .into_iter()
+                    .map(|el| Vec::from_iter(el.into_iter().take(v)))
+                    .collect::<Vec<Vec<u32>>>();
+                v
+            } else {
+                raw_max_length
+            }
         } else {
             // get max encodings
-            *encodings
-                .iter()
-                .map(|v| v.len())
-                .collect::<Vec<_>>()
-                .iter()
-                .max()
-                .unwrap()
+            raw_max_length
         };
 
         // get paddings
@@ -278,6 +281,20 @@ impl SpamDataset {
     /// Returns the input tokens for all input sequences.
     pub fn max_length(&self) -> usize {
         self.max_length
+    }
+
+    /// Get raw max length of encodings
+    fn get_raw_max_length(encodings: &[Vec<u32>]) -> anyhow::Result<usize> {
+        let raw_max_length = *encodings
+            .iter()
+            .map(|v| v.len())
+            .collect::<Vec<_>>()
+            .iter()
+            .max()
+            .ok_or(anyhow!(
+                "There was a problem computing max length encodings."
+            ))?;
+        Ok(raw_max_length)
     }
 
     /// Returns the input-target pair at the specified index.
@@ -407,6 +424,7 @@ mod tests {
     #[rstest]
     #[case(None, 51_usize)]
     #[case(Some(10_usize), 10_usize)]
+    #[case(Some(60_usize), 51_usize)]
     pub fn test_spam_dataset_init(
         test_parquet_path: PathBuf,
         #[case] max_length: Option<usize>,
@@ -417,6 +435,7 @@ mod tests {
 
         assert_eq!(spam_dataset.len(), 5);
         assert_eq!(spam_dataset.max_length, expected_max_length);
+        // assert all encoded texts have length == max_length
 
         Ok(())
     }
