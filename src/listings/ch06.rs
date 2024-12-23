@@ -204,7 +204,7 @@ impl SpamDataset {
     #[allow(unused_variables)]
     pub fn new<P: AsRef<Path>>(
         parquet_file: P,
-        tokenizer: CoreBPE,
+        tokenizer: &CoreBPE,
         max_length: Option<usize>,
         pad_token_id: u32,
     ) -> Self {
@@ -233,10 +233,8 @@ impl SpamDataset {
                     .into_iter()
                     .map(|el| Vec::from_iter(el.into_iter().take(v)))
                     .collect::<Vec<Vec<u32>>>();
-                v
-            } else {
-                raw_max_length
             }
+            v
         } else {
             // get max encodings
             raw_max_length
@@ -314,6 +312,8 @@ impl SpamDataset {
         Ok((encoded, vec![label]))
     }
 }
+
+pub const PAD_TOKEN_ID: u32 = 50_256_u32;
 
 #[allow(dead_code)]
 pub struct SpamDatasetIter {
@@ -424,14 +424,15 @@ mod tests {
     #[rstest]
     #[case(None, 33_usize)]
     #[case(Some(10_usize), 10_usize)]
-    #[case(Some(60_usize), 33_usize)]
+    #[case(Some(60_usize), 60_usize)]
     pub fn test_spam_dataset_init(
         test_parquet_path: PathBuf,
         #[case] max_length: Option<usize>,
         #[case] expected_max_length: usize,
     ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let spam_dataset = SpamDataset::new(test_parquet_path, tokenizer, max_length, 50_256_u32);
+        let spam_dataset =
+            SpamDataset::new(test_parquet_path, &tokenizer, max_length, PAD_TOKEN_ID);
 
         assert_eq!(spam_dataset.len(), 5);
         assert_eq!(spam_dataset.max_length, expected_max_length);
@@ -447,8 +448,12 @@ mod tests {
     pub fn test_spam_dataset_iter(test_parquet_path: PathBuf) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
         let max_length = 10_usize;
-        let spam_dataset =
-            SpamDataset::new(test_parquet_path, tokenizer, Some(max_length), 50_256_u32);
+        let spam_dataset = SpamDataset::new(
+            test_parquet_path,
+            &tokenizer,
+            Some(max_length),
+            PAD_TOKEN_ID,
+        );
         let mut iter = SpamDatasetIter::new(spam_dataset.clone(), false);
         let mut count = 0_usize;
 
