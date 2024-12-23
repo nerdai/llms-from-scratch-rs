@@ -212,7 +212,7 @@ impl SpamDataset {
     ///
     /// // fake parquet file
     /// let mut test_file = NamedTempFile::new().unwrap();
-    /// let parquet_file = test_file.into_temp_path().unwrap();
+    /// let parquet_file = test_file.into_temp_path().keep().unwrap();
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let max_length = 24_usize;
     ///
