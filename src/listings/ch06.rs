@@ -416,6 +416,40 @@ pub struct SpamDataLoader {
 }
 
 impl SpamDataLoader {
+    /// Creates a new SpamLoader.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch06::{
+    ///     SpamDataset,
+    ///     SpamDataLoader,
+    ///     PAD_TOKEN_ID
+    /// };
+    /// use polars::prelude::*;
+    /// use tempfile::NamedTempFile;
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// // create SpamDataset
+    /// let mut df = df!(
+    ///     "sms"=> &[
+    ///         "Mock example 1",
+    ///         "Mock example 2"
+    ///     ],
+    ///     "label"=> &[0_i64, 1],
+    /// )
+    /// .unwrap();
+    /// let mut test_file = NamedTempFile::new().unwrap();
+    /// ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
+    /// let parquet_file = test_file.into_temp_path().keep().unwrap();
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let max_length = 24_usize;
+    /// let dataset = SpamDataset::new(parquet_file, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+    ///
+    /// // create SpamDataLoader
+    /// let batch_size = 2_usize;
+    /// let shuffle = false;
+    /// let drop_last = false;
+    /// let data_loader = SpamDataLoader::new(dataset, batch_size, shuffle, drop_last);
+    /// ```
     pub fn new(dataset: SpamDataset, batch_size: usize, shuffle: bool, drop_last: bool) -> Self {
         Self {
             dataset,
