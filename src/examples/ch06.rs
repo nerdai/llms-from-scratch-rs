@@ -1,10 +1,5 @@
 //! Examples from Chapter 6
 
-use std::{
-    path::{Path, PathBuf},
-    str::FromStr,
-};
-
 use crate::Example;
 use anyhow::Result;
 
@@ -159,6 +154,7 @@ impl Example for EG03 {
             create_balanced_dataset, download_smsspam_parquet, PARQUET_FILENAME, PARQUET_URL,
         };
         use polars::prelude::*;
+        use std::path::PathBuf;
 
         // download parquet
         download_smsspam_parquet(PARQUET_URL)?;
@@ -214,6 +210,7 @@ impl Example for EG04 {
             PARQUET_URL,
         };
         use polars::prelude::*;
+        use std::{path::PathBuf, str::FromStr};
 
         // download parquet
         download_smsspam_parquet(PARQUET_URL)?;
@@ -276,15 +273,28 @@ impl Example for EG05 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch06::{SpamDataset, PAD_TOKEN_ID};
+        use anyhow::anyhow;
+        use std::ops::Not;
+        use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
         let tokenizer = get_bpe_from_model("gpt2")?;
 
         let train_path = Path::new("data").join("train.parquet");
+        if train_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/train.parquet' file. Please run EG 06.04."
+            ));
+        }
         let train_dataset = SpamDataset::new(train_path, &tokenizer, None, PAD_TOKEN_ID);
         println!("train dataset max length: {}", train_dataset.max_length());
 
         let val_path = Path::new("data").join("validation.parquet");
+        if val_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/validation.parquet' file. Please run EG 06.04."
+            ));
+        }
         let val_dataset = SpamDataset::new(
             val_path,
             &tokenizer,
@@ -294,6 +304,11 @@ impl Example for EG05 {
         println!("val dataset max length: {}", val_dataset.max_length());
 
         let test_path = Path::new("data").join("test.parquet");
+        if test_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/test.parquet' file. Please run EG 06.04."
+            ));
+        }
         let test_dataset = SpamDataset::new(
             test_path,
             &tokenizer,
