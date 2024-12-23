@@ -210,8 +210,16 @@ impl SpamDataset {
     /// use tempfile::NamedTempFile;
     /// use tiktoken_rs::get_bpe_from_model;
     ///
-    /// // fake parquet file
+    /// let df = df!(
+    ///     "sms"=> &[
+    ///         "Mock example 1",
+    ///         "Mock example 2"
+    ///     ],
+    ///     "label"=> &[0_i64, 1],
+    /// )
+    /// .unwrap();
     /// let mut test_file = NamedTempFile::new().unwrap();
+    /// ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
     /// let parquet_file = test_file.into_temp_path().keep().unwrap();
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let max_length = 24_usize;
