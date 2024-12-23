@@ -204,13 +204,18 @@ impl SpamDataset {
     /// Creates a new `SpamDataset`.
     ///
     /// ```rust
-    /// use tiktoken_rs::get_bpe_from_model;
     /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, PAD_TOKEN_ID, PARQUET_FILENAME};
+    /// use polars::prelude::*;
     /// use std::path::Path;
+    /// use tempfile::NamedTempFile;
+    /// use tiktoken_rs::get_bpe_from_model;
     ///
+    /// // fake parquet file
+    /// let mut test_file = NamedTempFile::new().unwrap();
+    /// let parquet_file = test_file.into_temp_path().unwrap();
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let max_length = 24_usize;
-    /// let parquet_file = Path::new("data").join(PARQUET_FILENAME);
+    ///
     /// let dataset = SpamDataset::new(parquet_file, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     /// ```
     pub fn new<P: AsRef<Path>>(
