@@ -359,7 +359,7 @@ impl GPTDataLoader {
         let iter = GPTDatasetIter::new(self.dataset.clone(), self.shuffle);
         Batcher::new_r2(iter)
             .batch_size(self.batch_size)
-            .return_last_incomplete_batch(self.drop_last)
+            .return_last_incomplete_batch(!self.drop_last)
     }
 }
 
