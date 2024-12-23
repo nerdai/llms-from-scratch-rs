@@ -211,7 +211,7 @@ impl SpamDataset {
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let max_length = 24_usize;
     /// let parquet_file = Path::new("data").join(PARQUET_FILENAME);
-    /// let dataset = SpamDataset::new(parquet_filename, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+    /// let dataset = SpamDataset::new(parquet_file, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     /// ```
     pub fn new<P: AsRef<Path>>(
         parquet_file: P,
