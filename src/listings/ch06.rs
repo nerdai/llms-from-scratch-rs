@@ -201,7 +201,18 @@ impl std::ops::Deref for SpamDataset {
 }
 
 impl SpamDataset {
-    #[allow(unused_variables)]
+    /// Creates a new `SpamDataset`.
+    ///
+    /// ```rust
+    /// use tiktoken_rs::get_bpe_from_model;
+    /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, PAD_TOKEN_ID, PARQUET_FILENAME};
+    /// use std::path::Path;
+    ///
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let max_length = 24_usize;
+    /// let parquet_file = Path::new("data").join(PARQUET_FILENAME);
+    /// let dataset = SpamDataset::new(parquet_filename, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+    /// ```
     pub fn new<P: AsRef<Path>>(
         parquet_file: P,
         tokenizer: &CoreBPE,
