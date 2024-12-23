@@ -24,6 +24,7 @@ comfy-table = "7.1.3"
 fancy-regex = "0.14.0"
 hf-hub = "0.3.2"
 itertools = "0.13.0"
+lexical-core = "1.0.0"
 phf = { version = "0.11.2", features = ["macros"] }
 polars = { version = "0.45.1", features = ["csv", "dtype-struct", "lazy", "parquet", "rows"] }
 rand = "0.8.5"
