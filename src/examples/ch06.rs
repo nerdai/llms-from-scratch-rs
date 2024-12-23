@@ -232,13 +232,13 @@ impl Example for EG04 {
         println!("{}", test_df);
 
         // save dfs to csv
-        let train_path = PathBuf::from_str("data/train.csv")?;
-        let validation_path = PathBuf::from_str("data/validation.csv")?;
-        let test_path = PathBuf::from_str("data/test.csv")?;
+        let train_path = PathBuf::from_str("data/train.parquet")?;
+        let validation_path = PathBuf::from_str("data/validation.parquet")?;
+        let test_path = PathBuf::from_str("data/test.parquet")?;
 
-        addons::write_csv(&mut train_df, train_path)?;
-        addons::write_csv(&mut validation_df, validation_path)?;
-        addons::write_csv(&mut test_df, test_path)?;
+        addons::write_parquet(&mut train_df, train_path)?;
+        addons::write_parquet(&mut validation_df, validation_path)?;
+        addons::write_parquet(&mut test_df, test_path)?;
 
         Ok(())
     }
@@ -262,8 +262,14 @@ pub mod addons {
     }
 
     pub fn write_csv<P: AsRef<Path>>(df: &mut DataFrame, fname: P) -> anyhow::Result<()> {
-        let mut file = std::fs::File::create(fname).unwrap();
-        CsvWriter::new(&mut file).finish(df).unwrap();
+        let mut file = std::fs::File::create(fname)?;
+        CsvWriter::new(&mut file).finish(df)?;
+        Ok(())
+    }
+
+    pub fn write_parquet<P: AsRef<Path>>(df: &mut DataFrame, fname: P) -> anyhow::Result<()> {
+        let mut file = std::fs::File::create(fname)?;
+        ParquetWriter::new(&mut file).finish(df)?;
         Ok(())
     }
 }
