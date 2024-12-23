@@ -339,6 +339,52 @@ impl SpamDataset {
 
 pub const PAD_TOKEN_ID: u32 = 50_256_u32;
 
+// /// Builder pattern for `HuggingFaceWeight`
+// struct SpamDatasetBuilderBuilder {
+//     data: DataFrame,
+//     max_length: Option<usize>,
+//     pad_token_id: u32,
+// }
+
+// #[allow(dead_code)]
+// impl SpamDatasetBuilderBuilder {
+//     fn new(data: DataFrame) -> Self {
+//         Self {
+//             data,
+//             max_length: None,
+//             pad_token_id: PAD_TOKEN_ID,
+//         }
+//     }
+
+//     fn set_transpose(mut self) -> Self {
+//         self.transpose = true;
+//         self
+//     }
+
+//     fn unset_transpose(mut self) -> Self {
+//         self.transpose = false;
+//         self
+//     }
+
+//     fn unset_drop_after_loading(mut self) -> Self {
+//         self.drop_after_loading = false;
+//         self
+//     }
+
+//     fn set_drop_after_loading(mut self) -> Self {
+//         self.drop_after_loading = true;
+//         self
+//     }
+
+//     fn build(self) -> SpamDataset {
+//         SpamDataset {
+//             name: self.name,
+//             transpose: self.transpose,
+//             drop_after_loading: self.drop_after_loading,
+//         }
+//     }
+// }
+
 #[allow(dead_code)]
 pub struct SpamDatasetIter {
     dataset: SpamDataset,
