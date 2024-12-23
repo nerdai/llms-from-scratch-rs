@@ -4,6 +4,7 @@ use ::zip::ZipArchive;
 use anyhow::{anyhow, Error};
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
+use candle_datasets::{batcher::IterResult2, Batcher};
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
 use std::cmp;
@@ -400,6 +401,40 @@ impl Iterator for SpamDatasetIter {
     }
 }
 
+/// A type alias for candle_datasets::Batcher
+///
+/// This struct is responsible for getting batches from a type that implements
+/// the `Iterator` Trait.
+pub type SpamDataBatcher = Batcher<IterResult2<SpamDatasetIter>>;
+
+/// [Listing 6.5] Creating a data loader for SpamDataset
+pub struct SpamDataLoader {
+    dataset: SpamDataset,
+    batch_size: usize,
+    shuffle: bool,
+    drop_last: bool,
+}
+
+impl SpamDataLoader {
+    pub fn new(dataset: SpamDataset, batch_size: usize, shuffle: bool, drop_last: bool) -> Self {
+        Self {
+            dataset,
+            batch_size,
+            shuffle,
+            drop_last,
+        }
+    }
+
+    /// Returns a `SpamDataBatcher` that itself provides batches over the
+    /// associated dataset.
+    pub fn batcher(&self) -> SpamDataBatcher {
+        let iter = SpamDatasetIter::new(self.dataset.clone(), self.shuffle);
+        Batcher::new_r2(iter)
+            .batch_size(self.batch_size)
+            .return_last_incomplete_batch(!self.drop_last)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -511,6 +546,31 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, spam_dataset.len());
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_spam_data_loader(test_parquet_path: PathBuf) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let max_length = 10_usize;
+        let spam_dataset = SpamDataset::new(
+            test_parquet_path,
+            &tokenizer,
+            Some(max_length),
+            PAD_TOKEN_ID,
+        );
+        let batch_size = 2_usize;
+        let shuffle = false;
+        let drop_last = true;
+        let data_loader = SpamDataLoader::new(spam_dataset, batch_size, shuffle, drop_last);
+
+        let mut batcher = data_loader.batcher();
+        while let Some(Ok((inputs, targets))) = batcher.next() {
+            assert_eq!(inputs.dims()[0], batch_size);
+            assert_eq!(targets.dims()[0], batch_size);
+            assert_eq!(inputs.dims()[1], max_length);
+            assert_eq!(targets.dims()[1], 1_usize);
+        }
         Ok(())
     }
 }
