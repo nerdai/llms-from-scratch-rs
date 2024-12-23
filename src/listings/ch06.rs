@@ -5,6 +5,7 @@ use anyhow::{anyhow, Error};
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use polars::prelude::*;
+use rand::{seq::SliceRandom, thread_rng};
 use std::cmp;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
@@ -210,9 +211,9 @@ impl SpamDataset {
         let mut file = std::fs::File::open(parquet_file).unwrap();
         let df = ParquetReader::new(&mut file).finish().unwrap();
 
-        let text_series = df.column("text").unwrap().clone();
+        let text_series = df.column("sms").unwrap().clone();
         let text_vec: Vec<Option<&str>> = text_series.str().unwrap().into_iter().collect();
-        let encodings = text_vec
+        let mut encodings = text_vec
             .iter()
             .map(|el| {
                 if let Some(txt) = el {
@@ -225,17 +226,20 @@ impl SpamDataset {
             .unwrap();
 
         // assign max_length
+        let raw_max_length = Self::get_raw_max_length(&encodings).unwrap();
         let max_length = if let Some(v) = max_length {
-            v
+            if v < raw_max_length {
+                encodings = encodings
+                    .into_iter()
+                    .map(|el| Vec::from_iter(el.into_iter().take(v)))
+                    .collect::<Vec<Vec<u32>>>();
+                v
+            } else {
+                raw_max_length
+            }
         } else {
             // get max encodings
-            *encodings
-                .iter()
-                .map(|v| v.len())
-                .collect::<Vec<_>>()
-                .iter()
-                .max()
-                .unwrap()
+            raw_max_length
         };
 
         // get paddings
@@ -280,6 +284,20 @@ impl SpamDataset {
         self.max_length
     }
 
+    /// Get raw max length of encodings
+    fn get_raw_max_length(encodings: &[Vec<u32>]) -> anyhow::Result<usize> {
+        let raw_max_length = *encodings
+            .iter()
+            .map(|v| v.len())
+            .collect::<Vec<_>>()
+            .iter()
+            .max()
+            .ok_or(anyhow!(
+                "There was a problem computing max length encodings."
+            ))?;
+        Ok(raw_max_length)
+    }
+
     /// Returns the input-target pair at the specified index.
     #[allow(unused_variables)]
     pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<(&Vec<u32>, Vec<i64>)> {
@@ -306,7 +324,14 @@ pub struct SpamDatasetIter {
 impl SpamDatasetIter {
     #[allow(unused_variables)]
     pub fn new(dataset: SpamDataset, shuffle: bool) -> Self {
-        todo!()
+        let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
+        if shuffle {
+            remaining_indices.shuffle(&mut thread_rng());
+        }
+        Self {
+            dataset,
+            remaining_indices,
+        }
     }
 }
 
@@ -333,15 +358,33 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use rstest::*;
+    use std::path::PathBuf;
+    use tempfile::NamedTempFile;
+    use tiktoken_rs::get_bpe_from_model;
 
     #[fixture]
     pub fn sms_spam_df() -> (DataFrame, usize) {
         let df = df!(
-            "sms"=> &["sms1", "sms2", "sms3", "sms4", "sms5"],
-            "label"=> &[0_i64, 0, 1, 1, 0],
+            "sms"=> &[
+                "Got it. Seventeen pounds for seven hundred ml – hope ok.", 
+                "Great News! Call FREEFONE 08006344447 to claim your guaranteed £1000 CASH or £2000 gift. Speak to a live operator NOW!",
+                "No chikku nt yet.. Ya i'm free",
+                "S:-)if we have one good partnership going we will take lead:)",
+                "18 days to Euro2004 kickoff! U will be kept informed of all the latest news and results daily. Unsubscribe send GET EURO STOP to 83222."],
+            "label"=> &[0_i64, 1, 0, 0, 1],
         )
         .unwrap();
         (df, 2usize)
+    }
+
+    #[fixture]
+    pub fn test_parquet_path(
+        #[from(sms_spam_df)] (mut df, _num_spam): (DataFrame, usize),
+    ) -> PathBuf {
+        let mut test_file = NamedTempFile::new().unwrap();
+        ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
+        let path = test_file.into_temp_path().keep().unwrap();
+        path
     }
 
     #[rstest]
@@ -375,6 +418,47 @@ mod tests {
             test_df.shape(),
             ((test_frac * df.shape().0 as f32) as usize, 2)
         );
+        Ok(())
+    }
+
+    #[rstest]
+    #[case(None, 33_usize)]
+    #[case(Some(10_usize), 10_usize)]
+    #[case(Some(60_usize), 33_usize)]
+    pub fn test_spam_dataset_init(
+        test_parquet_path: PathBuf,
+        #[case] max_length: Option<usize>,
+        #[case] expected_max_length: usize,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let spam_dataset = SpamDataset::new(test_parquet_path, tokenizer, max_length, 50_256_u32);
+
+        assert_eq!(spam_dataset.len(), 5);
+        assert_eq!(spam_dataset.max_length, expected_max_length);
+        // assert all encoded texts have length == max_length
+        for text_enc in spam_dataset.encoded_texts.iter() {
+            assert_eq!(text_enc.len(), expected_max_length);
+        }
+
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_spam_dataset_iter(test_parquet_path: PathBuf) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let max_length = 10_usize;
+        let spam_dataset =
+            SpamDataset::new(test_parquet_path, tokenizer, Some(max_length), 50_256_u32);
+        let mut iter = SpamDatasetIter::new(spam_dataset.clone(), false);
+        let mut count = 0_usize;
+
+        // user iter to sequentially get next pair checking equality with dataset
+        while let Some(Ok((this_encodings, this_label))) = iter.next() {
+            assert!(this_encodings.shape().dims()[0] == max_length);
+            assert!(this_label.shape().dims()[0] == 1_usize);
+            count += 1;
+        }
+        assert_eq!(count, spam_dataset.len());
         Ok(())
     }
 }
