@@ -204,13 +204,12 @@ impl SpamDataset {
     /// Creates a new `SpamDataset`.
     ///
     /// ```rust
-    /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, PAD_TOKEN_ID, PARQUET_FILENAME};
+    /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, PAD_TOKEN_ID};
     /// use polars::prelude::*;
-    /// use std::path::Path;
     /// use tempfile::NamedTempFile;
     /// use tiktoken_rs::get_bpe_from_model;
     ///
-    /// let df = df!(
+    /// let mut df = df!(
     ///     "sms"=> &[
     ///         "Mock example 1",
     ///         "Mock example 2"
