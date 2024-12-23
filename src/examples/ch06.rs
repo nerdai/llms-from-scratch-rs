@@ -1,6 +1,9 @@
 //! Examples from Chapter 6
 
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use crate::Example;
 use anyhow::Result;
@@ -240,6 +243,64 @@ impl Example for EG04 {
         addons::write_parquet(&mut validation_df, validation_path)?;
         addons::write_parquet(&mut test_df, test_path)?;
 
+        Ok(())
+    }
+}
+
+/// # Creating `SpamDataset` for train, test, and validation
+///
+/// #### Id
+/// 06.05
+///
+/// #### Page
+/// This example starts on page 178
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.05
+///
+/// # with cuda
+/// cargo run --features cuda example 06.05
+/// ```
+pub struct EG05;
+
+impl Example for EG05 {
+    fn description(&self) -> String {
+        String::from("Creating `SpamDataset` for train, test, and validation")
+    }
+
+    fn page_source(&self) -> usize {
+        178_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch06::{SpamDataset, PAD_TOKEN_ID};
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+
+        let train_path = Path::new("data").join("train.parquet");
+        let train_dataset = SpamDataset::new(train_path, &tokenizer, None, PAD_TOKEN_ID);
+        println!("train dataset max length: {}", train_dataset.max_length());
+
+        let val_path = Path::new("data").join("validation.parquet");
+        let val_dataset = SpamDataset::new(
+            val_path,
+            &tokenizer,
+            Some(train_dataset.max_length()),
+            PAD_TOKEN_ID,
+        );
+        println!("val dataset max length: {}", val_dataset.max_length());
+
+        let test_path = Path::new("data").join("test.parquet");
+        let test_dataset = SpamDataset::new(
+            test_path,
+            &tokenizer,
+            Some(train_dataset.max_length()),
+            PAD_TOKEN_ID,
+        );
+        println!("test dataset max length: {}", test_dataset.max_length());
         Ok(())
     }
 }
