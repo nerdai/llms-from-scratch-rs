@@ -207,7 +207,6 @@ impl SpamDataset {
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, PAD_TOKEN_ID};
     /// use polars::prelude::*;
-    /// use tempfile::NamedTempFile;
     /// use tiktoken_rs::get_bpe_from_model;
     ///
     /// let mut df = df!(
@@ -218,13 +217,9 @@ impl SpamDataset {
     ///     "label"=> &[0_i64, 1],
     /// )
     /// .unwrap();
-    /// let mut test_file = NamedTempFile::new().unwrap();
-    /// ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
-    /// let parquet_file = test_file.into_temp_path().keep().unwrap();
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let max_length = 24_usize;
-    ///
-    /// let dataset = SpamDataset::new(parquet_file, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+    /// let dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     /// ```
     pub fn new(
         df: DataFrame,
