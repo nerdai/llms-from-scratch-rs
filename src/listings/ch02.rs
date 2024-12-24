@@ -361,6 +361,27 @@ impl GPTDataLoader {
             .batch_size(self.batch_size)
             .return_last_incomplete_batch(!self.drop_last)
     }
+
+    pub fn len(&self) -> usize {
+        if self.drop_last {
+            self.batcher().count()
+        } else {
+            // There is a bug in candle_datasets::Batcher, such that if
+            // return_last_incomplete_batch is set to true, then the iterator
+            // will never return None. This breaks `Iterator.count()` which consumes
+            // the iterator until a None is encountered.
+            let mut batcher = self.batcher();
+            let mut count = 0_usize;
+            while let Some(Ok(_el)) = batcher.next() {
+                count += 1;
+            }
+            count
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        (self.dataset.len() < self.batch_size) && (self.drop_last)
+    }
 }
 
 /// [Listing 2.6] A data loader to generate batches with input-output pairs
@@ -571,14 +592,14 @@ mod tests {
             create_dataloader_v1(txt, batch_size, max_length, stride, shuffle, drop_last);
 
         let mut batcher = data_loader.batcher();
-        match batcher.next() {
-            Some(Ok((inputs, targets))) => {
-                assert_eq!(inputs.dims(), targets.dims());
-                assert_eq!(inputs.dims()[0], batch_size);
-            }
-            Some(Err(err)) => panic!("{}", err),
-            None => panic!("None"),
+        let mut count = 0_usize;
+        while let Some(Ok((inputs, targets))) = batcher.next() {
+            assert_eq!(inputs.dims(), targets.dims());
+            assert!(inputs.dims()[0] <= batch_size);
+            count += 1;
         }
+        assert!(!data_loader.is_empty());
+        assert_eq!(data_loader.len(), count);
         Ok(())
     }
 }

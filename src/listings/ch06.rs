@@ -729,6 +729,7 @@ mod tests {
             count += 1;
         }
         assert_eq!(data_loader.len(), count);
+        assert!(!data_loader.is_empty());
         Ok(())
     }
 }
