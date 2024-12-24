@@ -373,7 +373,7 @@ impl<'a> SpamDatasetBuilder<'a> {
 
     /// Set data for builder from parquet file.
     /// ```rust
-    /// use llms_from_scratch_rs::listings::ch06::SpamDatasetBuilder;
+    /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, SpamDatasetBuilder};
     /// use polars::prelude::*;
     /// use tempfile::NamedTempFile;
     /// use tiktoken_rs::get_bpe_from_model;
