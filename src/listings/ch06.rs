@@ -357,8 +357,7 @@ impl<'a> SpamDatasetBuilder<'a> {
     /// )
     /// .unwrap();
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
-    /// let max_length = ;
-    /// let dataset: SpamDataset = SpamDatasetBuilder::new()
+    /// let dataset: SpamDataset = SpamDatasetBuilder::new(&tokenizer)
     ///     .data(df)
     ///     .max_length(Some(24_usize))
     ///     .build();
