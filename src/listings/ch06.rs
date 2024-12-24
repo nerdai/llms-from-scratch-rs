@@ -394,7 +394,8 @@ impl<'a> SpamDatasetBuilder<'a> {
     /// let parquet_file = test_file.into_temp_path().keep().unwrap();
     ///
     /// // build dataset
-    /// let dataset: SpamDataset = SpamDatasetBuilder::new()
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let dataset: SpamDataset = SpamDatasetBuilder::new(&tokenizer)
     ///     .load_data_from_parquet(parquet_file)
     ///     .max_length(Some(24_usize))
     ///     .build();
