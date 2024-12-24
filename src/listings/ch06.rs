@@ -226,15 +226,12 @@ impl SpamDataset {
     ///
     /// let dataset = SpamDataset::new(parquet_file, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     /// ```
-    pub fn new<P: AsRef<Path>>(
-        parquet_file: P,
+    pub fn new(
+        df: DataFrame,
         tokenizer: &CoreBPE,
         max_length: Option<usize>,
         pad_token_id: u32,
     ) -> Self {
-        let mut file = std::fs::File::open(parquet_file).unwrap();
-        let df = ParquetReader::new(&mut file).finish().unwrap();
-
         let text_series = df.column("sms").unwrap().clone();
         let text_vec: Vec<Option<&str>> = text_series.str().unwrap().into_iter().collect();
         let mut encodings = text_vec
@@ -339,51 +336,104 @@ impl SpamDataset {
 
 pub const PAD_TOKEN_ID: u32 = 50_256_u32;
 
-// /// Builder pattern for `HuggingFaceWeight`
-// struct SpamDatasetBuilderBuilder {
-//     data: DataFrame,
-//     max_length: Option<usize>,
-//     pad_token_id: u32,
-// }
+/// Builder pattern for `HuggingFaceWeight`
+pub struct SpamDatasetBuilder<'a> {
+    data_: Option<DataFrame>,
+    max_length_: Option<usize>,
+    pad_token_id_: u32,
+    tokenizer_: &'a CoreBPE,
+}
 
-// #[allow(dead_code)]
-// impl SpamDatasetBuilderBuilder {
-//     fn new(data: DataFrame) -> Self {
-//         Self {
-//             data,
-//             max_length: None,
-//             pad_token_id: PAD_TOKEN_ID,
-//         }
-//     }
+#[allow(dead_code)]
+impl<'a> SpamDatasetBuilder<'a> {
+    /// Creates a new `SpamDatasetBuilder`.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, SpamDatasetBuilder};
+    /// use polars::prelude::*;
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let df = df!(
+    ///     "sms"=> &[
+    ///         "Mock example 1",
+    ///         "Mock example 2"
+    ///     ],
+    ///     "label"=> &[0_i64, 1],
+    /// )
+    /// .unwrap();
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let max_length = ;
+    /// let dataset: SpamDataset = SpamDatasetBuilder::new()
+    ///     .data(df)
+    ///     .max_length(Some(24_usize))
+    ///     .build();
+    /// ```
+    pub fn new(tokenizer: &'a CoreBPE) -> Self {
+        Self {
+            data_: None,
+            max_length_: None,
+            pad_token_id_: PAD_TOKEN_ID,
+            tokenizer_: tokenizer,
+        }
+    }
 
-//     fn set_transpose(mut self) -> Self {
-//         self.transpose = true;
-//         self
-//     }
+    /// Set data for builder from parquet file.
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch06::SpamDatasetBuilder;
+    /// use polars::prelude::*;
+    /// use tempfile::NamedTempFile;
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let mut df = df!(
+    ///     "sms"=> &[
+    ///         "Mock example 1",
+    ///         "Mock example 2"
+    ///     ],
+    ///     "label"=> &[0_i64, 1],
+    /// )
+    /// .unwrap();
+    ///
+    /// // create temp parquet file for demonstration
+    /// let mut test_file = NamedTempFile::new().unwrap();
+    /// ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
+    /// let parquet_file = test_file.into_temp_path().keep().unwrap();
+    ///
+    /// // build dataset
+    /// let dataset: SpamDataset = SpamDatasetBuilder::new()
+    ///     .load_data_from_parquet(parquet_file)
+    ///     .max_length(Some(24_usize))
+    ///     .build();
+    /// ```
+    pub fn load_data_from_parquet<P: AsRef<Path>>(mut self, parquet_file: P) -> Self {
+        let mut file = std::fs::File::open(parquet_file).unwrap();
+        let df = ParquetReader::new(&mut file).finish().unwrap();
+        self.data_ = Some(df);
+        self
+    }
 
-//     fn unset_transpose(mut self) -> Self {
-//         self.transpose = false;
-//         self
-//     }
+    pub fn data(mut self, data: DataFrame) -> Self {
+        self.data_ = Some(data);
+        self
+    }
 
-//     fn unset_drop_after_loading(mut self) -> Self {
-//         self.drop_after_loading = false;
-//         self
-//     }
+    pub fn max_length(mut self, max_length: Option<usize>) -> Self {
+        self.max_length_ = max_length;
+        self
+    }
 
-//     fn set_drop_after_loading(mut self) -> Self {
-//         self.drop_after_loading = true;
-//         self
-//     }
+    pub fn pad_token_id(mut self, token_id: u32) -> Self {
+        self.pad_token_id_ = token_id;
+        self
+    }
 
-//     fn build(self) -> SpamDataset {
-//         SpamDataset {
-//             name: self.name,
-//             transpose: self.transpose,
-//             drop_after_loading: self.drop_after_loading,
-//         }
-//     }
-// }
+    pub fn build(self) -> SpamDataset {
+        if let Some(df) = self.data_ {
+            SpamDataset::new(df, self.tokenizer_, self.max_length_, self.pad_token_id_)
+        } else {
+            panic!("DataFrame is not set in SpamDataBuilder.");
+        }
+    }
+}
 
 #[allow(dead_code)]
 pub struct SpamDatasetIter {
@@ -397,10 +447,9 @@ impl SpamDatasetIter {
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, SpamDatasetIter, PAD_TOKEN_ID};
     /// use polars::prelude::*;
-    /// use tempfile::NamedTempFile;
     /// use tiktoken_rs::get_bpe_from_model;
     ///
-    /// let mut df = df!(
+    /// let df = df!(
     ///     "sms"=> &[
     ///         "Mock example 1",
     ///         "Mock example 2"
@@ -408,13 +457,9 @@ impl SpamDatasetIter {
     ///     "label"=> &[0_i64, 1],
     /// )
     /// .unwrap();
-    /// let mut test_file = NamedTempFile::new().unwrap();
-    /// ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
-    /// let parquet_file = test_file.into_temp_path().keep().unwrap();
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let max_length = 24_usize;
-    ///
-    /// let dataset = SpamDataset::new(parquet_file, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+    /// let dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     /// let iter = SpamDatasetIter::new(dataset.clone(), false);
     /// ```
     pub fn new(dataset: SpamDataset, shuffle: bool) -> Self {
@@ -471,11 +516,10 @@ impl SpamDataLoader {
     ///     PAD_TOKEN_ID
     /// };
     /// use polars::prelude::*;
-    /// use tempfile::NamedTempFile;
     /// use tiktoken_rs::get_bpe_from_model;
     ///
     /// // create SpamDataset
-    /// let mut df = df!(
+    /// let df = df!(
     ///     "sms"=> &[
     ///         "Mock example 1",
     ///         "Mock example 2"
@@ -483,12 +527,9 @@ impl SpamDataLoader {
     ///     "label"=> &[0_i64, 1],
     /// )
     /// .unwrap();
-    /// let mut test_file = NamedTempFile::new().unwrap();
-    /// ParquetWriter::new(&mut test_file).finish(&mut df).unwrap();
-    /// let parquet_file = test_file.into_temp_path().keep().unwrap();
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let max_length = 24_usize;
-    /// let dataset = SpamDataset::new(parquet_file, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+    /// let dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     ///
     /// // create SpamDataLoader
     /// let batch_size = 2_usize;
@@ -588,13 +629,12 @@ mod tests {
     #[case(Some(10_usize), 10_usize)]
     #[case(Some(60_usize), 60_usize)]
     pub fn test_spam_dataset_init(
-        test_parquet_path: PathBuf,
+        #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
         #[case] max_length: Option<usize>,
         #[case] expected_max_length: usize,
     ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let spam_dataset =
-            SpamDataset::new(test_parquet_path, &tokenizer, max_length, PAD_TOKEN_ID);
+        let spam_dataset = SpamDataset::new(df, &tokenizer, max_length, PAD_TOKEN_ID);
 
         assert_eq!(spam_dataset.len(), 5);
         assert_eq!(spam_dataset.max_length, expected_max_length);
@@ -607,15 +647,37 @@ mod tests {
     }
 
     #[rstest]
-    pub fn test_spam_dataset_iter(test_parquet_path: PathBuf) -> Result<()> {
+    #[case(None, 33_usize)]
+    #[case(Some(10_usize), 10_usize)]
+    #[case(Some(60_usize), 60_usize)]
+    pub fn test_spam_dataset_builder_parquet_file(
+        test_parquet_path: PathBuf,
+        #[case] max_length: Option<usize>,
+        #[case] expected_max_length: usize,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let spam_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(test_parquet_path)
+            .max_length(max_length)
+            .build();
+
+        assert_eq!(spam_dataset.len(), 5);
+        assert_eq!(spam_dataset.max_length, expected_max_length);
+        // assert all encoded texts have length == max_length
+        for text_enc in spam_dataset.encoded_texts.iter() {
+            assert_eq!(text_enc.len(), expected_max_length);
+        }
+
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_spam_dataset_iter(
+        #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
+    ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
         let max_length = 10_usize;
-        let spam_dataset = SpamDataset::new(
-            test_parquet_path,
-            &tokenizer,
-            Some(max_length),
-            PAD_TOKEN_ID,
-        );
+        let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
         let mut iter = SpamDatasetIter::new(spam_dataset.clone(), false);
         let mut count = 0_usize;
 
@@ -630,15 +692,12 @@ mod tests {
     }
 
     #[rstest]
-    fn test_spam_data_loader(test_parquet_path: PathBuf) -> Result<()> {
+    fn test_spam_data_loader(
+        #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
+    ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
         let max_length = 10_usize;
-        let spam_dataset = SpamDataset::new(
-            test_parquet_path,
-            &tokenizer,
-            Some(max_length),
-            PAD_TOKEN_ID,
-        );
+        let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
         let batch_size = 2_usize;
         let shuffle = false;
         let drop_last = true;

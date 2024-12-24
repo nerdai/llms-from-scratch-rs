@@ -244,7 +244,7 @@ impl Example for EG04 {
     }
 }
 
-/// # Creating `SpamDataset` for train, test, and validation
+/// # Creating `SpamDataset` for train, test, and validation via `SpamDatasetBuilder`
 ///
 /// #### Id
 /// 06.05
@@ -272,7 +272,7 @@ impl Example for EG05 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch06::{SpamDataset, PAD_TOKEN_ID};
+        use crate::listings::ch06::SpamDatasetBuilder;
         use anyhow::anyhow;
         use std::ops::Not;
         use std::path::Path;
@@ -286,7 +286,9 @@ impl Example for EG05 {
                 "Missing 'data/train.parquet' file. Please run EG 06.04."
             ));
         }
-        let train_dataset = SpamDataset::new(train_path, &tokenizer, None, PAD_TOKEN_ID);
+        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(train_path)
+            .build();
         println!("train dataset max length: {}", train_dataset.max_length());
 
         let val_path = Path::new("data").join("validation.parquet");
@@ -295,12 +297,10 @@ impl Example for EG05 {
                 "Missing 'data/validation.parquet' file. Please run EG 06.04."
             ));
         }
-        let val_dataset = SpamDataset::new(
-            val_path,
-            &tokenizer,
-            Some(train_dataset.max_length()),
-            PAD_TOKEN_ID,
-        );
+        let val_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(val_path)
+            .max_length(Some(train_dataset.max_length()))
+            .build();
         println!("val dataset max length: {}", val_dataset.max_length());
 
         let test_path = Path::new("data").join("test.parquet");
@@ -309,12 +309,10 @@ impl Example for EG05 {
                 "Missing 'data/test.parquet' file. Please run EG 06.04."
             ));
         }
-        let test_dataset = SpamDataset::new(
-            test_path,
-            &tokenizer,
-            Some(train_dataset.max_length()),
-            PAD_TOKEN_ID,
-        );
+        let test_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(test_path)
+            .max_length(Some(train_dataset.max_length()))
+            .build();
         println!("test dataset max length: {}", test_dataset.max_length());
         Ok(())
     }
