@@ -397,9 +397,9 @@ impl Example for EG06 {
         println!("Label batch dimensions: {:?}", target_batch.shape());
 
         // print total number of batches in each data loader
-        // println!("{:?} training batches", train_loader.batcher().count());
-        // println!("{:?} validation batches", val_loader.batcher().count());
-        println!("{:?} test batches", test_loader.batcher().count());
+        println!("{:?} training batches", train_loader.len());
+        println!("{:?} validation batches", val_loader.len());
+        println!("{:?} test batches", test_loader.len());
 
         Ok(())
     }
