@@ -318,6 +318,93 @@ impl Example for EG05 {
     }
 }
 
+/// # Creating a `SpamDataLoader` for each of the train, val and test datasets.
+///
+/// #### Id
+/// 06.05
+///
+/// #### Page
+/// This example starts on page 180
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.06
+///
+/// # with cuda
+/// cargo run --features cuda example 06.06
+/// ```
+pub struct EG06;
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        "Creating a `SpamDataLoader` for each of the train, val and test datasets.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        180_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch06::{SpamDataLoader, SpamDatasetBuilder};
+        use anyhow::anyhow;
+        use std::ops::Not;
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // create datasets
+        let tokenizer = get_bpe_from_model("gpt2")?;
+
+        let train_path = Path::new("data").join("train.parquet");
+        if train_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/train.parquet' file. Please run EG 06.04."
+            ));
+        }
+        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(train_path)
+            .build();
+
+        let val_path = Path::new("data").join("validation.parquet");
+        if val_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/validation.parquet' file. Please run EG 06.04."
+            ));
+        }
+        let val_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(val_path)
+            .build();
+
+        let test_path = Path::new("data").join("test.parquet");
+        if test_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/test.parquet' file. Please run EG 06.04."
+            ));
+        }
+        let test_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(test_path)
+            .build();
+
+        // create loaders
+        let batch_size = 8_usize;
+        let train_loader = SpamDataLoader::new(train_dataset, batch_size, true, true);
+        let val_loader = SpamDataLoader::new(val_dataset, batch_size, false, false);
+        let test_loader = SpamDataLoader::new(test_dataset, batch_size, false, false);
+
+        // see last batch of train loader
+        let (input_batch, target_batch) = train_loader.batcher().last().unwrap()?;
+        println!("Input batch dimensions: {:?}", input_batch.shape());
+        println!("Label batch dimensions: {:?}", target_batch.shape());
+
+        // print total number of batches in each data loader
+        // println!("{:?} training batches", train_loader.batcher().count());
+        // println!("{:?} validation batches", val_loader.batcher().count());
+        println!("{:?} test batches", test_loader.batcher().count());
+
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
