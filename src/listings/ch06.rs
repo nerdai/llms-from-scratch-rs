@@ -7,7 +7,7 @@ use super::{
 use ::zip::ZipArchive;
 use anyhow::anyhow;
 use bytes::Bytes;
-use candle_core::{DType, Device, Result, Tensor};
+use candle_core::{Device, Result, Tensor};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
@@ -582,9 +582,13 @@ impl SpamDataLoader {
 ///
 /// NOTE: In the book, this function is outsourced to the `gpt_download.py` module.
 /// See EG 06.07 for example usage.
-pub fn download_and_load_gpt2(varmap: &VarMap, cfg: Config, model_id: &str) -> Result<GPTModel> {
+pub fn download_and_load_gpt2(
+    varmap: &VarMap,
+    vb: &VarBuilder<'_>,
+    cfg: Config,
+    model_id: &str,
+) -> Result<GPTModel> {
     let dev = Device::cuda_if_available(0)?;
-    let vb = VarBuilder::from_varmap(varmap, DType::F32, &dev);
     let model = GPTModel::new(cfg, vb.pp("model"))?;
 
     // get weights from HF Hub
