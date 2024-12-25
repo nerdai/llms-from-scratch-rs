@@ -498,6 +498,60 @@ impl Example for EG07 {
     }
 }
 
+/// # Printing the model variables via `varmap.data()`
+///
+/// #### Id
+/// 06.08
+///
+/// #### Page
+/// This example starts on page 185
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.08
+///
+/// # with cuda
+/// cargo run --features cuda example 06.08
+/// ```
+pub struct EG08;
+
+impl Example for EG08 {
+    fn description(&self) -> String {
+        String::from("Printing the model architecture via `varmap.data()`")
+    }
+
+    fn page_source(&self) -> usize {
+        185_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{download_and_load_gpt2, HF_GPT2_MODEL_ID},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+        use itertools::Itertools;
+
+        // use `download_and_load_gpt2`
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let _model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+
+        // print model architecture
+        let model_vars = varmap.data().lock().unwrap();
+        for name in model_vars.keys().sorted() {
+            let var = model_vars.get(name).unwrap();
+            println!("{}: {:?}", name, var);
+        }
+
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
