@@ -435,14 +435,43 @@ impl Example for EG07 {
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::Config,
+            ch05::{generate, text_to_token_ids, token_ids_to_text},
             ch06::{download_and_load_gpt2, HF_GPT2_MODEL_ID},
         };
-        use candle_nn::VarMap;
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+        use rand::{rngs::StdRng, SeedableRng};
+        use tiktoken_rs::get_bpe_from_model;
 
+        // use `download_and_load_gpt2`
         let mut cfg = Config::gpt2_124m();
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
-        let _model = download_and_load_gpt2(&varmap, cfg, HF_GPT2_MODEL_ID)?;
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+
+        // sample setup and load tokenizer
+        let start_context = "Every effort moves you";
+        let tokenizer = get_bpe_from_model("gpt2")?;
+
+        // generate next tokens with model
+        let mut rng = StdRng::seed_from_u64(42_u64);
+        let token_ids = generate(
+            &model,
+            text_to_token_ids(start_context, &tokenizer, vb.device())?,
+            15_usize,
+            cfg.context_length,
+            None,
+            None,
+            None,
+            &mut rng,
+        )?;
+
+        // decode the token ids to print the output text
+        println!(
+            "Output text:\n{:?}",
+            token_ids_to_text(token_ids, &tokenizer)
+        );
 
         Ok(())
     }
