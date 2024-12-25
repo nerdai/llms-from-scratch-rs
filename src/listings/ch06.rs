@@ -591,7 +591,7 @@ impl SpamDataLoader {
 ///
 /// let mut cfg = Config::gpt2_124m();
 /// let varmap = VarMap::new();
-/// let model = download_and_load_gpt2(&varmap, cfg, HF_GPT2_MODEL_ID)?;
+/// let model = download_and_load_gpt2(&varmap, cfg, HF_GPT2_MODEL_ID).unwrap();
 /// ```
 pub fn download_and_load_gpt2(varmap: &VarMap, cfg: Config, model_id: &str) -> Result<GPTModel> {
     let dev = Device::cuda_if_available(0)?;
