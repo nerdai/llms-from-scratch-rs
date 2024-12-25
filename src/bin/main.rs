@@ -78,6 +78,7 @@ static EXAMPLE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Example>>> = Laz
     m.insert("06.05", Box::new(examples::ch06::EG05));
     m.insert("06.06", Box::new(examples::ch06::EG06));
     m.insert("06.07", Box::new(examples::ch06::EG07));
+    m.insert("06.08", Box::new(examples::ch06::EG08));
     m
 });
 
