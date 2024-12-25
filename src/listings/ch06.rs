@@ -583,7 +583,7 @@ impl SpamDataLoader {
 /// NOTE: In the book, this function is outsourced to the `gpt_download.py` module.
 ///
 /// ```rust
-/// use crate::listings::{
+/// use llms_from_scratch_rs::listings::{
 ///     ch04::Config,
 ///     ch06::{download_and_load_gpt2, HF_GPT2_MODEL_ID},
 /// };
