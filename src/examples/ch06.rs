@@ -498,6 +498,38 @@ impl Example for EG07 {
     }
 }
 
+/// # Printing the model architecture via `varmap.all_vars()`
+///
+/// #### Id
+/// 06.08
+///
+/// #### Page
+/// This example starts on page 185
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.08
+///
+/// # with cuda
+/// cargo run --features cuda example 06.08
+/// ```
+pub struct EG08;
+
+impl Example for EG08 {
+    fn description(&self) -> String {
+        String::from("Printing the model architecture via `varmap.all_vars()`")
+    }
+
+    fn page_source(&self) -> usize {
+        185_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        todo!()
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
