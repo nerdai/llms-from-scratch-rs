@@ -581,18 +581,7 @@ impl SpamDataLoader {
 /// [Listing 6.6] Loading a pretrained GPT model
 ///
 /// NOTE: In the book, this function is outsourced to the `gpt_download.py` module.
-///
-/// ```rust
-/// use llms_from_scratch_rs::listings::{
-///     ch04::Config,
-///     ch06::{download_and_load_gpt2, HF_GPT2_MODEL_ID},
-/// };
-/// use candle_nn::VarMap;
-///
-/// let mut cfg = Config::gpt2_124m();
-/// let varmap = VarMap::new();
-/// let model = download_and_load_gpt2(&varmap, cfg, HF_GPT2_MODEL_ID).unwrap();
-/// ```
+/// See EG 06.07 for example usage.
 pub fn download_and_load_gpt2(varmap: &VarMap, cfg: Config, model_id: &str) -> Result<GPTModel> {
     let dev = Device::cuda_if_available(0)?;
     let vb = VarBuilder::from_varmap(varmap, DType::F32, &dev);
