@@ -1,10 +1,16 @@
 //! Listings from Chapter 6
 
+use super::{
+    ch04::{Config, GPTModel},
+    ch05::load_weights_into_gpt,
+};
 use ::zip::ZipArchive;
-use anyhow::{anyhow, Error};
+use anyhow::anyhow;
 use bytes::Bytes;
-use candle_core::{Device, Result, Tensor};
+use candle_core::{DType, Device, Result, Tensor};
 use candle_datasets::{batcher::IterResult2, Batcher};
+use candle_nn::{VarBuilder, VarMap};
+use hf_hub::api::sync::Api;
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
 use std::cmp;
@@ -72,7 +78,7 @@ fn remove_file_if_exists<P: AsRef<Path>>(fname: P) -> anyhow::Result<()> {
             if e.kind() == io::ErrorKind::NotFound {
                 Ok(())
             } else {
-                Err(Error::from(e))
+                Err(anyhow::Error::from(e))
             }
         }
     }
@@ -570,6 +576,30 @@ impl SpamDataLoader {
     pub fn is_empty(&self) -> bool {
         (self.dataset.len() < self.batch_size) && (self.drop_last)
     }
+}
+
+/// [Listing 6.6] Loading a pretrained GPT model
+///
+/// In the book, this function is outsourced to the `gpt_download.py` module
+pub fn download_and_load_gpt2(varmap: VarMap, model_id: &str) -> Result<GPTModel> {
+    let dev = Device::cuda_if_available(0)?;
+    let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    let mut cfg = Config::gpt2_124m();
+    cfg.qkv_bias = true;
+    let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+    // get weights from HF Hub
+    let api = Api::new().map_err(candle_core::Error::wrap)?;
+    let repo = api.model(model_id.to_string());
+    let weights = repo
+        .get("model.safetensors")
+        .map_err(candle_core::Error::wrap)?;
+    let weights = candle_core::safetensors::load(weights, &dev)?;
+
+    // load weights
+    load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers)?;
+
+    Ok(model)
 }
 
 #[cfg(test)]
