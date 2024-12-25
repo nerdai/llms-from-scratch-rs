@@ -503,6 +503,10 @@ impl GPTModel {
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
+
+    pub fn set_out_head(&mut self, new_out_head: Linear) {
+        self.out_head = new_out_head;
+    }
 }
 
 impl ModuleT for GPTModel {
