@@ -321,7 +321,7 @@ impl Example for EG05 {
 /// # Creating a `SpamDataLoader` for each of the train, val and test datasets.
 ///
 /// #### Id
-/// 06.05
+/// 06.06
 ///
 /// #### Page
 /// This example starts on page 180
@@ -400,6 +400,49 @@ impl Example for EG06 {
         println!("{:?} training batches", train_loader.len());
         println!("{:?} validation batches", val_loader.len());
         println!("{:?} test batches", test_loader.len());
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `download_and_load_gpt2`.
+///
+/// #### Id
+/// 06.07
+///
+/// #### Page
+/// This example starts on page 182
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.07
+///
+/// # with cuda
+/// cargo run --features cuda example 06.07
+/// ```
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        String::from("Example usage of `download_and_load_gpt2`.")
+    }
+
+    fn page_source(&self) -> usize {
+        182_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{download_and_load_gpt2, HF_GPT2_MODEL_ID},
+        };
+        use candle_nn::VarMap;
+
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let _model = download_and_load_gpt2(&varmap, cfg, HF_GPT2_MODEL_ID)?;
 
         Ok(())
     }

@@ -580,12 +580,22 @@ impl SpamDataLoader {
 
 /// [Listing 6.6] Loading a pretrained GPT model
 ///
-/// In the book, this function is outsourced to the `gpt_download.py` module
-pub fn download_and_load_gpt2(varmap: VarMap, model_id: &str) -> Result<GPTModel> {
+/// NOTE: In the book, this function is outsourced to the `gpt_download.py` module.
+///
+/// ```rust
+/// use crate::listings::{
+///     ch04::Config,
+///     ch06::{download_and_load_gpt2, HF_GPT2_MODEL_ID},
+/// };
+/// use candle_nn::VarMap;
+///
+/// let mut cfg = Config::gpt2_124m();
+/// let varmap = VarMap::new();
+/// let model = download_and_load_gpt2(&varmap, cfg, HF_GPT2_MODEL_ID)?;
+/// ```
+pub fn download_and_load_gpt2(varmap: &VarMap, cfg: Config, model_id: &str) -> Result<GPTModel> {
     let dev = Device::cuda_if_available(0)?;
-    let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-    let mut cfg = Config::gpt2_124m();
-    cfg.qkv_bias = true;
+    let vb = VarBuilder::from_varmap(varmap, DType::F32, &dev);
     let model = GPTModel::new(cfg, vb.pp("model"))?;
 
     // get weights from HF Hub
@@ -597,10 +607,12 @@ pub fn download_and_load_gpt2(varmap: VarMap, model_id: &str) -> Result<GPTModel
     let weights = candle_core::safetensors::load(weights, &dev)?;
 
     // load weights
-    load_weights_into_gpt(&varmap, weights, Some("model"), cfg.n_layers)?;
+    load_weights_into_gpt(varmap, weights, Some("model"), cfg.n_layers)?;
 
     Ok(model)
 }
+
+pub const HF_GPT2_MODEL_ID: &str = "openai-community/gpt2";
 
 #[cfg(test)]
 mod tests {
