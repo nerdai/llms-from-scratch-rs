@@ -448,7 +448,7 @@ impl Example for EG07 {
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+        let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
 
         // sample setup and load tokenizer
         let tokenizer = get_bpe_from_model("gpt2")?;
@@ -539,7 +539,7 @@ impl Example for EG08 {
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let _model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+        let _model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
 
         // print model architecture
         let model_vars = varmap.data().lock().unwrap();
@@ -592,7 +592,7 @@ impl Example for EG09 {
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let mut model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
 
         // print old head
         let tensor_data = varmap.data().lock().unwrap();

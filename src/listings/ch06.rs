@@ -584,12 +584,12 @@ impl SpamDataLoader {
 /// See EG 06.07 for example usage.
 pub fn download_and_load_gpt2(
     varmap: &VarMap,
-    vb: &VarBuilder<'_>,
+    vb: VarBuilder<'_>,
     cfg: Config,
     model_id: &str,
 ) -> Result<GPTModel> {
     let dev = Device::cuda_if_available(0)?;
-    let model = GPTModel::new(cfg, vb.pp("model"))?;
+    let model = GPTModel::new(cfg, vb)?;
 
     // get weights from HF Hub
     let api = Api::new().map_err(candle_core::Error::wrap)?;
