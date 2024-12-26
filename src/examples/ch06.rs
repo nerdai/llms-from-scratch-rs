@@ -580,6 +580,35 @@ impl Example for EG09 {
     }
 
     fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{download_and_load_gpt2, modify_out_head_for_classification, HF_GPT2_MODEL_ID},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // use `download_and_load_gpt2`
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+
+        // print old head
+        let tensor_data = varmap.data().lock().unwrap();
+        let out_head = tensor_data.get("model.out_head.weight");
+        println!("old classification head: {:?}", out_head);
+        drop(tensor_data);
+
+        // modify classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+
+        // print model architecture
+        let tensor_data = varmap.data().lock().unwrap();
+        let out_head = tensor_data.get("model.out_head.weight");
+        println!("new classification head: {:?}", out_head);
+
         Ok(())
     }
 }
