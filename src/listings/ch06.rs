@@ -612,10 +612,19 @@ pub fn change_prediction_head(
     model: &mut GPTModel,
     cfg: Config,
     num_classes: usize,
-    _varmap: &mut VarMap,
+    varmap: &VarMap,
     vb: VarBuilder<'_>,
 ) -> Result<()> {
-    let out_head = linear_b(cfg.emb_dim, num_classes, false, vb.pp("out_head"))?;
+    // remove old 'out_head' from VarMap
+    let mut tensor_data = varmap.data().lock().unwrap();
+    let out_head_pp = vb.prefix() + ".out_head.weight";
+    if tensor_data.remove(&out_head_pp[..]).is_none() {
+        candle_core::bail!("Error in removing old head from VarMap.")
+    };
+    drop(tensor_data); // drop lock
+
+    // assign new out classification head
+    let out_head = linear_b(cfg.emb_dim, num_classes, true, vb.pp("out_head"))?;
     model.set_out_head(out_head);
     Ok(())
 }
@@ -625,7 +634,6 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use candle_core::DType;
-    use itertools::Itertools;
     use rstest::*;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
@@ -787,24 +795,18 @@ mod tests {
     fn test_change_prediction_head() -> Result<()> {
         // create typical language task model
         let dev = Device::cuda_if_available(0)?;
-        let mut varmap = VarMap::new();
+        let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
         let cfg = Config::gpt_sm_test();
         let mut model = GPTModel::new(cfg, vb.pp("model"))?;
 
         // change to classification head
         let num_classes = 2_usize;
-        change_prediction_head(&mut model, cfg, num_classes, &mut varmap, vb.pp("model"))?;
-
-        // let model_vars = varmap.data().lock().unwrap();
-        // for name in model_vars.keys().sorted() {
-        //     let var = model_vars.get(name).unwrap();
-        //     println!("{}: {:?}", name, var);
-        // }
+        change_prediction_head(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
 
         assert_eq!(
             model.out_head().weight().dims(),
-            &[cfg.vocab_size, cfg.emb_dim]
+            &[num_classes, cfg.emb_dim]
         );
         Ok(())
     }
