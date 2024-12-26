@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use candle_datasets::{batcher::IterResult2, Batcher};
-use candle_nn::{VarBuilder, VarMap};
+use candle_nn::{linear_b, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
@@ -607,10 +607,52 @@ pub fn download_and_load_gpt2(
 
 pub const HF_GPT2_MODEL_ID: &str = "openai-community/gpt2";
 
+/// [Listing 6.7] Adding a classification layer
+///
+/// ```rust
+/// use candle_core::{Device, DType};
+/// use candle_nn::{VarBuilder, VarMap};
+/// use llms_from_scratch_rs::listings::{
+///     ch04::{Config, GPTModel},
+///     ch06::modify_out_head_for_classification
+/// };
+///
+/// let dev = Device::cuda_if_available(0).unwrap();
+/// let varmap = VarMap::new();
+/// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+/// let cfg = Config::gpt_sm_test();
+/// let mut model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+///
+/// // change to classification head
+/// let num_classes = 2_usize;
+/// modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model")).unwrap();
+/// ```
+pub fn modify_out_head_for_classification(
+    model: &mut GPTModel,
+    cfg: Config,
+    num_classes: usize,
+    varmap: &VarMap,
+    vb: VarBuilder<'_>,
+) -> Result<()> {
+    // remove old 'out_head' from VarMap
+    let mut tensor_data = varmap.data().lock().unwrap();
+    let out_head_pp = vb.prefix() + ".out_head.weight";
+    if tensor_data.remove(&out_head_pp[..]).is_none() {
+        candle_core::bail!("Error in removing old head from VarMap.")
+    };
+    drop(tensor_data); // drop lock
+
+    // assign new out classification head
+    let out_head = linear_b(cfg.emb_dim, num_classes, true, vb.pp("out_head"))?;
+    model.set_out_head(out_head);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use anyhow::Result;
+    use candle_core::DType;
     use rstest::*;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
@@ -765,6 +807,26 @@ mod tests {
         }
         assert_eq!(data_loader.len(), count);
         assert!(!data_loader.is_empty());
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_modify_out_head_for_classification() -> Result<()> {
+        // create typical language task model
+        let dev = Device::cuda_if_available(0)?;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let cfg = Config::gpt_sm_test();
+        let mut model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // change to classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+
+        assert_eq!(
+            model.out_head().weight().dims(),
+            &[num_classes, cfg.emb_dim]
+        );
         Ok(())
     }
 }
