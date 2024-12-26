@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use candle_datasets::{batcher::IterResult2, Batcher};
-use candle_nn::{VarBuilder, VarMap};
+use candle_nn::{linear_b, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
@@ -607,10 +607,25 @@ pub fn download_and_load_gpt2(
 
 pub const HF_GPT2_MODEL_ID: &str = "openai-community/gpt2";
 
+/// [Listing 6.7] Adding a classification layer
+pub fn change_prediction_head(
+    model: &mut GPTModel,
+    cfg: Config,
+    num_classes: usize,
+    _varmap: &mut VarMap,
+    vb: VarBuilder<'_>,
+) -> Result<()> {
+    let out_head = linear_b(cfg.emb_dim, num_classes, false, vb.pp("out_head"))?;
+    model.set_out_head(out_head);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use anyhow::Result;
+    use candle_core::DType;
+    use itertools::Itertools;
     use rstest::*;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
@@ -765,6 +780,32 @@ mod tests {
         }
         assert_eq!(data_loader.len(), count);
         assert!(!data_loader.is_empty());
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_change_prediction_head() -> Result<()> {
+        // create typical language task model
+        let dev = Device::cuda_if_available(0)?;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let cfg = Config::gpt_sm_test();
+        let mut model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // change to classification head
+        let num_classes = 2_usize;
+        change_prediction_head(&mut model, cfg, num_classes, &mut varmap, vb.pp("model"))?;
+
+        // let model_vars = varmap.data().lock().unwrap();
+        // for name in model_vars.keys().sorted() {
+        //     let var = model_vars.get(name).unwrap();
+        //     println!("{}: {:?}", name, var);
+        // }
+
+        assert_eq!(
+            model.out_head().weight().dims(),
+            &[cfg.vocab_size, cfg.emb_dim]
+        );
         Ok(())
     }
 }

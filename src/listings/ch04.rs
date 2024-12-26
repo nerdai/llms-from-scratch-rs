@@ -495,11 +495,15 @@ impl GPTModel {
         &self.pos_emb
     }
 
+    pub fn out_head(&self) -> &Linear {
+        &self.out_head
+    }
+
     /// Manual implementation of forward
     ///
     /// Note: that blanket implementation of `ModuleT` when a type implements
     /// `Module` prevents having `forward` being overrided. Thus, this type
-    /// is `ModuleT` but technicall not `Module`.
+    /// is `ModuleT` but technically not `Module`.
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
