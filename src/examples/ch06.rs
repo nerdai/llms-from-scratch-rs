@@ -552,6 +552,38 @@ impl Example for EG08 {
     }
 }
 
+/// # Modifying the `out_head` of a GPT2Model and running inference
+///
+/// #### Id
+/// 06.09
+///
+/// #### Page
+/// This example starts on page 186
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.09
+///
+/// # with cuda
+/// cargo run --features cuda example 06.09
+/// ```
+pub struct EG09;
+
+impl Example for EG09 {
+    fn description(&self) -> String {
+        String::from("Modifying the `out_head` of a GPT2Model and running inference")
+    }
+
+    fn page_source(&self) -> usize {
+        186_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
