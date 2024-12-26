@@ -608,7 +608,26 @@ pub fn download_and_load_gpt2(
 pub const HF_GPT2_MODEL_ID: &str = "openai-community/gpt2";
 
 /// [Listing 6.7] Adding a classification layer
-pub fn change_prediction_head(
+///
+/// ```rust
+/// use candle_core::{Device, DType};
+/// use candle_nn::{VarBuilder, VarMap};
+/// use llms_from_scratch_rs::listings::{
+///     ch04::{Config, GPTModel},
+///     ch06::modify_out_head_for_classification
+/// };
+///
+/// let dev = Device::cuda_if_available(0).unwrap();
+/// let varmap = VarMap::new();
+/// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+/// let cfg = Config::gpt_sm_test();
+/// let mut model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+///
+/// // change to classification head
+/// let num_classes = 2_usize;
+/// modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model")).unwrap();
+/// ```
+pub fn modify_out_head_for_classification(
     model: &mut GPTModel,
     cfg: Config,
     num_classes: usize,
@@ -792,7 +811,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_change_prediction_head() -> Result<()> {
+    fn test_modify_out_head_for_classification() -> Result<()> {
         // create typical language task model
         let dev = Device::cuda_if_available(0)?;
         let varmap = VarMap::new();
@@ -802,7 +821,7 @@ mod tests {
 
         // change to classification head
         let num_classes = 2_usize;
-        change_prediction_head(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
 
         assert_eq!(
             model.out_head().weight().dims(),
