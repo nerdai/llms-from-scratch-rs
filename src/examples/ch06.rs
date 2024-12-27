@@ -448,7 +448,7 @@ impl Example for EG07 {
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+        let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
 
         // sample setup and load tokenizer
         let tokenizer = get_bpe_from_model("gpt2")?;
@@ -539,7 +539,7 @@ impl Example for EG08 {
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let _model = download_and_load_gpt2(&varmap, &vb, cfg, HF_GPT2_MODEL_ID)?;
+        let _model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
 
         // print model architecture
         let model_vars = varmap.data().lock().unwrap();
@@ -547,6 +547,87 @@ impl Example for EG08 {
             let var = model_vars.get(name).unwrap();
             println!("{}: {:?}", name, var);
         }
+
+        Ok(())
+    }
+}
+
+/// # Modifying the `out_head` of a GPT2Model and running inference
+///
+/// #### Id
+/// 06.09
+///
+/// #### Page
+/// This example starts on page 186
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.09
+///
+/// # with cuda
+/// cargo run --features cuda example 06.09
+/// ```
+pub struct EG09;
+
+impl Example for EG09 {
+    fn description(&self) -> String {
+        String::from("Modifying the `out_head` of a GPT2Model and running inference")
+    }
+
+    fn page_source(&self) -> usize {
+        186_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{download_and_load_gpt2, modify_out_head_for_classification, HF_GPT2_MODEL_ID},
+        };
+        use candle_core::{DType, Device, IndexOp, ModuleT, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
+
+        // use `download_and_load_gpt2`
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+
+        // print old head
+        let tensor_data = varmap.data().lock().unwrap();
+        let out_head = tensor_data.get("model.out_head.weight");
+        println!("old classification head: {:?}", out_head);
+        drop(tensor_data);
+
+        // modify classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+
+        // print model architecture
+        let tensor_data = varmap.data().lock().unwrap();
+        let out_head = tensor_data.get("model.out_head.weight");
+        println!("new classification head: {:?}", out_head);
+
+        // run sample inference
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let inputs = tokenizer.encode_with_special_tokens("Do you have time");
+        let num_tokens = inputs.len();
+        let inputs = Tensor::from_vec(inputs, num_tokens, vb.device())?.unsqueeze(0)?;
+        println!("Inputs: {:?}", inputs.to_vec2::<u32>());
+        println!("Inputs dimensions: {:?}", inputs);
+
+        let outputs = model.forward_t(&inputs, false)?;
+        println!("Outputs: {:?}", outputs.to_vec3::<f32>());
+        println!("Outputs dimensions: {:?}", outputs);
+
+        // get last output token to use for making predictions of spam/ham
+        let (_b, c, _vocab_size) = outputs.dims3()?;
+        println!(
+            "Last output token: {:?}",
+            outputs.i((.., c - 1, ..))?.to_vec2::<f32>()
+        );
 
         Ok(())
     }
