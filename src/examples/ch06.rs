@@ -633,6 +633,39 @@ impl Example for EG09 {
     }
 }
 
+/// # Toy example of using `candle_nn::softmax` on output values to classify spam/ham
+///
+/// #### Id
+/// 06.10
+///
+/// #### Page
+/// This example starts on page 192
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.10
+///
+/// # with cuda
+/// cargo run --features cuda example 06.10
+/// ```
+pub struct EG10;
+
+impl Example for EG10 {
+    fn description(&self) -> String {
+        "Toy example of using `candle_nn::softmax` on output values to classify spam/ham"
+            .to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        192_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        todo!()
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
