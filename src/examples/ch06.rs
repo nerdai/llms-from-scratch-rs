@@ -653,8 +653,7 @@ pub struct EG10;
 
 impl Example for EG10 {
     fn description(&self) -> String {
-        "Toy example of using `candle_nn::softmax` on output values to classify spam/ham"
-            .to_string()
+        "Toy example of predicting spam/ham from logits".to_string()
     }
 
     fn page_source(&self) -> usize {
@@ -662,7 +661,19 @@ impl Example for EG10 {
     }
 
     fn main(&self) -> Result<()> {
-        todo!()
+        use candle_core::{Device, Tensor, D};
+
+        let dev = Device::cuda_if_available(0)?;
+        let logits = Tensor::new(&[[-3.5983_f32, 3.9902]], &dev)?;
+        println!(
+            "Last output token (i.e. logits): {:?}",
+            logits.to_vec2::<f32>()?
+        );
+
+        let label = logits.argmax(D::Minus1)?;
+        println!("Class label: {:?}", label.squeeze(0)?.to_scalar::<u32>()?);
+
+        Ok(())
     }
 }
 
