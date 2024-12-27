@@ -633,6 +633,50 @@ impl Example for EG09 {
     }
 }
 
+/// # Toy example of using `candle_nn::softmax` on output values to classify spam/ham
+///
+/// #### Id
+/// 06.10
+///
+/// #### Page
+/// This example starts on page 192
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.10
+///
+/// # with cuda
+/// cargo run --features cuda example 06.10
+/// ```
+pub struct EG10;
+
+impl Example for EG10 {
+    fn description(&self) -> String {
+        "Toy example of predicting spam/ham from logits".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        192_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use candle_core::{Device, Tensor, D};
+
+        let dev = Device::cuda_if_available(0)?;
+        let logits = Tensor::new(&[[-3.5983_f32, 3.9902]], &dev)?;
+        println!(
+            "Last output token (i.e. logits): {:?}",
+            logits.to_vec2::<f32>()?
+        );
+
+        let label = logits.argmax(D::Minus1)?;
+        println!("Class label: {:?}", label.squeeze(0)?.to_scalar::<u32>()?);
+
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
