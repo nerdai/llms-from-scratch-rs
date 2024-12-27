@@ -584,7 +584,7 @@ impl Example for EG09 {
             ch04::Config,
             ch06::{download_and_load_gpt2, modify_out_head_for_classification, HF_GPT2_MODEL_ID},
         };
-        use candle_core::{DType, Device, Tensor};
+        use candle_core::{DType, Device, IndexOp, ModuleT, Tensor};
         use candle_nn::{VarBuilder, VarMap};
         use tiktoken_rs::get_bpe_from_model;
 
@@ -616,7 +616,18 @@ impl Example for EG09 {
         let num_tokens = inputs.len();
         let inputs = Tensor::from_vec(inputs, num_tokens, vb.device())?.unsqueeze(0)?;
         println!("Inputs: {:?}", inputs.to_vec2::<u32>());
-        println!("Inputs dimentions: {:?}", inputs);
+        println!("Inputs dimensions: {:?}", inputs);
+
+        let outputs = model.forward_t(&inputs, false)?;
+        println!("Outputs: {:?}", outputs.to_vec3::<f32>());
+        println!("Outputs dimensions: {:?}", outputs);
+
+        // get last output token to use for making predictions of spam/ham
+        let (_b, c, _vocab_size) = outputs.dims3()?;
+        println!(
+            "Last output token: {:?}",
+            outputs.i((.., c - 1, ..))?.to_vec2::<f32>()
+        );
 
         Ok(())
     }
