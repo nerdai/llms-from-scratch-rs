@@ -584,8 +584,9 @@ impl Example for EG09 {
             ch04::Config,
             ch06::{download_and_load_gpt2, modify_out_head_for_classification, HF_GPT2_MODEL_ID},
         };
-        use candle_core::{DType, Device};
+        use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
 
         // use `download_and_load_gpt2`
         let mut cfg = Config::gpt2_124m();
@@ -608,6 +609,14 @@ impl Example for EG09 {
         let tensor_data = varmap.data().lock().unwrap();
         let out_head = tensor_data.get("model.out_head.weight");
         println!("new classification head: {:?}", out_head);
+
+        // run sample inference
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let inputs = tokenizer.encode_with_special_tokens("Do you have time");
+        let num_tokens = inputs.len();
+        let inputs = Tensor::from_vec(inputs, num_tokens, vb.device())?.unsqueeze(0)?;
+        println!("Inputs: {:?}", inputs.to_vec2::<u32>());
+        println!("Inputs dimentions: {:?}", inputs);
 
         Ok(())
     }
