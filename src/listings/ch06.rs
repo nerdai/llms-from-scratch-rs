@@ -732,30 +732,20 @@ pub fn calc_loss_loader(
     num_batches: Option<usize>,
 ) -> Result<f32> {
     let mut total_loss = 0_f32;
-    let mut count = 0_usize;
-
     let mut data_batcher = data_loader.batcher();
-    match num_batches {
-        None => {
-            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
-                total_loss += loss.to_scalar::<f32>()?;
-                count += 1_usize;
-            }
-            Ok(total_loss / count as f32)
-        }
-        Some(n) => {
-            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
-                total_loss += loss.to_scalar::<f32>()?;
-                count += 1_usize;
-                if count >= n {
-                    break;
-                }
-            }
-            Ok(total_loss / std::cmp::min(n, count) as f32)
-        }
+    let n_batches = if let Some(n) = num_batches {
+        std::cmp::min(n, data_loader.len())
+    } else {
+        data_loader.len()
+    };
+
+    for _ in 0..n_batches {
+        let (input_batch, target_batch) = data_batcher.next().unwrap()?;
+        let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+        total_loss += loss.to_scalar::<f32>()?;
     }
+
+    Ok(total_loss / n_batches as f32)
 }
 
 #[cfg(test)]
