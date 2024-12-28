@@ -1,3 +1,4 @@
 /target
 checkpoint.safetensors
+clf.checkpoint.safetensors
 /data
