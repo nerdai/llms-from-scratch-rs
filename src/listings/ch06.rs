@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use candle_core::{DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
-use candle_nn::{linear_b, VarBuilder, VarMap};
+use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
@@ -735,6 +735,83 @@ pub fn calc_loss_loader(
     }
 
     Ok(total_loss / n_batches as f32)
+}
+
+type ClassifierTrainingResult = (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, usize);
+
+/// [Listing 6.10] Fine-tuning the model to classify spam
+#[allow(clippy::too_many_arguments)]
+pub fn train_classifier_simple<T: Optimizer>(
+    model: &GPTModel,
+    train_loader: &SpamDataLoader,
+    val_loader: &SpamDataLoader,
+    mut optimizer: T,
+    device: &Device,
+    num_epochs: usize,
+    eval_freq: usize,
+    eval_iter: usize,
+) -> Result<ClassifierTrainingResult> {
+    // retvals
+    let mut train_losses: Vec<f32> = vec![];
+    let mut val_losses: Vec<f32> = vec![];
+    let mut train_accs: Vec<f32> = vec![];
+    let mut val_accs: Vec<f32> = vec![];
+
+    let (mut examples_seen, mut global_step) = (0usize, 0_usize);
+
+    for epoch in 0..num_epochs {
+        let mut train_batcher = train_loader.batcher();
+        while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
+            let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+            optimizer.backward_step(&loss)?;
+            examples_seen += input_batch.elem_count();
+
+            if global_step % eval_freq == 0 {
+                let (train_loss, val_loss) =
+                    evaluate_model(model, train_loader, val_loader, device, eval_iter)?;
+                train_losses.push(train_loss);
+                val_losses.push(val_loss);
+                println!(
+                    "Ep {} (Step {}) \
+                    Train loss: {}, \
+                    Val loss: {}",
+                    epoch + 1,
+                    global_step,
+                    train_loss,
+                    val_loss
+                );
+            }
+            global_step += 1;
+        }
+
+        let train_accuracy = calc_accuracy_loader(train_loader, model, device, Some(eval_iter))?;
+        let val_accuracy = calc_accuracy_loader(val_loader, model, device, Some(eval_iter))?;
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        train_accs.push(train_accuracy);
+        val_accs.push(val_accuracy);
+    }
+
+    Ok((
+        train_losses,
+        val_losses,
+        train_accs,
+        val_accs,
+        examples_seen,
+    ))
+}
+
+/// Returns train and validation loss of a `GPTModel` for spam classification
+pub fn evaluate_model(
+    model: &GPTModel,
+    train_loader: &SpamDataLoader,
+    val_loader: &SpamDataLoader,
+    device: &Device,
+    eval_iter: usize,
+) -> Result<(f32, f32)> {
+    let train_loss = calc_loss_loader(train_loader, model, device, Some(eval_iter))?;
+    let val_loss = calc_loss_loader(val_loader, model, device, Some(eval_iter))?;
+    Ok((train_loss, val_loss))
 }
 
 #[cfg(test)]
