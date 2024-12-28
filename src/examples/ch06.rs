@@ -913,6 +913,9 @@ impl Example for EG13 {
             eval_iter,
         );
 
+        // save model
+        varmap.save("clf.checkpoint.safetensors")?;
+
         Ok(())
     }
 }
