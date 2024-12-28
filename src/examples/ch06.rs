@@ -1,9 +1,6 @@
 //! Examples from Chapter 6
 
-use crate::{
-    listings::ch06::{calc_accuracy_loader, SpamDataLoader},
-    Example,
-};
+use crate::Example;
 use anyhow::Result;
 
 /// # Example usage of `download_and_unzip_spam_data`
@@ -343,7 +340,11 @@ impl EG06 {
     fn main_with_return(
         &self,
         verbose: bool,
-    ) -> Result<(SpamDataLoader, SpamDataLoader, SpamDataLoader)> {
+    ) -> Result<(
+        crate::listings::ch06::SpamDataLoader,
+        crate::listings::ch06::SpamDataLoader,
+        crate::listings::ch06::SpamDataLoader,
+    )> {
         use crate::listings::ch06::{SpamDataLoader, SpamDatasetBuilder};
         use anyhow::anyhow;
         use std::ops::Not;
@@ -724,7 +725,10 @@ impl Example for EG11 {
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::Config,
-            ch06::{download_and_load_gpt2, modify_out_head_for_classification, HF_GPT2_MODEL_ID},
+            ch06::{
+                calc_accuracy_loader, download_and_load_gpt2, modify_out_head_for_classification,
+                HF_GPT2_MODEL_ID,
+            },
         };
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
@@ -750,6 +754,72 @@ impl Example for EG11 {
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
         println!("Test accuracy: {}", test_accuracy);
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `calc_loss_loader` to compute cross-entropy loss on train, val, test sets
+///
+/// #### Id
+/// 06.12
+///
+/// #### Page
+/// This example starts on page 194
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.12
+///
+/// # with cuda
+/// cargo run --features cuda example 06.12
+/// ```
+pub struct EG12;
+
+impl Example for EG12 {
+    fn description(&self) -> String {
+        let desc = "Example usage of `calc_loss_loader` to compute accuracy on \
+        test, train, val sets";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        194_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{
+                calc_loss_loader, download_and_load_gpt2, modify_out_head_for_classification,
+                HF_GPT2_MODEL_ID,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // get data loaders
+        let eg06 = EG06; // re-use
+        let (train_loader, val_loader, test_loader) = eg06.main_with_return(false)?;
+
+        // compute accuracies
+        let num_batches = Some(5_usize);
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches)?;
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches)?;
+        let test_loss = calc_loss_loader(&test_loader, &model, vb.device(), num_batches)?;
+
+        println!("Training loss: {}", train_loss);
+        println!("Validation loss: {}", val_loss);
+        println!("Test loss: {}", test_loss);
 
         Ok(())
     }
