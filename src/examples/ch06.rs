@@ -914,6 +914,7 @@ impl Example for EG13 {
         );
 
         // save model
+        println!("Saving weights to `./clf.checkpoint.safetensors`");
         varmap.save("clf.checkpoint.safetensors")?;
 
         Ok(())
