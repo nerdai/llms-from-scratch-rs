@@ -658,7 +658,7 @@ pub fn calc_num_correct_batch(
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?.to_dtype(DType::U32)?;
     let outputs = model.forward_t(&input_batch, false)?;
-    let (_b, c, _vocab_size) = outputs.dims3()?;
+    let (_b, c, _num_classes) = outputs.dims3()?;
     let logits = outputs.i((.., c - 1, ..))?;
     let predicted_labels = logits.argmax_keepdim(D::Minus1)?;
     let num_correct = predicted_labels.eq(&target_batch)?.sum_all()?;
@@ -701,6 +701,61 @@ pub fn calc_accuracy_loader(
         }
     }
     Ok(correct_predictions as f32 / num_examples as f32)
+}
+
+/// Calculate the cross entropy loss of a given batch
+pub fn calc_loss_batch(
+    input_batch: &Tensor,
+    target_batch: &Tensor,
+    model: &GPTModel,
+    device: &Device,
+) -> Result<Tensor> {
+    let input_batch = input_batch.to_device(device)?;
+    let target_batch = target_batch.to_device(device)?;
+    let outputs = model.forward_t(&input_batch, true)?;
+    let (_b, c, _num_classes) = outputs.dims3()?;
+    let logits = outputs.index_select(&Tensor::new(&[(c - 1) as u32], device)?, D::Minus2)?;
+
+    // flatten
+    let logits_flat = logits.flatten(0, 1)?;
+    let targets_flat = target_batch.flatten_all()?;
+
+    let loss = candle_nn::loss::cross_entropy(&logits_flat, &targets_flat)?;
+    Ok(loss)
+}
+
+/// [Listing 6.9] Function to compute the training and validation cross-entropy loss
+pub fn calc_loss_loader(
+    data_loader: &SpamDataLoader,
+    model: &GPTModel,
+    device: &Device,
+    num_batches: Option<usize>,
+) -> Result<f32> {
+    let mut total_loss = 0_f32;
+    let mut count = 0_usize;
+
+    let mut data_batcher = data_loader.batcher();
+    match num_batches {
+        None => {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+                total_loss += loss.to_scalar::<f32>()?;
+                count += 1_usize;
+            }
+            Ok(total_loss / count as f32)
+        }
+        Some(n) => {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+                total_loss += loss.to_scalar::<f32>()?;
+                count += 1_usize;
+                if count >= n {
+                    break;
+                }
+            }
+            Ok(total_loss / std::cmp::min(n, count) as f32)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -891,16 +946,39 @@ mod tests {
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
         let cfg = Config::gpt_sm_test();
-        let model = GPTModel::new(cfg, vb.pp("model"))?;
+        let mut model = GPTModel::new(cfg, vb.pp("model"))?;
+        // change to classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
 
         // create sample inputs
         let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
-        let targets = Tensor::new(&[[415_i64], [328]], vb.device())?;
+        let targets = Tensor::new(&[[1_i64], [0]], vb.device())?;
 
         // compute num correct
         let num_correct = calc_num_correct_batch(&inputs, &targets, &model, vb.device())?;
 
         assert_eq!(num_correct.elem_count(), 1);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_calc_loss_batch() -> Result<()> {
+        // create model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let cfg = Config::gpt_sm_test();
+        let mut model = GPTModel::new(cfg, vb.pp("model"))?;
+        // change to classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+
+        // create sample inputs
+        let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
+        let targets = Tensor::new(&[[1_i64], [0]], vb.device())?;
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device())?;
+
+        assert_eq!(loss.elem_count(), 1);
         Ok(())
     }
 }
