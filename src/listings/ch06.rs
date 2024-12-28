@@ -648,6 +648,38 @@ pub fn modify_out_head_for_classification(
     Ok(())
 }
 
+/// [Listing 6.8] Calculating the classification accuracy
+#[allow(unused_variables)]
+pub fn calc_accuracy_loader(
+    data_loader: &SpamDataLoader,
+    model: &GPTModel,
+    device: &Device,
+    num_batches: Option<usize>,
+) -> Result<f32> {
+    let mut correct_predictions = 0_usize;
+    let mut num_examples = 0_usize;
+
+    let mut data_batcher = data_loader.batcher();
+    match num_batches {
+        None => {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
+                todo!();
+            }
+            Ok(f32::default())
+        }
+        Some(n) => {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
+                num_examples += 1_usize;
+                if num_examples >= n {
+                    break;
+                }
+                correct_predictions += 1_usize; // todo actually calculate
+            }
+            Ok(correct_predictions as f32 / std::cmp::min(n, num_examples) as f32)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
