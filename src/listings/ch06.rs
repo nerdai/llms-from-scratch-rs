@@ -675,31 +675,20 @@ pub fn calc_accuracy_loader(
 ) -> Result<f32> {
     let mut correct_predictions = 0_usize;
     let mut num_examples = 0_usize;
-    let mut count = 0_usize;
-
     let mut data_batcher = data_loader.batcher();
-    match num_batches {
-        None => {
-            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let num_correct =
-                    calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
-                correct_predictions += num_correct.to_scalar::<u8>()? as usize;
-                num_examples += input_batch.dims()[0];
-            }
-        }
-        Some(n) => {
-            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let num_correct =
-                    calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
-                correct_predictions += num_correct.to_scalar::<u8>()? as usize;
-                num_examples += input_batch.dims()[0];
-                count += 1;
-                if count >= n {
-                    break;
-                }
-            }
-        }
+    let n_batches = if let Some(n) = num_batches {
+        cmp::min(n, data_loader.len())
+    } else {
+        data_loader.len()
+    };
+
+    for _ in 0..n_batches {
+        let (input_batch, target_batch) = data_batcher.next().unwrap()?;
+        let num_correct = calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
+        correct_predictions += num_correct.to_scalar::<u8>()? as usize;
+        num_examples += input_batch.dims()[0];
     }
+
     Ok(correct_predictions as f32 / num_examples as f32)
 }
 
@@ -734,7 +723,7 @@ pub fn calc_loss_loader(
     let mut total_loss = 0_f32;
     let mut data_batcher = data_loader.batcher();
     let n_batches = if let Some(n) = num_batches {
-        std::cmp::min(n, data_loader.len())
+        cmp::min(n, data_loader.len())
     } else {
         data_loader.len()
     };
