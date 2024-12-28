@@ -737,6 +737,8 @@ pub fn calc_loss_loader(
     Ok(total_loss / n_batches as f32)
 }
 
+type ClassifierTrainingResult = (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, usize);
+
 /// [Listing 6.10] Fine-tuning the model to classify spam
 #[allow(clippy::too_many_arguments)]
 pub fn train_classifier_simple<T: Optimizer>(
@@ -748,10 +750,12 @@ pub fn train_classifier_simple<T: Optimizer>(
     num_epochs: usize,
     eval_freq: usize,
     eval_iter: usize,
-) -> Result<(Vec<f32>, Vec<f32>, usize)> {
+) -> Result<ClassifierTrainingResult> {
     // retvals
     let mut train_losses: Vec<f32> = vec![];
     let mut val_losses: Vec<f32> = vec![];
+    let mut train_accs: Vec<f32> = vec![];
+    let mut val_accs: Vec<f32> = vec![];
 
     let (mut examples_seen, mut global_step) = (0usize, 0_usize);
 
@@ -779,9 +783,22 @@ pub fn train_classifier_simple<T: Optimizer>(
             }
             global_step += 1;
         }
+
+        let train_accuracy = calc_accuracy_loader(train_loader, model, device, Some(eval_iter))?;
+        let val_accuracy = calc_accuracy_loader(val_loader, model, device, Some(eval_iter))?;
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        train_accs.push(train_accuracy);
+        val_accs.push(val_accuracy);
     }
 
-    Ok((train_losses, val_losses, examples_seen))
+    Ok((
+        train_losses,
+        val_losses,
+        train_accs,
+        val_accs,
+        examples_seen,
+    ))
 }
 
 /// Returns train and validation loss of a `GPTModel` for spam classification
