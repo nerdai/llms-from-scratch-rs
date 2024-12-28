@@ -764,7 +764,8 @@ pub fn train_classifier_simple<T: Optimizer>(
         while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
             let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
             optimizer.backward_step(&loss)?;
-            examples_seen += input_batch.elem_count();
+            let (b_size, _seq_len) = input_batch.dims2()?;
+            examples_seen += b_size;
 
             if global_step % eval_freq == 0 {
                 let (train_loss, val_loss) =
