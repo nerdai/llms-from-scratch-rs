@@ -7,7 +7,7 @@ use super::{
 use ::zip::ZipArchive;
 use anyhow::anyhow;
 use bytes::Bytes;
-use candle_core::{Device, Result, Tensor};
+use candle_core::{DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
@@ -648,6 +648,60 @@ pub fn modify_out_head_for_classification(
     Ok(())
 }
 
+/// Calculate the number of correct predictions of a given batch
+pub fn calc_num_correct_batch(
+    input_batch: &Tensor,
+    target_batch: &Tensor,
+    model: &GPTModel,
+    device: &Device,
+) -> Result<Tensor> {
+    let input_batch = input_batch.to_device(device)?;
+    let target_batch = target_batch.to_device(device)?.to_dtype(DType::U32)?;
+    let outputs = model.forward_t(&input_batch, false)?;
+    let (_b, c, _vocab_size) = outputs.dims3()?;
+    let logits = outputs.i((.., c - 1, ..))?;
+    let predicted_labels = logits.argmax_keepdim(D::Minus1)?;
+    let num_correct = predicted_labels.eq(&target_batch)?.sum_all()?;
+    Ok(num_correct)
+}
+
+/// [Listing 6.8] Calculating the classification accuracy
+#[allow(unused_variables)]
+pub fn calc_accuracy_loader(
+    data_loader: &SpamDataLoader,
+    model: &GPTModel,
+    device: &Device,
+    num_batches: Option<usize>,
+) -> Result<f32> {
+    let mut correct_predictions = 0_usize;
+    let mut num_examples = 0_usize;
+
+    let mut data_batcher = data_loader.batcher();
+    match num_batches {
+        None => {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
+                let num_correct =
+                    calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
+                correct_predictions += num_correct.to_scalar::<u32>()? as usize;
+                num_examples += input_batch.dims()[0];
+            }
+            Ok(correct_predictions as f32 / num_examples as f32)
+        }
+        Some(n) => {
+            while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
+                let num_correct =
+                    calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
+                correct_predictions += num_correct.to_scalar::<u32>()? as usize;
+                num_examples += input_batch.dims()[0];
+                if num_examples >= n {
+                    break;
+                }
+            }
+            Ok(correct_predictions as f32 / std::cmp::min(n, num_examples) as f32)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -827,6 +881,25 @@ mod tests {
             model.out_head().weight().dims(),
             &[num_classes, cfg.emb_dim]
         );
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_calc_num_correct_batch() -> Result<()> {
+        // create model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // create sample inputs
+        let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
+        let targets = Tensor::new(&[[415_i64], [328]], vb.device())?;
+
+        // compute num correct
+        let num_correct = calc_num_correct_batch(&inputs, &targets, &model, vb.device())?;
+
+        assert_eq!(num_correct.elem_count(), 1);
         Ok(())
     }
 }
