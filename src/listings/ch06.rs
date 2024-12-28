@@ -7,7 +7,7 @@ use super::{
 use ::zip::ZipArchive;
 use anyhow::anyhow;
 use bytes::Bytes;
-use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
+use candle_core::{DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
@@ -648,6 +648,23 @@ pub fn modify_out_head_for_classification(
     Ok(())
 }
 
+/// Calculate the number of correct predictions of a given batch
+pub fn calc_num_correct_batch(
+    input_batch: &Tensor,
+    target_batch: &Tensor,
+    model: &GPTModel,
+    device: &Device,
+) -> Result<Tensor> {
+    let input_batch = input_batch.to_device(device)?;
+    let target_batch = target_batch.to_device(device)?.to_dtype(DType::U32)?;
+    let outputs = model.forward_t(&input_batch, true)?;
+    let (_b, c, _vocab_size) = outputs.dims3()?;
+    let logits = outputs.i((.., c - 1, ..))?;
+    let predicted_labels = logits.argmax_keepdim(D::Minus1)?;
+    let num_correct = predicted_labels.eq(&target_batch)?.sum_all()?;
+    Ok(num_correct)
+}
+
 /// [Listing 6.8] Calculating the classification accuracy
 #[allow(unused_variables)]
 pub fn calc_accuracy_loader(
@@ -663,32 +680,22 @@ pub fn calc_accuracy_loader(
     match num_batches {
         None => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                // run inference
-                let input_batch = input_batch.to_device(device)?;
-                let target_batch = target_batch.to_device(device)?;
-                let outputs = model.forward_t(&input_batch, false)?;
-                let (_b, c, _vocab_size) = outputs.dims3()?;
-                let logits = outputs.i((.., c - 1, ..))?;
-                let predicted_labels = logits.argmax(D::Minus1)?;
-
-                num_examples += predicted_labels.dims()[0];
-
-                let num_correct = predicted_labels
-                    .eq(&target_batch)?
-                    .sum_all()?
-                    .to_scalar::<u32>()?;
-
-                correct_predictions += num_correct as usize;
+                let num_correct =
+                    calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
+                correct_predictions += num_correct.to_scalar::<u32>()? as usize;
+                num_examples += input_batch.dims()[0];
             }
             Ok(correct_predictions as f32 / num_examples as f32)
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                num_examples += 1_usize;
+                let num_correct =
+                    calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
+                correct_predictions += num_correct.to_scalar::<u32>()? as usize;
+                num_examples += input_batch.dims()[0];
                 if num_examples >= n {
                     break;
                 }
-                correct_predictions += 1_usize; // todo actually calculate
             }
             Ok(correct_predictions as f32 / std::cmp::min(n, num_examples) as f32)
         }
@@ -877,17 +884,47 @@ mod tests {
         Ok(())
     }
 
+    // #[rstest]
+    // fn test_calc_accuracy_loader(
+    //     #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
+    // ) -> Result<()> {
+    //     let tokenizer = get_bpe_from_model("gpt2")?;
+    //     let max_length = 10_usize;
+    //     let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+    //     let batch_size = 2_usize;
+    //     let shuffle = false;
+    //     let drop_last = false;
+    //     let data_loader = SpamDataLoader::new(spam_dataset, batch_size, shuffle, drop_last);
+
+    //     // create model
+    //     let varmap = VarMap::new();
+    //     let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+    //     let cfg = Config::gpt_sm_test();
+    //     let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+    //     let acc = calc_accuracy_loader(&data_loader, &model, vb.device(), None)?;
+    //     println!("{:?}", acc);
+
+    //     assert!(false);
+    //     Ok(())
+    // }
+
     #[rstest]
-    fn test_calc_accuracy_loader(
-        #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
-    ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
-        let max_length = 10_usize;
-        let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
-        let batch_size = 2_usize;
-        let shuffle = false;
-        let drop_last = false;
-        let data_loader = SpamDataLoader::new(spam_dataset, batch_size, shuffle, drop_last);
-        todo!()
+    fn test_calc_num_correct_batch() -> Result<()> {
+        // create model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // create sample inputs
+        let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
+        let targets = Tensor::new(&[[1_i64], [0]], vb.device())?;
+
+        // compute num correct
+        let num_correct = calc_num_correct_batch(&inputs, &targets, &model, vb.device())?;
+
+        assert_eq!(num_correct.elem_count(), 1);
+        Ok(())
     }
 }
