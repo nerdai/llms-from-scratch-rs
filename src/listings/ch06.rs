@@ -675,6 +675,7 @@ pub fn calc_accuracy_loader(
 ) -> Result<f32> {
     let mut correct_predictions = 0_usize;
     let mut num_examples = 0_usize;
+    let mut count = 0_usize;
 
     let mut data_batcher = data_loader.batcher();
     match num_batches {
@@ -685,7 +686,6 @@ pub fn calc_accuracy_loader(
                 correct_predictions += num_correct.to_scalar::<u8>()? as usize;
                 num_examples += input_batch.dims()[0];
             }
-            Ok(correct_predictions as f32 / num_examples as f32)
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
@@ -693,13 +693,14 @@ pub fn calc_accuracy_loader(
                     calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
                 correct_predictions += num_correct.to_scalar::<u8>()? as usize;
                 num_examples += input_batch.dims()[0];
-                if num_examples >= n {
+                count += 1;
+                if count >= n {
                     break;
                 }
             }
-            Ok(correct_predictions as f32 / std::cmp::min(n, num_examples) as f32)
         }
     }
+    Ok(correct_predictions as f32 / num_examples as f32)
 }
 
 #[cfg(test)]

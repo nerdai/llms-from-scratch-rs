@@ -742,13 +742,10 @@ impl Example for EG11 {
         let (train_loader, val_loader, test_loader) = eg06.main_with_return(false)?;
 
         // compute accuracies
-        let num_batches = 10_usize;
-        let train_accuracy =
-            calc_accuracy_loader(&train_loader, &model, vb.device(), Some(num_batches))?;
-        let val_accuracy =
-            calc_accuracy_loader(&val_loader, &model, vb.device(), Some(num_batches))?;
-        let test_accuracy =
-            calc_accuracy_loader(&test_loader, &model, vb.device(), Some(num_batches))?;
+        let num_batches = Some(10_usize);
+        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
+        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
+        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
 
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
