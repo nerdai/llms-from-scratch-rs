@@ -7,7 +7,7 @@ use super::{
 use ::zip::ZipArchive;
 use anyhow::anyhow;
 use bytes::Bytes;
-use candle_core::{Device, Result, Tensor};
+use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
@@ -663,9 +663,24 @@ pub fn calc_accuracy_loader(
     match num_batches {
         None => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                todo!();
+                // run inference
+                let input_batch = input_batch.to_device(device)?;
+                let target_batch = target_batch.to_device(device)?;
+                let outputs = model.forward_t(&input_batch, false)?;
+                let (_b, c, _vocab_size) = outputs.dims3()?;
+                let logits = outputs.i((.., c - 1, ..))?;
+                let predicted_labels = logits.argmax(D::Minus1)?;
+
+                num_examples += predicted_labels.dims()[0];
+
+                let num_correct = predicted_labels
+                    .eq(&target_batch)?
+                    .sum_all()?
+                    .to_scalar::<u32>()?;
+
+                correct_predictions += num_correct as usize;
             }
-            Ok(f32::default())
+            Ok(correct_predictions as f32 / num_examples as f32)
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
@@ -860,5 +875,19 @@ mod tests {
             &[num_classes, cfg.emb_dim]
         );
         Ok(())
+    }
+
+    #[rstest]
+    fn test_calc_accuracy_loader(
+        #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let max_length = 10_usize;
+        let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+        let batch_size = 2_usize;
+        let shuffle = false;
+        let drop_last = false;
+        let data_loader = SpamDataLoader::new(spam_dataset, batch_size, shuffle, drop_last);
+        todo!()
     }
 }
