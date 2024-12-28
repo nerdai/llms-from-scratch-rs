@@ -1,6 +1,9 @@
 //! Examples from Chapter 6
 
-use crate::{listings::ch06::SpamDataLoader, Example};
+use crate::{
+    listings::ch06::{calc_accuracy_loader, SpamDataLoader},
+    Example,
+};
 use anyhow::Result;
 
 /// # Example usage of `download_and_unzip_spam_data`
@@ -719,13 +722,37 @@ impl Example for EG11 {
     }
 
     fn main(&self) -> Result<()> {
-        let eg06 = EG06;
+        use crate::listings::{
+            ch04::Config,
+            ch06::{download_and_load_gpt2, modify_out_head_for_classification, HF_GPT2_MODEL_ID},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // get data loaders
+        let eg06 = EG06; // re-use
         let (train_loader, val_loader, test_loader) = eg06.main_with_return(false)?;
 
-        // print total number of batches in each data loader
-        println!("{:?} training batches", train_loader.len());
-        println!("{:?} validation batches", val_loader.len());
-        println!("{:?} test batches", test_loader.len());
+        // compute accuracies
+        let num_batches = 10_usize;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), Some(num_batches))?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), Some(num_batches))?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), Some(num_batches))?;
+
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        println!("Test accuracy: {}", test_accuracy);
 
         Ok(())
     }
