@@ -1,6 +1,9 @@
 //! Examples from Chapter 6
 
-use crate::Example;
+use crate::{
+    listings::ch06::{calc_accuracy_loader, SpamDataLoader},
+    Example,
+};
 use anyhow::Result;
 
 /// # Example usage of `download_and_unzip_spam_data`
@@ -336,16 +339,11 @@ impl Example for EG05 {
 /// ```
 pub struct EG06;
 
-impl Example for EG06 {
-    fn description(&self) -> String {
-        "Creating a `SpamDataLoader` for each of the train, val and test datasets.".to_string()
-    }
-
-    fn page_source(&self) -> usize {
-        180_usize
-    }
-
-    fn main(&self) -> Result<()> {
+impl EG06 {
+    fn main_with_return(
+        &self,
+        verbose: bool,
+    ) -> Result<(SpamDataLoader, SpamDataLoader, SpamDataLoader)> {
         use crate::listings::ch06::{SpamDataLoader, SpamDatasetBuilder};
         use anyhow::anyhow;
         use std::ops::Not;
@@ -393,14 +391,31 @@ impl Example for EG06 {
 
         // see last batch of train loader
         let (input_batch, target_batch) = train_loader.batcher().last().unwrap()?;
-        println!("Input batch dimensions: {:?}", input_batch.shape());
-        println!("Label batch dimensions: {:?}", target_batch.shape());
+        if verbose {
+            println!("Input batch dimensions: {:?}", input_batch.shape());
+            println!("Label batch dimensions: {:?}", target_batch.shape());
 
-        // print total number of batches in each data loader
-        println!("{:?} training batches", train_loader.len());
-        println!("{:?} validation batches", val_loader.len());
-        println!("{:?} test batches", test_loader.len());
+            // print total number of batches in each data loader
+            println!("{:?} training batches", train_loader.len());
+            println!("{:?} validation batches", val_loader.len());
+            println!("{:?} test batches", test_loader.len());
+        }
 
+        Ok((train_loader, val_loader, test_loader))
+    }
+}
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        "Creating a `SpamDataLoader` for each of the train, val and test datasets.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        180_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        let _ = self.main_with_return(true)?;
         Ok(())
     }
 }
@@ -672,6 +687,69 @@ impl Example for EG10 {
 
         let label = logits.argmax(D::Minus1)?;
         println!("Class label: {:?}", label.squeeze(0)?.to_scalar::<u32>()?);
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `calc_accuracy_loader` to compute accuracy on test, train, val sets
+///
+/// #### Id
+/// 06.11
+///
+/// #### Page
+/// This example starts on page 193
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.11
+///
+/// # with cuda
+/// cargo run --features cuda example 06.11
+/// ```
+pub struct EG11;
+
+impl Example for EG11 {
+    fn description(&self) -> String {
+        let desc = "Example usage of `calc_accuracy_loader` to compute accuracy on \
+        test, train, val sets";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        192_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{download_and_load_gpt2, modify_out_head_for_classification, HF_GPT2_MODEL_ID},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // get data loaders
+        let eg06 = EG06; // re-use
+        let (train_loader, val_loader, test_loader) = eg06.main_with_return(false)?;
+
+        // compute accuracies
+        let num_batches = Some(10_usize);
+        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
+        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
+        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        println!("Test accuracy: {}", test_accuracy);
 
         Ok(())
     }
