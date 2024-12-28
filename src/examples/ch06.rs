@@ -1,7 +1,7 @@
 //! Examples from Chapter 6
 
 use crate::Example;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 /// # Example usage of `download_and_unzip_spam_data`
 ///
@@ -916,6 +916,77 @@ impl Example for EG13 {
         // save model
         println!("Saving weights to `./clf.checkpoint.safetensors`");
         varmap.save("clf.checkpoint.safetensors")?;
+
+        Ok(())
+    }
+}
+
+/// # Loading fine-tuned model and calculate performance on whole train, val and test sets.
+///
+/// #### Id
+/// 06.14
+///
+/// #### Page
+/// This example starts on page 200
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.14
+///
+/// # with cuda
+/// cargo run --features cuda example 06.14
+/// ```
+pub struct EG14;
+
+impl Example for EG14 {
+    fn description(&self) -> String {
+        String::from(
+            "Loading fine-tuned model and calculate performance on whole train, val and test sets.",
+        )
+    }
+
+    fn page_source(&self) -> usize {
+        200_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{
+                calc_accuracy_loader, download_and_load_gpt2, modify_out_head_for_classification,
+                HF_GPT2_MODEL_ID,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // load safetensors
+        varmap
+            .load("clf.checkpoint.safetensors")
+            .with_context(|| "Missing 'clf.checkpoint.safetensors' file. Please run EG 06.13.")?;
+
+        // get data loaders
+        let eg06 = EG06; // re-use
+        let (train_loader, val_loader, test_loader) = eg06.main_with_return(false)?;
+
+        // compute accuracies
+        let num_batches = None;
+        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
+        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
+        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        println!("Test accuracy: {}", test_accuracy);
 
         Ok(())
     }
