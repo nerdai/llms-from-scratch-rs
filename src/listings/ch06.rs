@@ -658,7 +658,7 @@ pub fn calc_num_correct_batch(
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?.to_dtype(DType::U32)?;
     let outputs = model.forward_t(&input_batch, false)?;
-    let (_b, c, _vocab_size) = outputs.dims3()?;
+    let (_b, c, _num_classes) = outputs.dims3()?;
     let logits = outputs.i((.., c - 1, ..))?;
     let predicted_labels = logits.argmax_keepdim(D::Minus1)?;
     let num_correct = predicted_labels.eq(&target_batch)?.sum_all()?;
@@ -713,7 +713,7 @@ pub fn calc_loss_batch(
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?;
     let outputs = model.forward_t(&input_batch, true)?;
-    let (_b, c, _vocab_size) = outputs.dims3()?;
+    let (_b, c, _num_classes) = outputs.dims3()?;
     let logits = outputs.index_select(&Tensor::new(&[(c - 1) as u32], device)?, D::Minus2)?;
 
     // flatten
