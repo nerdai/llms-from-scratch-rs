@@ -825,6 +825,82 @@ impl Example for EG12 {
     }
 }
 
+/// # Example usage of `train_classifier_simple` function
+///
+/// #### Id
+/// 06.13
+///
+/// #### Page
+/// This example starts on page 149
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.13
+///
+/// # with cuda
+/// cargo run --features cuda example 06.13
+/// ```
+pub struct EG13;
+
+impl Example for EG13 {
+    fn description(&self) -> String {
+        String::from("Example usage of `train_classifier_simple` function")
+    }
+
+    fn page_source(&self) -> usize {
+        197_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{
+                download_and_load_gpt2, modify_out_head_for_classification,
+                train_classifier_simple, HF_GPT2_MODEL_ID,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // get data loaders
+        let eg06 = EG06; // re-use
+        let (train_loader, val_loader, _test_loader) = eg06.main_with_return(false)?;
+
+        // optimizer
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.0004,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+
+        let (eval_freq, eval_iter, num_epochs) = (50_usize, 5_usize, 5_usize);
+        let _ = train_classifier_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+        );
+
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
