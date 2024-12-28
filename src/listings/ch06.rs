@@ -739,7 +739,7 @@ pub fn calc_loss_loader(
 
 /// [Listing 6.10] Fine-tuning the model to classify spam
 #[allow(clippy::too_many_arguments)]
-pub fn train_model_simple<T: Optimizer>(
+pub fn train_classifier_simple<T: Optimizer>(
     model: &GPTModel,
     train_loader: &SpamDataLoader,
     val_loader: &SpamDataLoader,
