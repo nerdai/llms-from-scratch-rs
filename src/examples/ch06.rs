@@ -860,7 +860,7 @@ impl Example for EG13 {
                 train_classifier_simple, HF_GPT2_MODEL_ID,
             },
         };
-        use candle_core::{DType, Device};
+        use candle_core::{DType, Device, Var};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
 
         // get gpt model with classification head
@@ -875,11 +875,27 @@ impl Example for EG13 {
         let eg06 = EG06; // re-use
         let (train_loader, val_loader, _test_loader) = eg06.main_with_return(false)?;
 
-        // optimizer
+        // trainable params and optimizer
+        // trainable: last trf block, final layer norm, classification head
+        let mut training_vars: Vec<Var> = vec![];
+        let tensor_data = varmap.data().lock().unwrap();
+        let var_names: Vec<&String> = tensor_data
+            .keys()
+            .filter(|k| k.contains("final_norm") || k.contains("out_head") || k.contains("trf.11"))
+            .collect();
+
+        println!("Training variables: {:?}\n", var_names);
+
+        for var_name in var_names.into_iter() {
+            let var = tensor_data.get(var_name).unwrap();
+            training_vars.push(var.clone());
+        }
+        drop(tensor_data);
+
         let optimizer = AdamW::new(
-            varmap.all_vars(),
+            training_vars,
             ParamsAdamW {
-                lr: 0.0004,
+                lr: 5e-5,
                 weight_decay: 0.1,
                 ..Default::default()
             },
