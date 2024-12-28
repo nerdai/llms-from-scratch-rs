@@ -884,31 +884,6 @@ mod tests {
         Ok(())
     }
 
-    // #[rstest]
-    // fn test_calc_accuracy_loader(
-    //     #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
-    // ) -> Result<()> {
-    //     let tokenizer = get_bpe_from_model("gpt2")?;
-    //     let max_length = 10_usize;
-    //     let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
-    //     let batch_size = 2_usize;
-    //     let shuffle = false;
-    //     let drop_last = false;
-    //     let data_loader = SpamDataLoader::new(spam_dataset, batch_size, shuffle, drop_last);
-
-    //     // create model
-    //     let varmap = VarMap::new();
-    //     let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-    //     let cfg = Config::gpt_sm_test();
-    //     let model = GPTModel::new(cfg, vb.pp("model"))?;
-
-    //     let acc = calc_accuracy_loader(&data_loader, &model, vb.device(), None)?;
-    //     println!("{:?}", acc);
-
-    //     assert!(false);
-    //     Ok(())
-    // }
-
     #[rstest]
     fn test_calc_num_correct_batch() -> Result<()> {
         // create model
