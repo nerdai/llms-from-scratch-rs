@@ -1059,6 +1059,7 @@ impl Example for EG15 {
             .load("clf.checkpoint.safetensors")
             .with_context(|| "Missing 'clf.checkpoint.safetensors' file. Please run EG 06.13.")?;
 
+        // classify texts
         let text_1 = "You are a winner you have been specially selected to receive \
         $1000 cash or a $2000 award.";
         println!(
@@ -1070,7 +1071,8 @@ impl Example for EG15 {
                 vb.device(),
                 Some(train_dataset.max_length()),
                 PAD_TOKEN_ID,
-            )?,
+            )
+            .with_context(|| "Failed to classify text.")?,
         );
 
         Ok(())
