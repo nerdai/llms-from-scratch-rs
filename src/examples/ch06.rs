@@ -23,7 +23,7 @@ pub struct EG01;
 
 impl Example for EG01 {
     fn description(&self) -> String {
-        String::from("Sample usage of `download_and_unzip_spam_data`")
+        String::from("Sample usage of `download_and_unzip_spam_data`.")
     }
 
     fn page_source(&self) -> usize {
@@ -82,7 +82,7 @@ pub struct EG02;
 
 impl Example for EG02 {
     fn description(&self) -> String {
-        String::from("Sample usage of `download_smsspam_parquet`")
+        String::from("Sample usage of `download_smsspam_parquet`.")
     }
 
     fn page_source(&self) -> usize {
@@ -142,7 +142,7 @@ pub struct EG03;
 
 impl Example for EG03 {
     fn description(&self) -> String {
-        String::from("Example usage of `create_balanced_dataset`")
+        String::from("Example usage of `create_balanced_dataset`.")
     }
 
     fn page_source(&self) -> usize {
@@ -197,7 +197,7 @@ pub struct EG04;
 
 impl Example for EG04 {
     fn description(&self) -> String {
-        String::from("Example usage of `random_split` to create our train, test, val splits")
+        String::from("Example usage of `random_split` to create our train, test, val splits.")
     }
 
     fn page_source(&self) -> usize {
@@ -264,7 +264,7 @@ pub struct EG05;
 
 impl Example for EG05 {
     fn description(&self) -> String {
-        String::from("Creating `SpamDataset` for train, test, and validation")
+        String::from("Creating `SpamDataset` for train, test, and validation.")
     }
 
     fn page_source(&self) -> usize {
@@ -534,7 +534,7 @@ pub struct EG08;
 
 impl Example for EG08 {
     fn description(&self) -> String {
-        String::from("Printing the model architecture via `varmap.data()`")
+        String::from("Printing the model architecture via `varmap.data()`.")
     }
 
     fn page_source(&self) -> usize {
@@ -588,7 +588,7 @@ pub struct EG09;
 
 impl Example for EG09 {
     fn description(&self) -> String {
-        String::from("Modifying the `out_head` of a GPT2Model and running inference")
+        String::from("Modifying the `out_head` of a GPT2Model and running inference.")
     }
 
     fn page_source(&self) -> usize {
@@ -669,7 +669,7 @@ pub struct EG10;
 
 impl Example for EG10 {
     fn description(&self) -> String {
-        "Toy example of predicting spam/ham from logits".to_string()
+        "Toy example of predicting spam/ham from logits.".to_string()
     }
 
     fn page_source(&self) -> usize {
@@ -714,7 +714,7 @@ pub struct EG11;
 impl Example for EG11 {
     fn description(&self) -> String {
         let desc = "Example usage of `calc_accuracy_loader` to compute accuracy on \
-        test, train, val sets";
+        test, train, val sets.";
         desc.to_string()
     }
 
@@ -780,7 +780,7 @@ pub struct EG12;
 impl Example for EG12 {
     fn description(&self) -> String {
         let desc = "Example usage of `calc_loss_loader` to compute accuracy on \
-        test, train, val sets";
+        test, train, val sets.";
         desc.to_string()
     }
 
@@ -845,7 +845,7 @@ pub struct EG13;
 
 impl Example for EG13 {
     fn description(&self) -> String {
-        String::from("Example usage of `train_classifier_simple` function")
+        String::from("Example usage of `train_classifier_simple` function.")
     }
 
     fn page_source(&self) -> usize {
