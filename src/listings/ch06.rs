@@ -815,9 +815,19 @@ pub fn evaluate_model(
     Ok((train_loss, val_loss))
 }
 
+#[derive(Debug)]
 pub enum TextClassification {
     Spam,
     Ham,
+}
+
+impl std::fmt::Display for TextClassification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TextClassification::Ham => write!(f, "ham"),
+            TextClassification::Spam => write!(f, "spam"),
+        }
+    }
 }
 
 /// [Listing 6.12] Using the model to classify new texts
@@ -830,6 +840,10 @@ pub fn classify_review(
     max_length: Option<usize>,
     pad_token_id: Option<u32>,
 ) -> Result<TextClassification> {
+    // let padding = std::iter::repeat(pad_token_id)
+    //     .take(num_pad)
+    //     .collect::<Vec<u32>>();
+    // v.extend(padding);
     Ok(TextClassification::Ham)
 }
 
