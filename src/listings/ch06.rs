@@ -7,7 +7,7 @@ use super::{
 use ::zip::ZipArchive;
 use anyhow::anyhow;
 use bytes::Bytes;
-use candle_core::{DType, Device, IndexOp, ModuleT, Result, Tensor, D};
+use candle_core::{bail, DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
@@ -815,6 +815,69 @@ pub fn evaluate_model(
     Ok((train_loss, val_loss))
 }
 
+#[derive(Debug)]
+pub enum TextClassification {
+    Spam,
+    Ham,
+}
+
+impl std::fmt::Display for TextClassification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TextClassification::Ham => write!(f, "ham"),
+            TextClassification::Spam => write!(f, "spam"),
+        }
+    }
+}
+
+/// [Listing 6.12] Using the model to classify new texts
+#[allow(unused_variables)]
+pub fn classify_review(
+    text: &str,
+    model: &GPTModel,
+    tokenizer: &CoreBPE,
+    device: &Device,
+    max_length: Option<usize>,
+    pad_token_id: u32,
+) -> Result<TextClassification> {
+    let input_ids = tokenizer.encode_with_special_tokens(text);
+    let supported_context_length = model.pos_emb().hidden_size();
+
+    // truncate input_ids if necessary
+    let upper = if let Some(m) = max_length {
+        std::cmp::min(m, supported_context_length)
+    } else {
+        supported_context_length
+    };
+    let mut input_ids = Vec::from_iter(input_ids.into_iter().take(supported_context_length));
+
+    // add padding if necessary
+    let num_pad = cmp::max(0isize, upper as isize - input_ids.len() as isize) as usize;
+    let padding = std::iter::repeat(pad_token_id)
+        .take(num_pad)
+        .collect::<Vec<u32>>();
+    input_ids.extend(padding);
+
+    // inference
+    let input_tensor = Tensor::new(&input_ids[..], device)?.unsqueeze(0)?;
+    let logits = model.forward_t(&input_tensor, false)?;
+    let c = logits.dims()[1];
+    let label = logits
+        .i((.., c - 1, ..))?
+        .argmax(D::Minus1)?
+        .to_scalar::<u32>()?;
+
+    // return type
+    match label {
+        0 => Ok(TextClassification::Ham),
+        1 => Ok(TextClassification::Spam),
+        _ => bail!(
+            "Unable to classify text as spam/ham. \
+        Argmax op resulted in a value different from 0 and 1."
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1036,6 +1099,15 @@ mod tests {
         let loss = calc_loss_batch(&inputs, &targets, &model, vb.device())?;
 
         assert_eq!(loss.elem_count(), 1);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_text_classification_enum() -> Result<()> {
+        let ham = TextClassification::Ham;
+        let spam = TextClassification::Spam;
+
+        assert_eq!(format!("{} is not {}", ham, spam), "ham is not spam");
         Ok(())
     }
 }
