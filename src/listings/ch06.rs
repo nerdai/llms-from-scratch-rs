@@ -654,7 +654,7 @@ pub fn calc_num_correct_batch(
     target_batch: &Tensor,
     model: &GPTModel,
     device: &Device,
-    custom_pred_token_index: Option<usize>,
+    custom_pred_token_index: Option<usize>, // introduced for Exercise 6.3
 ) -> Result<Tensor> {
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?.to_dtype(DType::U32)?;
@@ -678,7 +678,7 @@ pub fn calc_accuracy_loader(
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
-    custom_pred_token_index: Option<usize>,
+    custom_pred_token_index: Option<usize>, // introduced for Exercise 6.3
 ) -> Result<f32> {
     let mut correct_predictions = 0_usize;
     let mut num_examples = 0_usize;
