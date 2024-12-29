@@ -11,7 +11,7 @@ use candle_core::{bail, DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
-use plotly::common::Mode;
+use plotly::{common::Mode, layout::Axis};
 use plotly::{Layout, Plot, Scatter};
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
@@ -907,17 +907,28 @@ pub fn plot_values<P: AsRef<Path>>(
     label: &str,
     save_path: P,
 ) -> Result<()> {
-    let trace1 = Scatter::new(epochs_seen.clone(), train_values)
+    let trace1 = Scatter::new(epochs_seen.clone(), train_values.clone())
         .name(format!("Training {label}").as_str())
         .mode(Mode::LinesMarkers);
-    let trace2 = Scatter::new(epochs_seen, val_values)
+    let trace2 = Scatter::new(epochs_seen, val_values.clone())
         .name(format!("Validation {label}").as_str())
         .mode(Mode::Lines);
+    let trace3 = Scatter::new(examples_seen.clone(), train_values)
+        .x_axis("x2")
+        .mode(Mode::LinesMarkers);
+    let trace4 = Scatter::new(examples_seen, val_values)
+        .x_axis("x2")
+        .mode(Mode::Lines);
 
-    let layout = Layout::new().title(format!("Classification {label}").as_str());
+    let layout = Layout::new()
+        .title(format!("Classification {label}").as_str())
+        .x_axis(Axis::new().title("Epochs"))
+        .x_axis2(Axis::new().title("Examples Seen"));
     let mut plot = Plot::new();
     plot.add_trace(trace1);
     plot.add_trace(trace2);
+    plot.add_trace(trace3);
+    plot.add_trace(trace4);
     plot.set_layout(layout);
     plot.write_html(save_path);
     Ok(())
