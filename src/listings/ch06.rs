@@ -851,12 +851,14 @@ pub fn classify_review(
     };
     let mut input_ids = Vec::from_iter(input_ids.into_iter().take(supported_context_length));
 
+    // add padding if necessary
     let num_pad = cmp::max(0isize, upper as isize - input_ids.len() as isize) as usize;
     let padding = std::iter::repeat(pad_token_id)
         .take(num_pad)
         .collect::<Vec<u32>>();
     input_ids.extend(padding);
 
+    // inference
     let input_tensor = Tensor::new(&input_ids[..], device)?.unsqueeze(0)?;
     let logits = model.forward_t(&input_tensor, false)?;
     let c = logits.dims()[1];
@@ -864,6 +866,8 @@ pub fn classify_review(
         .i((.., c - 1, ..))?
         .argmax(D::Minus1)?
         .to_scalar::<u32>()?;
+
+    // return type
     match label {
         0 => Ok(TextClassification::Ham),
         1 => Ok(TextClassification::Spam),
