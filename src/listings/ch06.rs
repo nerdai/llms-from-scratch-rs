@@ -11,6 +11,7 @@ use candle_core::{bail, DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
+use plotpy::{Curve, Plot, StrError};
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
 use std::cmp;
@@ -897,14 +898,43 @@ impl std::fmt::Display for TextClassification {
 
 /// [Listing 6.11] Plotting the classification loss
 #[allow(unused_variables)]
-pub fn plot_values(
+pub fn plot_values<P: AsRef<Path>>(
     epochs_seen: Vec<u32>,
     examples_seen: Vec<u32>,
     train_values: Vec<u32>,
     val_values: Vec<u32>,
     label: &str,
-) -> Result<()> {
-    todo!()
+    save_path: P,
+) -> std::result::Result<(), StrError> {
+    // data
+    let np = 201;
+    let mut x = vec![0.0; np];
+    let mut y1 = vec![0.0; np];
+    let mut y2 = vec![0.0; np];
+    let dx = 4.0 / (np as f64);
+    for i in 0..np {
+        x[i] = (i as f64) * dx;
+        y1[i] = f64::exp(x[i]);
+        y2[i] = f64::sin(2.0 * x[i]);
+    }
+
+    // curve
+    let mut curve = Curve::new();
+    curve.set_line_color("red").draw(&x, &y1);
+    curve.set_line_color("blue").draw_with_twin_x(&y2);
+
+    // add curve to plot
+    let mut plot = Plot::new();
+    plot.add(&curve) // must occur before set twinx options
+        .grid_and_labels("time (s)", "exp function")
+        .set_label_x_color("green")
+        .set_label_y_color("red")
+        .set_label_y_twinx("sin function")
+        .set_label_y_twinx_color("blue");
+
+    // save figure
+    plot.save("/tmp/plotpy/doc_tests/doc_curve_twinx.svg")?;
+    Ok(())
 }
 
 /// [Listing 6.12] Using the model to classify new texts
