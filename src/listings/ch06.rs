@@ -920,8 +920,12 @@ pub fn plot_values<P: AsRef<Path>>(
 
     // curve
     let mut curve = Curve::new();
-    curve.set_line_color("red").draw(&x, &y1);
-    curve.set_line_color("blue").draw_with_twin_x(&y2);
+    curve
+        .set_line_color("red")
+        .draw(&epochs_seen, &train_values);
+    curve
+        .set_line_color("blue")
+        .draw_with_twin_x(&examples_seen);
 
     // add curve to plot
     let mut plot = Plot::new();
@@ -933,7 +937,7 @@ pub fn plot_values<P: AsRef<Path>>(
         .set_label_y_twinx_color("blue");
 
     // save figure
-    plot.save("/tmp/plotpy/doc_tests/doc_curve_twinx.svg")?;
+    plot.save(&save_path.as_ref().display().to_string())?;
     Ok(())
 }
 
