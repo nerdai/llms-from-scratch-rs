@@ -1070,4 +1070,13 @@ mod tests {
         assert_eq!(loss.elem_count(), 1);
         Ok(())
     }
+
+    #[rstest]
+    fn test_text_classification_enum() -> Result<()> {
+        let ham = TextClassification::Ham;
+        let spam = TextClassification::Spam;
+
+        assert_eq!(format!("{} is not {}", ham, spam), "ham is not spam");
+        Ok(())
+    }
 }
