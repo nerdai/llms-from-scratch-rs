@@ -337,7 +337,7 @@ impl Example for EG05 {
 pub struct EG06;
 
 impl EG06 {
-    fn main_with_return(
+    pub fn main_with_return(
         &self,
         verbose: bool,
     ) -> Result<(
