@@ -146,14 +146,18 @@ impl Exercise for X1 {
             num_epochs,
             eval_freq,
             eval_iter,
+            None,
         );
 
         println!("Computing performance metrics");
         // compute accuracies
         let num_batches = None;
-        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
-        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches, None)?;
 
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
@@ -227,7 +231,7 @@ impl Exercise for X2 {
             },
         )?;
 
-        println!("Fine-tuning GPT2 on spam training dataset");
+        println!("Fine-tuning ENTIRE GPT2 on spam training dataset");
         let (eval_freq, eval_iter, num_epochs) = (50_usize, 5_usize, 5_usize);
         let _ = train_classifier_simple(
             &model,
@@ -238,14 +242,143 @@ impl Exercise for X2 {
             num_epochs,
             eval_freq,
             eval_iter,
+            None,
         );
 
         println!("Computing performance metrics");
         // compute accuracies
         let num_batches = None;
-        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
-        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches, None)?;
+
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        println!("Test accuracy: {}", test_accuracy);
+
+        Ok(())
+    }
+}
+
+/// # Fine-tuning the first vs. last token
+///
+/// #### Id
+/// 6.3
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 6.3
+///
+/// # with cuda
+/// cargo run --features cuda exercise 6.3
+/// ```
+pub struct X3;
+
+impl Exercise for X3 {
+    fn name(&self) -> String {
+        "6.3".to_string()
+    }
+
+    fn title(&self) -> String {
+        "Fine-tuning the first vs. last token".to_string()
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Try fine-tuning the first output token. Notice the \
+        changes in predictive performance compared to fine-tuning the last \
+        output token.";
+        stmt.to_string()
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{
+                calc_accuracy_loader, download_and_load_gpt2, modify_out_head_for_classification,
+                train_classifier_simple, HF_GPT2_MODEL_ID,
+            },
+        };
+        use candle_core::{DType, Device, Var};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // get data loaders
+        let eg06 = crate::examples::ch06::EG06; // re-use
+        let (train_loader, val_loader, test_loader) = eg06.main_with_return(false)?;
+
+        // trainable params and optimizer
+        // trainable: last trf block, final layer norm, classification head
+        let mut training_vars: Vec<Var> = vec![];
+        let tensor_data = varmap.data().lock().unwrap();
+        let var_names: Vec<&String> = tensor_data
+            .keys()
+            .filter(|k| k.contains("final_norm") || k.contains("out_head") || k.contains("trf.11"))
+            .collect();
+        for var_name in var_names.into_iter() {
+            let var = tensor_data.get(var_name).unwrap();
+            training_vars.push(var.clone());
+        }
+        drop(tensor_data);
+
+        let optimizer = AdamW::new(
+            training_vars,
+            ParamsAdamW {
+                lr: 5e-5,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+
+        println!("Fine-tuning GPT2 on spam training dataset using first-token");
+        let (eval_freq, eval_iter, num_epochs) = (50_usize, 5_usize, 5_usize);
+        let custom_pred_token_index = Some(0_usize); // use the first token!
+        let _ = train_classifier_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            custom_pred_token_index,
+        );
+
+        println!("Computing performance metrics");
+        // compute accuracies
+        let num_batches = None;
+        let train_accuracy = calc_accuracy_loader(
+            &train_loader,
+            &model,
+            vb.device(),
+            num_batches,
+            custom_pred_token_index,
+        )?;
+        let val_accuracy = calc_accuracy_loader(
+            &val_loader,
+            &model,
+            vb.device(),
+            num_batches,
+            custom_pred_token_index,
+        )?;
+        let test_accuracy = calc_accuracy_loader(
+            &test_loader,
+            &model,
+            vb.device(),
+            num_batches,
+            custom_pred_token_index,
+        )?;
 
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
