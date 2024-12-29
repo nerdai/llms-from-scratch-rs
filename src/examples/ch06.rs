@@ -23,7 +23,7 @@ pub struct EG01;
 
 impl Example for EG01 {
     fn description(&self) -> String {
-        String::from("Sample usage of `download_and_unzip_spam_data`")
+        String::from("Sample usage of `download_and_unzip_spam_data`.")
     }
 
     fn page_source(&self) -> usize {
@@ -82,7 +82,7 @@ pub struct EG02;
 
 impl Example for EG02 {
     fn description(&self) -> String {
-        String::from("Sample usage of `download_smsspam_parquet`")
+        String::from("Sample usage of `download_smsspam_parquet`.")
     }
 
     fn page_source(&self) -> usize {
@@ -142,7 +142,7 @@ pub struct EG03;
 
 impl Example for EG03 {
     fn description(&self) -> String {
-        String::from("Example usage of `create_balanced_dataset`")
+        String::from("Example usage of `create_balanced_dataset`.")
     }
 
     fn page_source(&self) -> usize {
@@ -197,7 +197,7 @@ pub struct EG04;
 
 impl Example for EG04 {
     fn description(&self) -> String {
-        String::from("Example usage of `random_split` to create our train, test, val splits")
+        String::from("Example usage of `random_split` to create our train, test, val splits.")
     }
 
     fn page_source(&self) -> usize {
@@ -264,7 +264,7 @@ pub struct EG05;
 
 impl Example for EG05 {
     fn description(&self) -> String {
-        String::from("Creating `SpamDataset` for train, test, and validation")
+        String::from("Creating `SpamDataset` for train, test, and validation.")
     }
 
     fn page_source(&self) -> usize {
@@ -534,7 +534,7 @@ pub struct EG08;
 
 impl Example for EG08 {
     fn description(&self) -> String {
-        String::from("Printing the model architecture via `varmap.data()`")
+        String::from("Printing the model architecture via `varmap.data()`.")
     }
 
     fn page_source(&self) -> usize {
@@ -588,7 +588,7 @@ pub struct EG09;
 
 impl Example for EG09 {
     fn description(&self) -> String {
-        String::from("Modifying the `out_head` of a GPT2Model and running inference")
+        String::from("Modifying the `out_head` of a GPT2Model and running inference.")
     }
 
     fn page_source(&self) -> usize {
@@ -669,7 +669,7 @@ pub struct EG10;
 
 impl Example for EG10 {
     fn description(&self) -> String {
-        "Toy example of predicting spam/ham from logits".to_string()
+        "Toy example of predicting spam/ham from logits.".to_string()
     }
 
     fn page_source(&self) -> usize {
@@ -714,7 +714,7 @@ pub struct EG11;
 impl Example for EG11 {
     fn description(&self) -> String {
         let desc = "Example usage of `calc_accuracy_loader` to compute accuracy on \
-        test, train, val sets";
+        test, train, val sets.";
         desc.to_string()
     }
 
@@ -780,7 +780,7 @@ pub struct EG12;
 impl Example for EG12 {
     fn description(&self) -> String {
         let desc = "Example usage of `calc_loss_loader` to compute accuracy on \
-        test, train, val sets";
+        test, train, val sets.";
         desc.to_string()
     }
 
@@ -845,7 +845,7 @@ pub struct EG13;
 
 impl Example for EG13 {
     fn description(&self) -> String {
-        String::from("Example usage of `train_classifier_simple` function")
+        String::from("Example usage of `train_classifier_simple` function.")
     }
 
     fn page_source(&self) -> usize {
@@ -987,6 +987,108 @@ impl Example for EG14 {
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
         println!("Test accuracy: {}", test_accuracy);
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `classify_review`
+///
+/// #### Id
+/// 06.15
+///
+/// #### Page
+/// This example starts on page 202
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.15
+///
+/// # with cuda
+/// cargo run --features cuda example 06.15
+/// ```
+pub struct EG15;
+
+impl Example for EG15 {
+    fn description(&self) -> String {
+        String::from("Example usage of `classify_review`.")
+    }
+
+    fn page_source(&self) -> usize {
+        202_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{
+                classify_review, download_and_load_gpt2, modify_out_head_for_classification,
+                SpamDatasetBuilder, HF_GPT2_MODEL_ID, PAD_TOKEN_ID,
+            },
+        };
+        use anyhow::anyhow;
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+        use std::ops::Not;
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // tokenizer and train_dataset
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let train_path = Path::new("data").join("train.parquet");
+        if train_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/train.parquet' file. Please run EG 06.04."
+            ));
+        }
+        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(train_path)
+            .build();
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // load safetensors from finetuning
+        varmap
+            .load("clf.checkpoint.safetensors")
+            .with_context(|| "Missing 'clf.checkpoint.safetensors' file. Please run EG 06.13.")?;
+
+        // classify texts
+        let text_1 = "You are a winner you have been specially selected to receive \
+        $1000 cash or a $2000 award.";
+        println!(
+            "{}",
+            classify_review(
+                text_1,
+                &model,
+                &tokenizer,
+                vb.device(),
+                Some(train_dataset.max_length()),
+                PAD_TOKEN_ID,
+            )
+            .with_context(|| "Failed to classify text_1.")?,
+        );
+
+        let text_2 = "Hey, just wanted to check if we're still on for \"
+        dinner tonight? Let me know!";
+        println!(
+            "{}",
+            classify_review(
+                text_2,
+                &model,
+                &tokenizer,
+                vb.device(),
+                Some(train_dataset.max_length()),
+                PAD_TOKEN_ID,
+            )
+            .with_context(|| "Failed to classify text_2.")?,
+        );
 
         Ok(())
     }

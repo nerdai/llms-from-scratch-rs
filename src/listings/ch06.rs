@@ -860,12 +860,10 @@ pub fn classify_review(
 
     // inference
     let input_tensor = Tensor::new(&input_ids[..], device)?.unsqueeze(0)?;
-    let logits = model.forward_t(&input_tensor, false)?;
-    let c = logits.dims()[1];
-    let label = logits
-        .i((.., c - 1, ..))?
-        .argmax(D::Minus1)?
-        .to_scalar::<u32>()?;
+    let logits = model
+        .forward_t(&input_tensor, false)?
+        .i((.., input_ids.len() - 1, ..))?;
+    let label = logits.argmax(D::Minus1)?.squeeze(0)?.to_scalar::<u32>()?;
 
     // return type
     match label {
