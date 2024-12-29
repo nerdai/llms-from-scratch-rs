@@ -7,7 +7,7 @@ use super::{
 use ::zip::ZipArchive;
 use anyhow::anyhow;
 use bytes::Bytes;
-use candle_core::{DType, Device, IndexOp, ModuleT, Result, Tensor, D};
+use candle_core::{bail, DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
@@ -838,13 +838,40 @@ pub fn classify_review(
     tokenizer: &CoreBPE,
     device: &Device,
     max_length: Option<usize>,
-    pad_token_id: Option<u32>,
+    pad_token_id: u32,
 ) -> Result<TextClassification> {
-    // let padding = std::iter::repeat(pad_token_id)
-    //     .take(num_pad)
-    //     .collect::<Vec<u32>>();
-    // v.extend(padding);
-    Ok(TextClassification::Ham)
+    let input_ids = tokenizer.encode_with_special_tokens(text);
+    let supported_context_length = model.pos_emb().hidden_size();
+
+    // truncate input_ids if necessary
+    let upper = if let Some(m) = max_length {
+        std::cmp::min(m, supported_context_length)
+    } else {
+        supported_context_length
+    };
+    let mut input_ids = Vec::from_iter(input_ids.into_iter().take(supported_context_length));
+
+    let num_pad = cmp::max(0isize, upper as isize - input_ids.len() as isize) as usize;
+    let padding = std::iter::repeat(pad_token_id)
+        .take(num_pad)
+        .collect::<Vec<u32>>();
+    input_ids.extend(padding);
+
+    let input_tensor = Tensor::new(&input_ids[..], device)?.unsqueeze(0)?;
+    let logits = model.forward_t(&input_tensor, false)?;
+    let c = logits.dims()[1];
+    let label = logits
+        .i((.., c - 1, ..))?
+        .argmax(D::Minus1)?
+        .to_scalar::<u32>()?;
+    match label {
+        0 => Ok(TextClassification::Ham),
+        1 => Ok(TextClassification::Spam),
+        _ => bail!(
+            "Unable to classify text as spam/ham. \
+        Argmax op resulted in a value different from 0 and 1."
+        ),
+    }
 }
 
 #[cfg(test)]
