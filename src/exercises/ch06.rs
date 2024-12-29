@@ -162,3 +162,39 @@ impl Exercise for X1 {
         Ok(())
     }
 }
+
+/// # Fine-tuning the whole model
+///
+/// #### Id
+/// 6.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 6.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 6.2
+/// ```
+pub struct X2;
+
+impl Exercise for X2 {
+    fn name(&self) -> String {
+        "6.2".to_string()
+    }
+
+    fn title(&self) -> String {
+        "Fine-tuning the whole model".to_string()
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Instead of fine-tuning just the final transformer \
+        block, fine-tune the entire model and assess the effect on predictive \
+        performance.";
+        stmt.to_string()
+    }
+
+    fn main(&self) -> Result<()> {
+        todo!()
+    }
+}
