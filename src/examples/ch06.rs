@@ -992,6 +992,91 @@ impl Example for EG14 {
     }
 }
 
+/// # Example usage of `classify_review`
+///
+/// #### Id
+/// 06.15
+///
+/// #### Page
+/// This example starts on page 202
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.15
+///
+/// # with cuda
+/// cargo run --features cuda example 06.15
+/// ```
+pub struct EG15;
+
+impl Example for EG15 {
+    fn description(&self) -> String {
+        String::from("Example usage of `classify_review`.")
+    }
+
+    fn page_source(&self) -> usize {
+        202_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{
+                classify_review, download_and_load_gpt2, modify_out_head_for_classification,
+                SpamDatasetBuilder, HF_GPT2_MODEL_ID, PAD_TOKEN_ID,
+            },
+        };
+        use anyhow::anyhow;
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+        use std::ops::Not;
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // tokenizer and train_dataset
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let train_path = Path::new("data").join("train.parquet");
+        if train_path.exists().not() {
+            return Err(anyhow!(
+                "Missing 'data/train.parquet' file. Please run EG 06.04."
+            ));
+        }
+        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+            .load_data_from_parquet(train_path)
+            .build();
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // load safetensors
+        varmap
+            .load("clf.checkpoint.safetensors")
+            .with_context(|| "Missing 'clf.checkpoint.safetensors' file. Please run EG 06.13.")?;
+
+        let text_1 = "You are a winner you have been specially selected to receive \
+        $1000 cash or a $2000 award.";
+        println!(
+            "{}",
+            classify_review(
+                text_1,
+                &model,
+                &tokenizer,
+                vb.device(),
+                Some(train_dataset.max_length()),
+                PAD_TOKEN_ID,
+            )?,
+        );
+
+        Ok(())
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for examples::ch06
     use polars::prelude::*;
