@@ -825,9 +825,20 @@ pub fn train_classifier_simple<T: Optimizer>(
             global_step += 1;
         }
 
-        let train_accuracy =
-            calc_accuracy_loader(train_loader, model, device, Some(eval_iter), None)?;
-        let val_accuracy = calc_accuracy_loader(val_loader, model, device, Some(eval_iter), None)?;
+        let train_accuracy = calc_accuracy_loader(
+            train_loader,
+            model,
+            device,
+            Some(eval_iter),
+            custom_pred_token_index,
+        )?;
+        let val_accuracy = calc_accuracy_loader(
+            val_loader,
+            model,
+            device,
+            Some(eval_iter),
+            custom_pred_token_index,
+        )?;
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
         train_accs.push(train_accuracy);
