@@ -162,3 +162,95 @@ impl Exercise for X1 {
         Ok(())
     }
 }
+
+/// # Fine-tuning the whole model
+///
+/// #### Id
+/// 6.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 6.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 6.2
+/// ```
+pub struct X2;
+
+impl Exercise for X2 {
+    fn name(&self) -> String {
+        "6.2".to_string()
+    }
+
+    fn title(&self) -> String {
+        "Fine-tuning the whole model".to_string()
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "Instead of fine-tuning just the final transformer \
+        block, fine-tune the entire model and assess the effect on predictive \
+        performance.";
+        stmt.to_string()
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch06::{
+                calc_accuracy_loader, download_and_load_gpt2, modify_out_head_for_classification,
+                train_classifier_simple, HF_GPT2_MODEL_ID,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
+
+        // get data loaders
+        let eg06 = crate::examples::ch06::EG06; // re-use
+        let (train_loader, val_loader, test_loader) = eg06.main_with_return(false)?;
+
+        // trainable params and optimizer
+        let optimizer = AdamW::new(
+            varmap.all_vars(), // train on all vars
+            ParamsAdamW {
+                lr: 5e-5,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+
+        println!("Fine-tuning GPT2 on spam training dataset");
+        let (eval_freq, eval_iter, num_epochs) = (50_usize, 5_usize, 5_usize);
+        let _ = train_classifier_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+        );
+
+        println!("Computing performance metrics");
+        // compute accuracies
+        let num_batches = None;
+        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
+        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
+        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        println!("Test accuracy: {}", test_accuracy);
+
+        Ok(())
+    }
+}
