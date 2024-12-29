@@ -895,8 +895,19 @@ impl std::fmt::Display for TextClassification {
     }
 }
 
-/// [Listing 6.12] Using the model to classify new texts
+/// [Listing 6.11] Plotting the classification loss
 #[allow(unused_variables)]
+pub fn plot_values(
+    epochs_seen: Vec<u32>,
+    examples_seen: Vec<u32>,
+    train_values: Vec<u32>,
+    val_values: Vec<u32>,
+    label: &str,
+) -> Result<()> {
+    todo!()
+}
+
+/// [Listing 6.12] Using the model to classify new texts
 pub fn classify_review(
     text: &str,
     model: &GPTModel,
