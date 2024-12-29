@@ -146,14 +146,18 @@ impl Exercise for X1 {
             num_epochs,
             eval_freq,
             eval_iter,
+            None,
         );
 
         println!("Computing performance metrics");
         // compute accuracies
         let num_batches = None;
-        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
-        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches, None)?;
 
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
@@ -238,14 +242,18 @@ impl Exercise for X2 {
             num_epochs,
             eval_freq,
             eval_iter,
+            None,
         );
 
         println!("Computing performance metrics");
         // compute accuracies
         let num_batches = None;
-        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
-        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches, None)?;
 
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);

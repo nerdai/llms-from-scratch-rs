@@ -654,12 +654,18 @@ pub fn calc_num_correct_batch(
     target_batch: &Tensor,
     model: &GPTModel,
     device: &Device,
+    custom_pred_token_index: Option<usize>,
 ) -> Result<Tensor> {
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?.to_dtype(DType::U32)?;
     let outputs = model.forward_t(&input_batch, false)?;
     let (_b, c, _num_classes) = outputs.dims3()?;
-    let logits = outputs.i((.., c - 1, ..))?;
+    let pred_token_index = if let Some(ix) = custom_pred_token_index {
+        ix
+    } else {
+        c - 1
+    };
+    let logits = outputs.i((.., pred_token_index, ..))?;
     let predicted_labels = logits.argmax_keepdim(D::Minus1)?;
     let num_correct = predicted_labels.eq(&target_batch)?.sum_all()?;
     Ok(num_correct)
@@ -672,6 +678,7 @@ pub fn calc_accuracy_loader(
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
+    custom_pred_token_index: Option<usize>,
 ) -> Result<f32> {
     let mut correct_predictions = 0_usize;
     let mut num_examples = 0_usize;
@@ -684,7 +691,13 @@ pub fn calc_accuracy_loader(
 
     for _ in 0..n_batches {
         let (input_batch, target_batch) = data_batcher.next().unwrap()?;
-        let num_correct = calc_num_correct_batch(&input_batch, &target_batch, model, device)?;
+        let num_correct = calc_num_correct_batch(
+            &input_batch,
+            &target_batch,
+            model,
+            device,
+            custom_pred_token_index,
+        )?;
         correct_predictions += num_correct.to_scalar::<u8>()? as usize;
         num_examples += input_batch.dims()[0];
     }
@@ -698,12 +711,19 @@ pub fn calc_loss_batch(
     target_batch: &Tensor,
     model: &GPTModel,
     device: &Device,
+    custom_pred_token_index: Option<usize>, // introduced for Exercise 6.3
 ) -> Result<Tensor> {
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?;
     let outputs = model.forward_t(&input_batch, true)?;
     let (_b, c, _num_classes) = outputs.dims3()?;
-    let logits = outputs.index_select(&Tensor::new(&[(c - 1) as u32], device)?, D::Minus2)?;
+    let pred_token_index = if let Some(ix) = custom_pred_token_index {
+        ix
+    } else {
+        c - 1
+    };
+    let logits =
+        outputs.index_select(&Tensor::new(&[pred_token_index as u32], device)?, D::Minus2)?;
 
     // flatten
     let logits_flat = logits.flatten(0, 1)?;
@@ -719,6 +739,7 @@ pub fn calc_loss_loader(
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
+    custom_pred_token_index: Option<usize>,
 ) -> Result<f32> {
     let mut total_loss = 0_f32;
     let mut data_batcher = data_loader.batcher();
@@ -730,7 +751,13 @@ pub fn calc_loss_loader(
 
     for _ in 0..n_batches {
         let (input_batch, target_batch) = data_batcher.next().unwrap()?;
-        let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+        let loss = calc_loss_batch(
+            &input_batch,
+            &target_batch,
+            model,
+            device,
+            custom_pred_token_index,
+        )?;
         total_loss += loss.to_scalar::<f32>()?;
     }
 
@@ -750,6 +777,7 @@ pub fn train_classifier_simple<T: Optimizer>(
     num_epochs: usize,
     eval_freq: usize,
     eval_iter: usize,
+    custom_pred_token_index: Option<usize>, // expanded for Exercise 6.3
 ) -> Result<ClassifierTrainingResult> {
     // retvals
     let mut train_losses: Vec<f32> = vec![];
@@ -762,14 +790,26 @@ pub fn train_classifier_simple<T: Optimizer>(
     for epoch in 0..num_epochs {
         let mut train_batcher = train_loader.batcher();
         while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
-            let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+            let loss = calc_loss_batch(
+                &input_batch,
+                &target_batch,
+                model,
+                device,
+                custom_pred_token_index,
+            )?;
             optimizer.backward_step(&loss)?;
             let (b_size, _seq_len) = input_batch.dims2()?;
             examples_seen += b_size;
 
             if global_step % eval_freq == 0 {
-                let (train_loss, val_loss) =
-                    evaluate_model(model, train_loader, val_loader, device, eval_iter)?;
+                let (train_loss, val_loss) = evaluate_model(
+                    model,
+                    train_loader,
+                    val_loader,
+                    device,
+                    eval_iter,
+                    custom_pred_token_index,
+                )?;
                 train_losses.push(train_loss);
                 val_losses.push(val_loss);
                 println!(
@@ -785,8 +825,9 @@ pub fn train_classifier_simple<T: Optimizer>(
             global_step += 1;
         }
 
-        let train_accuracy = calc_accuracy_loader(train_loader, model, device, Some(eval_iter))?;
-        let val_accuracy = calc_accuracy_loader(val_loader, model, device, Some(eval_iter))?;
+        let train_accuracy =
+            calc_accuracy_loader(train_loader, model, device, Some(eval_iter), None)?;
+        let val_accuracy = calc_accuracy_loader(val_loader, model, device, Some(eval_iter), None)?;
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
         train_accs.push(train_accuracy);
@@ -809,9 +850,22 @@ pub fn evaluate_model(
     val_loader: &SpamDataLoader,
     device: &Device,
     eval_iter: usize,
+    custom_pred_token_index: Option<usize>,
 ) -> Result<(f32, f32)> {
-    let train_loss = calc_loss_loader(train_loader, model, device, Some(eval_iter))?;
-    let val_loss = calc_loss_loader(val_loader, model, device, Some(eval_iter))?;
+    let train_loss = calc_loss_loader(
+        train_loader,
+        model,
+        device,
+        Some(eval_iter),
+        custom_pred_token_index,
+    )?;
+    let val_loss = calc_loss_loader(
+        val_loader,
+        model,
+        device,
+        Some(eval_iter),
+        custom_pred_token_index,
+    )?;
     Ok((train_loss, val_loss))
 }
 
@@ -1074,7 +1128,7 @@ mod tests {
         let targets = Tensor::new(&[[1_i64], [0]], vb.device())?;
 
         // compute num correct
-        let num_correct = calc_num_correct_batch(&inputs, &targets, &model, vb.device())?;
+        let num_correct = calc_num_correct_batch(&inputs, &targets, &model, vb.device(), None)?;
 
         assert_eq!(num_correct.elem_count(), 1);
         Ok(())
@@ -1094,7 +1148,7 @@ mod tests {
         // create sample inputs
         let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
         let targets = Tensor::new(&[[1_i64], [0]], vb.device())?;
-        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device())?;
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device(), None)?;
 
         assert_eq!(loss.elem_count(), 1);
         Ok(())

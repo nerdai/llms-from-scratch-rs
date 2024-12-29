@@ -747,9 +747,12 @@ impl Example for EG11 {
 
         // compute accuracies
         let num_batches = Some(10_usize);
-        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
-        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches, None)?;
 
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
@@ -813,9 +816,9 @@ impl Example for EG12 {
 
         // compute accuracies
         let num_batches = Some(5_usize);
-        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches)?;
-        let test_loss = calc_loss_loader(&test_loader, &model, vb.device(), num_batches)?;
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_loss = calc_loss_loader(&test_loader, &model, vb.device(), num_batches, None)?;
 
         println!("Training loss: {}", train_loss);
         println!("Validation loss: {}", val_loss);
@@ -911,6 +914,7 @@ impl Example for EG13 {
             num_epochs,
             eval_freq,
             eval_iter,
+            None,
         );
 
         // save model
@@ -980,9 +984,12 @@ impl Example for EG14 {
 
         // compute accuracies
         let num_batches = None;
-        let train_accuracy = calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_accuracy = calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches)?;
-        let test_accuracy = calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches)?;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches, None)?;
 
         println!("Training accuracy: {}", train_accuracy);
         println!("Validation accuracy: {}", val_accuracy);
