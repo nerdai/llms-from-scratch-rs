@@ -1054,7 +1054,7 @@ impl Example for EG15 {
         let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
         modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
 
-        // load safetensors
+        // load safetensors from finetuning
         varmap
             .load("clf.checkpoint.safetensors")
             .with_context(|| "Missing 'clf.checkpoint.safetensors' file. Please run EG 06.13.")?;
@@ -1072,7 +1072,22 @@ impl Example for EG15 {
                 Some(train_dataset.max_length()),
                 PAD_TOKEN_ID,
             )
-            .with_context(|| "Failed to classify text.")?,
+            .with_context(|| "Failed to classify text_1.")?,
+        );
+
+        let text_2 = "Hey, just wanted to check if we're still on for \"
+        dinner tonight? Let me know!";
+        println!(
+            "{}",
+            classify_review(
+                text_2,
+                &model,
+                &tokenizer,
+                vb.device(),
+                Some(train_dataset.max_length()),
+                PAD_TOKEN_ID,
+            )
+            .with_context(|| "Failed to classify text_2.")?,
         );
 
         Ok(())
