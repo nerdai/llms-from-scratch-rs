@@ -231,7 +231,7 @@ impl Exercise for X2 {
             },
         )?;
 
-        println!("Fine-tuning GPT2 on spam training dataset");
+        println!("Fine-tuning ENTIRE GPT2 on spam training dataset");
         let (eval_freq, eval_iter, num_epochs) = (50_usize, 5_usize, 5_usize);
         let _ = train_classifier_simple(
             &model,
@@ -325,9 +325,6 @@ impl Exercise for X3 {
             .keys()
             .filter(|k| k.contains("final_norm") || k.contains("out_head") || k.contains("trf.11"))
             .collect();
-
-        println!("Training variables: {:?}\n", var_names);
-
         for var_name in var_names.into_iter() {
             let var = tensor_data.get(var_name).unwrap();
             training_vars.push(var.clone());
@@ -343,6 +340,7 @@ impl Exercise for X3 {
             },
         )?;
 
+        println!("Fine-tuning GPT2 on spam training dataset using first-token");
         let (eval_freq, eval_iter, num_epochs) = (50_usize, 5_usize, 5_usize);
         let custom_pred_token_index = Some(0_usize); // use the first token!
         let _ = train_classifier_simple(
