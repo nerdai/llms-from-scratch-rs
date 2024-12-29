@@ -11,7 +11,8 @@ use candle_core::{bail, DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
-use plotpy::{Curve, Plot, StrError};
+use plotly::common::Mode;
+use plotly::{Plot, Scatter};
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
 use std::cmp;
@@ -905,39 +906,20 @@ pub fn plot_values<P: AsRef<Path>>(
     val_values: Vec<u32>,
     label: &str,
     save_path: P,
-) -> std::result::Result<(), StrError> {
-    // data
-    let np = 201;
-    let mut x = vec![0.0; np];
-    let mut y1 = vec![0.0; np];
-    let mut y2 = vec![0.0; np];
-    let dx = 4.0 / (np as f64);
-    for i in 0..np {
-        x[i] = (i as f64) * dx;
-        y1[i] = f64::exp(x[i]);
-        y2[i] = f64::sin(2.0 * x[i]);
-    }
+) -> Result<()> {
+    let trace1 = Scatter::new(vec![1, 2, 3, 4], vec![10, 15, 13, 17])
+        .name("trace1")
+        .mode(Mode::Markers);
+    let trace2 = Scatter::new(vec![2, 3, 4, 5], vec![16, 5, 11, 9])
+        .name("trace2")
+        .mode(Mode::Lines);
+    let trace3 = Scatter::new(vec![1, 2, 3, 4], vec![12, 9, 15, 12]).name("trace3");
 
-    // curve
-    let mut curve = Curve::new();
-    curve
-        .set_line_color("red")
-        .draw(&epochs_seen, &train_values);
-    curve
-        .set_line_color("blue")
-        .draw_with_twin_x(&examples_seen);
-
-    // add curve to plot
     let mut plot = Plot::new();
-    plot.add(&curve) // must occur before set twinx options
-        .grid_and_labels("time (s)", "exp function")
-        .set_label_x_color("green")
-        .set_label_y_color("red")
-        .set_label_y_twinx("sin function")
-        .set_label_y_twinx_color("blue");
-
-    // save figure
-    plot.save(&save_path.as_ref().display().to_string())?;
+    plot.add_trace(trace1);
+    plot.add_trace(trace2);
+    plot.add_trace(trace3);
+    plot.write_html(save_path);
     Ok(())
 }
 

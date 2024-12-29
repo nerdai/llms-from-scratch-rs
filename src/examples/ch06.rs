@@ -925,13 +925,13 @@ impl Example for EG13 {
     }
 }
 
-/// # Loading fine-tuned model and calculate performance on whole train, val and test sets.
+/// # Example usage of `plot_values`
 ///
 /// #### Id
 /// 06.14
 ///
 /// #### Page
-/// This example starts on page 200
+/// This example starts on page 199
 ///
 /// #### CLI command
 /// ```sh
@@ -944,6 +944,55 @@ impl Example for EG13 {
 pub struct EG14;
 
 impl Example for EG14 {
+    fn description(&self) -> String {
+        "Example usage of `plot_values`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        199_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch06::plot_values;
+        use std::path::Path;
+
+        let epochs_seen = vec![];
+        let examples_seen = vec![];
+        let train_values = vec![];
+        let val_values = vec![];
+        let label = "loss";
+        let save_path = Path::new(format!("classification_{label}.html").as_str()).to_path_buf();
+        plot_values(
+            epochs_seen,
+            examples_seen,
+            train_values,
+            val_values,
+            label,
+            save_path,
+        )?;
+        Ok(())
+    }
+}
+
+/// # Loading fine-tuned model and calculate performance on whole train, val and test sets.
+///
+/// #### Id
+/// 06.15
+///
+/// #### Page
+/// This example starts on page 200
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 06.15
+///
+/// # with cuda
+/// cargo run --features cuda example 06.15
+/// ```
+pub struct EG15;
+
+impl Example for EG15 {
     fn description(&self) -> String {
         String::from(
             "Loading fine-tuned model and calculate performance on whole train, val and test sets.",
@@ -1002,7 +1051,7 @@ impl Example for EG14 {
 /// # Example usage of `classify_review`
 ///
 /// #### Id
-/// 06.15
+/// 06.16
 ///
 /// #### Page
 /// This example starts on page 202
@@ -1010,14 +1059,14 @@ impl Example for EG14 {
 /// #### CLI command
 /// ```sh
 /// # without cuda
-/// cargo run example 06.15
+/// cargo run example 06.16
 ///
 /// # with cuda
-/// cargo run --features cuda example 06.15
+/// cargo run --features cuda example 06.16
 /// ```
-pub struct EG15;
+pub struct EG16;
 
-impl Example for EG15 {
+impl Example for EG16 {
     fn description(&self) -> String {
         String::from("Example usage of `classify_review`.")
     }

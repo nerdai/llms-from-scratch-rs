@@ -2,3 +2,4 @@
 checkpoint.safetensors
 clf.checkpoint.safetensors
 /data
+*.html
