@@ -815,6 +815,24 @@ pub fn evaluate_model(
     Ok((train_loss, val_loss))
 }
 
+pub enum TextClassification {
+    Spam,
+    Ham,
+}
+
+/// [Listing 6.12] Using the model to classify new texts
+#[allow(unused_variables)]
+pub fn classify_review(
+    text: &str,
+    model: &GPTModel,
+    tokenizer: &CoreBPE,
+    device: &Device,
+    max_length: Option<usize>,
+    pad_token_id: Option<u32>,
+) -> Result<TextClassification> {
+    Ok(TextClassification::Ham)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
