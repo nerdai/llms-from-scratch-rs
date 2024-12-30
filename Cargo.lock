@@ -1052,15 +1052,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "directories"
-version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a49173b84e034382284f27f1af4dcbbd231ffa358c0fe316541a7337f376a35"
-dependencies = [
- "dirs-sys",
-]
-
-[[package]]
 name = "dirs"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1091,12 +1082,6 @@ dependencies = [
  "quote",
  "syn 2.0.87",
 ]
-
-[[package]]
-name = "dunce"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dyn-clone"
@@ -2945,7 +2930,6 @@ dependencies = [
  "erased-serde",
  "once_cell",
  "plotly_derive",
- "plotly_kaleido",
  "rand",
  "rinja",
  "serde",
@@ -2964,20 +2948,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.87",
-]
-
-[[package]]
-name = "plotly_kaleido"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b37b003eaa56efc92f6e31416fc08500707b4fab27065b52ed0df1fab1e1e54"
-dependencies = [
- "base64 0.22.1",
- "directories",
- "dunce",
- "serde",
- "serde_json",
- "zip 2.2.2",
 ]
 
 [[package]]
