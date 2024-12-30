@@ -848,7 +848,7 @@ pub struct EG13;
 
 impl Example for EG13 {
     fn description(&self) -> String {
-        String::from("Example usage of `train_classifier_simple` and `plot_values`function.")
+        String::from("Example usage of `train_classifier_simple` and `plot_values` function.")
     }
 
     fn page_source(&self) -> usize {
