@@ -11,6 +11,8 @@ use candle_core::{bail, DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
 use hf_hub::api::sync::Api;
+use plotly::{common::Mode, layout::Axis};
+use plotly::{Layout, Plot, Scatter};
 use polars::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
 use std::cmp;
@@ -895,8 +897,49 @@ impl std::fmt::Display for TextClassification {
     }
 }
 
-/// [Listing 6.12] Using the model to classify new texts
+/// [Listing 6.11] Plotting the classification loss
 #[allow(unused_variables)]
+pub fn plot_values<P: AsRef<Path>>(
+    epochs_seen: Vec<f32>,
+    examples_seen: Vec<f32>,
+    train_values: Vec<f32>,
+    val_values: Vec<f32>,
+    label: &str,
+    save_path: P,
+) -> Result<()> {
+    let trace1 = Scatter::new(epochs_seen.clone(), train_values.clone())
+        .show_legend(false)
+        .opacity(0_f64)
+        .mode(Mode::LinesMarkers);
+    let trace2 = Scatter::new(epochs_seen, val_values.clone())
+        .show_legend(false)
+        .opacity(0_f64)
+        .mode(Mode::LinesMarkers);
+    let trace3 = Scatter::new(examples_seen.clone(), train_values)
+        .name(format!("Training {label}").as_str())
+        .x_axis("x2")
+        .mode(Mode::LinesMarkers);
+    let trace4 = Scatter::new(examples_seen, val_values)
+        .name(format!("Validation {label}").as_str())
+        .x_axis("x2")
+        .mode(Mode::LinesMarkers);
+
+    let layout = Layout::new().x_axis(Axis::new().title("Epochs")).x_axis2(
+        Axis::new()
+            .title("Examples Seen")
+            .side(plotly::common::AxisSide::Top),
+    );
+    let mut plot = Plot::new();
+    plot.add_trace(trace1);
+    plot.add_trace(trace2);
+    plot.add_trace(trace3);
+    plot.add_trace(trace4);
+    plot.set_layout(layout);
+    plot.write_html(save_path);
+    Ok(())
+}
+
+/// [Listing 6.12] Using the model to classify new texts
 pub fn classify_review(
     text: &str,
     model: &GPTModel,

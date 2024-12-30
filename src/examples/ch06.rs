@@ -828,7 +828,7 @@ impl Example for EG12 {
     }
 }
 
-/// # Example usage of `train_classifier_simple` function
+/// # Example usage of `train_classifier_simple` and `plot_values` functions
 ///
 /// #### Id
 /// 06.13
@@ -848,7 +848,7 @@ pub struct EG13;
 
 impl Example for EG13 {
     fn description(&self) -> String {
-        String::from("Example usage of `train_classifier_simple` function.")
+        String::from("Example usage of `train_classifier_simple` and `plot_values` function.")
     }
 
     fn page_source(&self) -> usize {
@@ -859,12 +859,14 @@ impl Example for EG13 {
         use crate::listings::{
             ch04::Config,
             ch06::{
-                download_and_load_gpt2, modify_out_head_for_classification,
+                download_and_load_gpt2, modify_out_head_for_classification, plot_values,
                 train_classifier_simple, HF_GPT2_MODEL_ID,
             },
         };
         use candle_core::{DType, Device, Var};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use ndarray::linspace;
+        use std::path::Path;
 
         // get gpt model with classification head
         let mut cfg = Config::gpt2_124m();
@@ -905,7 +907,7 @@ impl Example for EG13 {
         )?;
 
         let (eval_freq, eval_iter, num_epochs) = (50_usize, 5_usize, 5_usize);
-        let _ = train_classifier_simple(
+        let (train_loss, val_loss, train_accs, val_accs, num_examples) = train_classifier_simple(
             &model,
             &train_loader,
             &val_loader,
@@ -915,11 +917,38 @@ impl Example for EG13 {
             eval_freq,
             eval_iter,
             None,
-        );
+        )?;
 
         // save model
         println!("Saving weights to `./clf.checkpoint.safetensors`");
         varmap.save("clf.checkpoint.safetensors")?;
+
+        // prepare and save plots
+        let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_loss.len()));
+        let examples_seen = Vec::from_iter(linspace(0_f32, num_examples as f32, train_loss.len()));
+        let label = "loss";
+        let save_path = Path::new(format!("classification_{label}.html").as_str()).to_path_buf();
+        plot_values(
+            epochs_seen,
+            examples_seen,
+            train_loss,
+            val_loss,
+            label,
+            save_path,
+        )?;
+
+        let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_accs.len()));
+        let examples_seen = Vec::from_iter(linspace(0_f32, num_examples as f32, train_accs.len()));
+        let label = "accuracy";
+        let save_path = Path::new(format!("classification_{label}.html").as_str()).to_path_buf();
+        plot_values(
+            epochs_seen,
+            examples_seen,
+            train_accs,
+            val_accs,
+            label,
+            save_path,
+        )?;
 
         Ok(())
     }
