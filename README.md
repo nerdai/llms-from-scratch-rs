@@ -98,11 +98,13 @@ EXAMPLES:
 | 03.01 | Computing attention scores as a dot product.                         |
 ...
 |-------+----------------------------------------------------------------------|
-| 05.09 | Saving and loading a candle model.                                   |
+| 06.13 | Example usage of `train_classifier_simple` and `plot_values`         |
+|       | function.                                                            |
 |-------+----------------------------------------------------------------------|
-| 05.10 | Example for downloading safetensors from HuggingFace Hub.            |
+| 06.14 | Loading fine-tuned model and calculate performance on whole train,   |
+|       | val and test sets.                                                   |
 |-------+----------------------------------------------------------------------|
-| 05.11 | Example usage of `load_weights_into_gpt`.                            |
+| 06.15 | Example usage of `classify_review`.                                  |
 +-------+----------------------------------------------------------------------+
 ```
 
@@ -137,14 +139,17 @@ EXERCISES:
 |-----+------------------------------------------------------------------------|
 ...
 |-----+------------------------------------------------------------------------|
-| 5.6 | Comparing generations with different GPT-2 model sizes                 |
+| 6.2 | Fine-tuning the whole model                                            |
 |     |                                                                        |
-|     | Experiment with GPT-2 models of different sizes—for example, the       |
-|     | largest 1,558 million parameter model—and compare the generated text   |
-|     | to the 124 million model.                                              |
+|     | Instead of fine-tuning just the final transformer block, fine-tune the |
+|     | entire model and assess the effect on predictive performance.          |
+|-----+------------------------------------------------------------------------|
+| 6.3 | Fine-tuning the first vs. last token                                   |
+|     |                                                                        |
+|     | Try fine-tuning the first output token. Notice the changes in          |
+|     | predictive performance compared to fine-tuning the last output token.  |
 +-----+------------------------------------------------------------------------+
 ```
-
 
 ## [Alternative Usage] Installing from `crates.io`
 
