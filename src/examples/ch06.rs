@@ -956,10 +956,10 @@ impl Example for EG14 {
         use crate::listings::ch06::plot_values;
         use std::path::Path;
 
-        let epochs_seen = vec![];
-        let examples_seen = vec![];
-        let train_values = vec![];
-        let val_values = vec![];
+        let epochs_seen = vec![1, 2, 3, 4, 5];
+        let examples_seen = vec![1000, 2000, 3000, 4000, 5000];
+        let train_values = vec![0.95, 0.65, 0.55, 0.35, 0.22];
+        let val_values = vec![0.95, 0.88, 0.64, 0.43, 0.31];
         let label = "loss";
         let save_path = Path::new(format!("classification_{label}.html").as_str()).to_path_buf();
         plot_values(

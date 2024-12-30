@@ -902,28 +902,33 @@ impl std::fmt::Display for TextClassification {
 pub fn plot_values<P: AsRef<Path>>(
     epochs_seen: Vec<u32>,
     examples_seen: Vec<u32>,
-    train_values: Vec<u32>,
-    val_values: Vec<u32>,
+    train_values: Vec<f32>,
+    val_values: Vec<f32>,
     label: &str,
     save_path: P,
 ) -> Result<()> {
     let trace1 = Scatter::new(epochs_seen.clone(), train_values.clone())
-        .name(format!("Training {label}").as_str())
+        .show_legend(false)
+        .opacity(0_f64)
         .mode(Mode::LinesMarkers);
     let trace2 = Scatter::new(epochs_seen, val_values.clone())
-        .name(format!("Validation {label}").as_str())
-        .mode(Mode::Lines);
+        .show_legend(false)
+        .opacity(0_f64)
+        .mode(Mode::LinesMarkers);
     let trace3 = Scatter::new(examples_seen.clone(), train_values)
+        .name(format!("Training {label}").as_str())
         .x_axis("x2")
         .mode(Mode::LinesMarkers);
     let trace4 = Scatter::new(examples_seen, val_values)
+        .name(format!("Validation {label}").as_str())
         .x_axis("x2")
-        .mode(Mode::Lines);
+        .mode(Mode::LinesMarkers);
 
-    let layout = Layout::new()
-        .title(format!("Classification {label}").as_str())
-        .x_axis(Axis::new().title("Epochs"))
-        .x_axis2(Axis::new().title("Examples Seen"));
+    let layout = Layout::new().x_axis(Axis::new().title("Epochs")).x_axis2(
+        Axis::new()
+            .title("Examples Seen")
+            .side(plotly::common::AxisSide::Top),
+    );
     let mut plot = Plot::new();
     plot.add_trace(trace1);
     plot.add_trace(trace2);
