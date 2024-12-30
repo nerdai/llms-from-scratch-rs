@@ -2,6 +2,7 @@
 
 use anyhow::Context;
 use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     fs::{read_to_string, File},
@@ -15,7 +16,7 @@ const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
 const DATA_DIR: &str = "data";
 
 /// A type for containing an instruction-response pair
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct InstructionResponseExample {
     instruction: String,
     input: Option<String>,
@@ -38,16 +39,16 @@ pub fn download_and_load_file<P: AsRef<Path>>(
     file_path: P,
     url: &str,
 ) -> anyhow::Result<Vec<InstructionResponseExample>> {
-    let file_pathbuf = file_path.as_ref().to_path_buf();
-    if !file_pathbuf.exists() {
+    if !file_path.as_ref().exists() {
         // download json file
         let resp = reqwest::blocking::get(url)?;
         let content: Bytes = resp.bytes()?;
-        let mut out = File::create(file_pathbuf)?;
+        let mut out = File::create(file_path.as_ref())?;
         io::copy(&mut content.as_ref(), &mut out)?;
-    } else {
-        let json_str = read_to_string(file_pathbuf)
-            .with_context(|| format!("Unable to read {}", file_path.as_ref().display()))?;
     }
-    Ok(vec![])
+    let json_str = read_to_string(file_path.as_ref())
+        .with_context(|| format!("Unable to read {}", file_path.as_ref().display()))?;
+    let data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
+
+    Ok(data)
 }
