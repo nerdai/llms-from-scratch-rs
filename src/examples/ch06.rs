@@ -954,12 +954,17 @@ impl Example for EG14 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch06::plot_values;
+        use ndarray::linspace;
         use std::path::Path;
 
-        let epochs_seen = vec![1, 2, 3, 4, 5];
-        let examples_seen = vec![1000, 2000, 3000, 4000, 5000];
+        let num_epochs = 5_usize;
+        let examples_seen = 5000_usize;
         let train_values = vec![0.95, 0.65, 0.55, 0.35, 0.22];
         let val_values = vec![0.95, 0.88, 0.64, 0.43, 0.31];
+
+        let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_values.len()));
+        let examples_seen =
+            Vec::from_iter(linspace(0_f32, examples_seen as f32, train_values.len()));
         let label = "loss";
         let save_path = Path::new(format!("classification_{label}.html").as_str()).to_path_buf();
         plot_values(
