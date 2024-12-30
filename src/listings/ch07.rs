@@ -11,9 +11,11 @@ use std::{
 };
 
 #[allow(dead_code)]
-const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
+pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
 #[allow(dead_code)]
-const DATA_DIR: &str = "data";
+pub const DATA_DIR: &str = "data";
+pub const INSTRUCTION_DATA_URL: &str = "https://raw.githubusercontent.com/rasbt/LLMs-from-scratch\
+/main/ch07/01_main-chapter-code/instruction-data.json";
 
 /// A type for containing an instruction-response pair
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -38,8 +40,9 @@ impl Display for InstructionResponseExample {
 pub fn download_and_load_file<P: AsRef<Path>>(
     file_path: P,
     url: &str,
+    overwrite: bool,
 ) -> anyhow::Result<Vec<InstructionResponseExample>> {
-    if !file_path.as_ref().exists() {
+    if !file_path.as_ref().exists() || overwrite {
         // download json file
         let resp = reqwest::blocking::get(url)?;
         let content: Bytes = resp.bytes()?;
@@ -51,4 +54,21 @@ pub fn download_and_load_file<P: AsRef<Path>>(
     let data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
 
     Ok(data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use rstest::*;
+    use tempfile::NamedTempFile;
+
+    #[rstest]
+    fn test_download_and_load_file() -> Result<()> {
+        let test_file = NamedTempFile::new().unwrap();
+        let file_path = test_file.into_temp_path().keep().unwrap();
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, true)?;
+        assert_eq!(data.len(), 1100);
+        Ok(())
+    }
 }
