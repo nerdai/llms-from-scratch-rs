@@ -1,6 +1,18 @@
 //! Listings from Chapter 7
 
-use std::{fmt::Display, path::Path};
+use anyhow::Context;
+use bytes::Bytes;
+use std::{
+    fmt::Display,
+    fs::{read_to_string, File},
+    io,
+    path::Path,
+};
+
+#[allow(dead_code)]
+const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
+#[allow(dead_code)]
+const DATA_DIR: &str = "data";
 
 /// A type for containing an instruction-response pair
 #[derive(Debug, Default)]
@@ -26,5 +38,16 @@ pub fn download_and_load_file<P: AsRef<Path>>(
     file_path: P,
     url: &str,
 ) -> anyhow::Result<Vec<InstructionResponseExample>> {
-    todo!()
+    let file_pathbuf = file_path.as_ref().to_path_buf();
+    if !file_pathbuf.exists() {
+        // download json file
+        let resp = reqwest::blocking::get(url)?;
+        let content: Bytes = resp.bytes()?;
+        let mut out = File::create(file_pathbuf)?;
+        io::copy(&mut content.as_ref(), &mut out)?;
+    } else {
+        let json_str = read_to_string(file_pathbuf)
+            .with_context(|| format!("Unable to read {}", file_path.as_ref().display()))?;
+    }
+    Ok(vec![])
 }
