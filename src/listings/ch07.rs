@@ -2,6 +2,7 @@
 
 use std::{fmt::Display, path::Path};
 
+/// A type for containing an instruction-response pair
 #[derive(Debug, Default)]
 pub struct InstructionResponseExample {
     instruction: String,
