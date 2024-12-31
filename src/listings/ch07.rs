@@ -3,6 +3,7 @@
 use anyhow::Context;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, NoneAsEmptyString};
 use std::{
     fmt::Display,
     fs::{read_to_string, File},
@@ -10,17 +11,17 @@ use std::{
     path::Path,
 };
 
-#[allow(dead_code)]
 pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
-#[allow(dead_code)]
 pub const DATA_DIR: &str = "data";
 pub const INSTRUCTION_DATA_URL: &str = "https://raw.githubusercontent.com/rasbt/LLMs-from-scratch\
 /main/ch07/01_main-chapter-code/instruction-data.json";
 
 /// A type for containing an instruction-response pair
+#[serde_as]
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct InstructionResponseExample {
     instruction: String,
+    #[serde_as(as = "NoneAsEmptyString")]
     input: Option<String>,
     output: String,
 }
