@@ -2293,6 +2293,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "serde_with",
  "tempfile",
  "tiktoken-rs",
  "tokenizers 0.21.0",
