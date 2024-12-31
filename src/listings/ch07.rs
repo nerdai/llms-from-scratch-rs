@@ -57,6 +57,21 @@ pub fn download_and_load_file<P: AsRef<Path>>(
     Ok(data)
 }
 
+/// [Listing 7.2] Implementing the prompt formatting function
+pub fn format_input(entry: &InstructionResponseExample) -> String {
+    let instruction_text = format!(
+        "Below is an instruction that describes a task. Write a response that \
+        appropriately completes the request.\n\n### Instruction:\n{}",
+        entry.instruction
+    );
+    let input_text = if let Some(inp) = &entry.input {
+        format!("\n\n### Input:\n{}", inp)
+    } else {
+        String::default()
+    };
+    instruction_text + &input_text
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -64,12 +79,57 @@ mod tests {
     use rstest::*;
     use tempfile::NamedTempFile;
 
+    #[fixture]
+    fn instruction_example() -> InstructionResponseExample {
+        let instruction = "Here is a fake instruction.".to_string();
+        let input = Some("Here is a fake input.".to_string());
+        let output = "here is a fake output.".to_string();
+        InstructionResponseExample {
+            instruction,
+            input,
+            output,
+        }
+    }
+
     #[rstest]
     fn test_download_and_load_file() -> Result<()> {
         let test_file = NamedTempFile::new().unwrap();
         let file_path = test_file.into_temp_path().keep().unwrap();
         let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, true)?;
         assert_eq!(data.len(), 1100);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_format_input_with_some_input(
+        mut instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        instruction_example.input = None; // set input to None
+        let prompt = format_input(&instruction_example);
+        let expected_output = format!(
+            "Below is an instruction that describes a task. Write a response that \
+            appropriately completes the request.\n\n### Instruction:\n{}",
+            instruction_example.instruction,
+        );
+
+        assert_eq!(prompt, expected_output);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_format_input_with_no_input(
+        instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        let prompt = format_input(&instruction_example);
+        let expected_output = format!(
+            "Below is an instruction that describes a task. Write a response that \
+            appropriately completes the request.\n\n### Instruction:\n{}\
+            \n\n### Input:\n{}",
+            instruction_example.instruction,
+            instruction_example.input.unwrap()
+        );
+
+        assert_eq!(prompt, expected_output);
         Ok(())
     }
 }
