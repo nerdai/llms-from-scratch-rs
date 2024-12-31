@@ -26,6 +26,20 @@ pub struct InstructionResponseExample {
     output: String,
 }
 
+impl InstructionResponseExample {
+    pub fn instruction(&self) -> &String {
+        &self.instruction
+    }
+
+    pub fn input(&self) -> &Option<String> {
+        &self.input
+    }
+
+    pub fn output(&self) -> &String {
+        &self.output
+    }
+}
+
 impl Display for InstructionResponseExample {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

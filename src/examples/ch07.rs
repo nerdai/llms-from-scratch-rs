@@ -49,3 +49,58 @@ impl Example for EG01 {
         Ok(())
     }
 }
+
+/// # Example usage of `format_input`
+///
+/// #### Id
+/// 07.02
+///
+/// #### Page
+/// This example starts on page 209
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.02
+///
+/// # with cuda
+/// cargo run --features cuda example 07.02
+/// ```
+pub struct EG02;
+
+impl Example for EG02 {
+    fn description(&self) -> String {
+        "Example usage of `format_input`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        209_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch07::{
+            download_and_load_file, format_input, DATA_DIR, INSTRUCTION_DATA_FILENAME,
+            INSTRUCTION_DATA_URL,
+        };
+        use std::path::Path;
+
+        // load instruction examples
+        let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+
+        // first model input
+        let model_input = format_input(&data[50]);
+        let detailed_response = format!("\n\n### Response:\n{}", data[50].output());
+        println!("{}", model_input + &detailed_response);
+
+        // print a separator
+        println!("\n---\n");
+
+        // print another model input
+        let model_input = format_input(&data[999]);
+        let detailed_response = format!("\n\n### Response:\n{}", data[999].output());
+        println!("{}", model_input + &detailed_response);
+
+        Ok(())
+    }
+}
