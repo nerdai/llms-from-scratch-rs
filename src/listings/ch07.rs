@@ -64,14 +64,11 @@ pub fn format_input(entry: &InstructionResponseExample) -> String {
         appropriately completes the request.\n\n### Instruction:\n{}",
         entry.instruction
     );
-    let input_text = format!(
-        "\n\n### Input:\n{}",
-        if let Some(inp) = &entry.input {
-            inp.to_owned()
-        } else {
-            "".to_string()
-        }
-    );
+    let input_text = if let Some(inp) = &entry.input {
+        format!("\n\n### Input:\n{}", inp)
+    } else {
+        String::default()
+    };
     instruction_text + &input_text
 }
 
@@ -104,7 +101,25 @@ mod tests {
     }
 
     #[rstest]
-    fn test_format_input(instruction_example: InstructionResponseExample) -> Result<()> {
+    fn test_format_input_with_some_input(
+        mut instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        instruction_example.input = None; // set input to None
+        let prompt = format_input(&instruction_example);
+        let expected_output = format!(
+            "Below is an instruction that describes a task. Write a response that \
+            appropriately completes the request.\n\n### Instruction:\n{}",
+            instruction_example.instruction,
+        );
+
+        assert_eq!(prompt, expected_output);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_format_input_with_no_input(
+        instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
         let prompt = format_input(&instruction_example);
         let expected_output = format!(
             "Below is an instruction that describes a task. Write a response that \
