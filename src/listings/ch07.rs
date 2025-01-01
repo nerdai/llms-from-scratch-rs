@@ -104,7 +104,7 @@ pub fn partition_data(
     let val_data = &data[train_portion..train_portion + val_portion];
     let test_data = &data[train_portion + val_portion..];
 
-    Ok((train_data.to_vec(), test_data.to_vec(), val_data.to_vec()))
+    Ok((train_data.to_vec(), val_data.to_vec(), test_data.to_vec()))
 }
 
 #[cfg(test)]
