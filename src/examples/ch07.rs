@@ -1,7 +1,7 @@
 //! Examples from Chapter 7
 
 use crate::Example;
-use anyhow::Result;
+use anyhow::{Ok, Result};
 
 /// # Example usage of `download_and_load_file`
 ///
@@ -100,6 +100,55 @@ impl Example for EG02 {
         let model_input = format_input(&data[999]);
         let detailed_response = format!("\n\n### Response:\n{}", data[999].output());
         println!("{}", model_input + &detailed_response);
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `partition_data`
+///
+/// #### Id
+/// 07.03
+///
+/// #### Page
+/// This example starts on page 210
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.03
+///
+/// # with cuda
+/// cargo run --features cuda example 07.03
+/// ```
+pub struct EG03;
+
+impl Example for EG03 {
+    fn description(&self) -> String {
+        String::from("Example usage of `partition_data`")
+    }
+
+    fn page_source(&self) -> usize {
+        210_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch07::{
+            download_and_load_file, partition_data, DATA_DIR, INSTRUCTION_DATA_FILENAME,
+            INSTRUCTION_DATA_URL,
+        };
+        use std::path::Path;
+
+        // load instruction examples
+        let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+
+        // partition data
+        let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
+
+        println!("Training set length: {}", train_data.len());
+        println!("Validation set length: {}", val_data.len());
+        println!("Test set length: {}", test_data.len());
 
         Ok(())
     }
