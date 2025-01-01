@@ -18,7 +18,7 @@ pub const INSTRUCTION_DATA_URL: &str = "https://raw.githubusercontent.com/rasbt/
 
 /// A type for containing an instruction-response pair
 #[serde_as]
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct InstructionResponseExample {
     instruction: String,
     #[serde_as(as = "NoneAsEmptyString")]
@@ -84,6 +84,27 @@ pub fn format_input(entry: &InstructionResponseExample) -> String {
         String::default()
     };
     instruction_text + &input_text
+}
+
+/// [Listing 7.3] Partitioning the dataset
+#[allow(unused_variables)]
+pub fn partition_data(
+    data: Vec<InstructionResponseExample>,
+    train_frac: f32,
+    validation_frac: f32,
+) -> anyhow::Result<(
+    Vec<InstructionResponseExample>,
+    Vec<InstructionResponseExample>,
+    Vec<InstructionResponseExample>,
+)> {
+    let train_portion = (data.len() as f32 * train_frac) as usize;
+    let val_portion = (data.len() as f32 * validation_frac) as usize;
+
+    let train_data = &data[..train_portion];
+    let val_data = &data[train_portion..train_portion + val_portion];
+    let test_data = &data[train_portion + val_portion..];
+
+    Ok((train_data.to_vec(), test_data.to_vec(), val_data.to_vec()))
 }
 
 #[cfg(test)]
