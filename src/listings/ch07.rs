@@ -18,7 +18,7 @@ pub const INSTRUCTION_DATA_URL: &str = "https://raw.githubusercontent.com/rasbt/
 
 /// A type for containing an instruction-response pair
 #[serde_as]
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct InstructionResponseExample {
     instruction: String,
     #[serde_as(as = "NoneAsEmptyString")]
@@ -86,6 +86,27 @@ pub fn format_input(entry: &InstructionResponseExample) -> String {
     instruction_text + &input_text
 }
 
+/// [Listing 7.3] Partitioning the dataset
+#[allow(unused_variables)]
+pub fn partition_data(
+    data: Vec<InstructionResponseExample>,
+    train_frac: f32,
+    validation_frac: f32,
+) -> anyhow::Result<(
+    Vec<InstructionResponseExample>,
+    Vec<InstructionResponseExample>,
+    Vec<InstructionResponseExample>,
+)> {
+    let train_portion = (data.len() as f32 * train_frac) as usize;
+    let val_portion = (data.len() as f32 * validation_frac) as usize;
+
+    let train_data = &data[..train_portion];
+    let val_data = &data[train_portion..train_portion + val_portion];
+    let test_data = &data[train_portion + val_portion..];
+
+    Ok((train_data.to_vec(), test_data.to_vec(), val_data.to_vec()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +165,25 @@ mod tests {
         );
 
         assert_eq!(prompt, expected_output);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_partition_data(instruction_example: InstructionResponseExample) -> Result<()> {
+        let data = vec![
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example,
+        ];
+
+        let (train_data, val_data, test_data) = partition_data(data, 0.6, 0.2)?;
+
+        assert_eq!(train_data.len(), 3);
+        assert_eq!(val_data.len(), 1);
+        assert_eq!(test_data.len(), 1);
+
         Ok(())
     }
 }
