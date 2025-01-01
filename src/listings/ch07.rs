@@ -167,4 +167,23 @@ mod tests {
         assert_eq!(prompt, expected_output);
         Ok(())
     }
+
+    #[rstest]
+    fn test_partition_data(instruction_example: InstructionResponseExample) -> Result<()> {
+        let data = vec![
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example,
+        ];
+
+        let (train_data, val_data, test_data) = partition_data(data, 0.6, 0.2)?;
+
+        assert_eq!(train_data.len(), 3);
+        assert_eq!(val_data.len(), 1);
+        assert_eq!(test_data.len(), 1);
+
+        Ok(())
+    }
 }
