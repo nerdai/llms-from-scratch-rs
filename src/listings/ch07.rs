@@ -29,6 +29,14 @@ pub struct InstructionResponseExample {
 }
 
 impl InstructionResponseExample {
+    pub fn new(instruction: &str, input: Option<&str>, output: &str) -> Self {
+        Self {
+            instruction: instruction.to_string(),
+            input: input.map(|inp| inp.to_string()),
+            output: output.to_string(),
+        }
+    }
+
     pub fn instruction(&self) -> &String {
         &self.instruction
     }
