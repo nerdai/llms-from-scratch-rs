@@ -177,6 +177,7 @@ mod tests {
     use anyhow::Result;
     use rstest::*;
     use tempfile::NamedTempFile;
+    use tiktoken_rs::get_bpe_from_model;
 
     #[fixture]
     fn instruction_example() -> InstructionResponseExample {
@@ -247,6 +248,25 @@ mod tests {
         assert_eq!(train_data.len(), 3);
         assert_eq!(val_data.len(), 1);
         assert_eq!(test_data.len(), 1);
+
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_instruction_dataset_init(
+        instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let data = vec![
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example,
+        ];
+        let instruction_dataset = InsructionDataset::new(data, &tokenizer);
+
+        assert_eq!(instruction_dataset.len(), 5);
 
         Ok(())
     }
