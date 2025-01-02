@@ -9,6 +9,7 @@ use std::{
     fs::{read_to_string, File},
     io,
     path::Path,
+    rc::Rc,
 };
 
 pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
@@ -105,6 +106,33 @@ pub fn partition_data(
     let test_data = &data[train_portion + val_portion..];
 
     Ok((train_data.to_vec(), val_data.to_vec(), test_data.to_vec()))
+}
+
+#[allow(dead_code)]
+pub struct InstructionDataset_ {
+    data: Vec<InstructionResponseExample>,
+    encoded_texts: Vec<Vec<u32>>,
+    pad_token_id: u32,
+}
+
+/// [Listing 7.4] Implementing an `InsructionDataset` type
+///
+/// InsructionDataset is a wrapper for `InstructionDataset_` which is refcounted.
+#[derive(Clone)]
+pub struct InsructionDataset(Rc<InstructionDataset_>);
+
+impl AsRef<InsructionDataset> for InsructionDataset {
+    fn as_ref(&self) -> &InsructionDataset {
+        self
+    }
+}
+
+impl std::ops::Deref for InsructionDataset {
+    type Target = InstructionDataset_;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
 }
 
 #[cfg(test)]
