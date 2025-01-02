@@ -137,7 +137,6 @@ impl std::ops::Deref for InsructionDataset {
 }
 
 impl InsructionDataset {
-    #[allow(unused_variables)]
     pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
         let mut encoded_texts = vec![];
         for entry in data.iter() {
@@ -152,6 +151,23 @@ impl InsructionDataset {
             encoded_texts,
         };
         Self(Rc::new(dataset_))
+    }
+
+    /// Gets the number of finetuning examples.
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Checks whether the dataset is empty or has no finetuning examples.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// Returns the tokenized and formatted instruction entry at specified index
+    #[allow(unused_variables)]
+    pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<&Vec<u32>> {
+        let encoded = &self.encoded_texts[idx];
+        Ok(encoded)
     }
 }
 
