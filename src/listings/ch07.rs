@@ -128,15 +128,15 @@ pub struct InstructionDataset_ {
 /// InsructionDataset is a wrapper for `InstructionDataset_` which is refcounted.
 /// Note: pad_token_id is handled via the tokenizer in this example.
 #[derive(Clone)]
-pub struct InsructionDataset(Rc<InstructionDataset_>);
+pub struct InstructionDataset(Rc<InstructionDataset_>);
 
-impl AsRef<InsructionDataset> for InsructionDataset {
-    fn as_ref(&self) -> &InsructionDataset {
+impl AsRef<InstructionDataset> for InstructionDataset {
+    fn as_ref(&self) -> &InstructionDataset {
         self
     }
 }
 
-impl std::ops::Deref for InsructionDataset {
+impl std::ops::Deref for InstructionDataset {
     type Target = InstructionDataset_;
 
     fn deref(&self) -> &Self::Target {
@@ -144,7 +144,7 @@ impl std::ops::Deref for InsructionDataset {
     }
 }
 
-impl InsructionDataset {
+impl InstructionDataset {
     pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
         let mut encoded_texts = vec![];
         for entry in data.iter() {
@@ -271,7 +271,7 @@ mod tests {
             instruction_example.clone(),
             instruction_example.clone(),
         ];
-        let instruction_dataset = InsructionDataset::new(data, &tokenizer);
+        let instruction_dataset = InstructionDataset::new(data, &tokenizer);
 
         // test encoded
         let prompt = format_input(&instruction_example);
