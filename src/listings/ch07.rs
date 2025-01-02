@@ -164,7 +164,6 @@ impl InsructionDataset {
     }
 
     /// Returns the tokenized and formatted instruction entry at specified index
-    #[allow(unused_variables)]
     pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<&Vec<u32>> {
         let encoded = &self.encoded_texts[idx];
         Ok(encoded)

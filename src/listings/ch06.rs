@@ -321,7 +321,6 @@ impl SpamDataset {
     }
 
     /// Returns the input-target pair at the specified index.
-    #[allow(unused_variables)]
     pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<(&Vec<u32>, Vec<i64>)> {
         let encoded = &self.encoded_texts[idx];
         let binding = self.data.select(["label"])?;
