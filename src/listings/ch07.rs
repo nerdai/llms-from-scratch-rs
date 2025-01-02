@@ -262,11 +262,18 @@ mod tests {
             instruction_example.clone(),
             instruction_example.clone(),
             instruction_example.clone(),
-            instruction_example,
+            instruction_example.clone(),
         ];
         let instruction_dataset = InsructionDataset::new(data, &tokenizer);
 
+        // test encoded
+        let prompt = format_input(&instruction_example);
+        let response_text = format!("\n\n### Response:\n{}", instruction_example.output());
+        let full_text = prompt + &response_text;
+        let encoded = tokenizer.encode_with_special_tokens(&full_text);
+
         assert_eq!(instruction_dataset.len(), 5);
+        assert_eq!(*instruction_dataset.get_item_at_index(0_usize)?, encoded);
 
         Ok(())
     }
