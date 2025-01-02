@@ -139,7 +139,14 @@ impl std::ops::Deref for InsructionDataset {
 impl InsructionDataset {
     #[allow(unused_variables)]
     pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
-        let encoded_texts = vec![];
+        let mut encoded_texts = vec![];
+        for entry in data.iter() {
+            let instruction_plus_input = format_input(entry);
+            let response_text = format!("\n\n### Response:\n{}", entry.output());
+            let full_text = instruction_plus_input + &response_text;
+            let encoded_text = tokenizer.encode_with_special_tokens(&full_text);
+            encoded_texts.push(encoded_text);
+        }
         let dataset_ = InstructionDataset_ {
             data,
             encoded_texts,
