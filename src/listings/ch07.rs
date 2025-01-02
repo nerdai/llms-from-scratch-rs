@@ -11,6 +11,7 @@ use std::{
     path::Path,
     rc::Rc,
 };
+use tiktoken_rs::CoreBPE;
 
 pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
 pub const DATA_DIR: &str = "data";
@@ -112,12 +113,12 @@ pub fn partition_data(
 pub struct InstructionDataset_ {
     data: Vec<InstructionResponseExample>,
     encoded_texts: Vec<Vec<u32>>,
-    pad_token_id: u32,
 }
 
 /// [Listing 7.4] Implementing an `InsructionDataset` type
 ///
 /// InsructionDataset is a wrapper for `InstructionDataset_` which is refcounted.
+/// Note: pad_token_id is handled via the tokenizer in this example.
 #[derive(Clone)]
 pub struct InsructionDataset(Rc<InstructionDataset_>);
 
@@ -132,6 +133,18 @@ impl std::ops::Deref for InsructionDataset {
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
+    }
+}
+
+impl InsructionDataset {
+    #[allow(unused_variables)]
+    pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
+        let encoded_texts = vec![];
+        let dataset_ = InstructionDataset_ {
+            data,
+            encoded_texts,
+        };
+        Self(Rc::new(dataset_))
     }
 }
 
