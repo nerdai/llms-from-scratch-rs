@@ -9,7 +9,9 @@ use std::{
     fs::{read_to_string, File},
     io,
     path::Path,
+    rc::Rc,
 };
+use tiktoken_rs::CoreBPE;
 
 pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
 pub const DATA_DIR: &str = "data";
@@ -27,6 +29,14 @@ pub struct InstructionResponseExample {
 }
 
 impl InstructionResponseExample {
+    pub fn new(instruction: &str, input: Option<&str>, output: &str) -> Self {
+        Self {
+            instruction: instruction.to_string(),
+            input: input.map(|inp| inp.to_string()),
+            output: output.to_string(),
+        }
+    }
+
     pub fn instruction(&self) -> &String {
         &self.instruction
     }
@@ -107,12 +117,91 @@ pub fn partition_data(
     Ok((train_data.to_vec(), val_data.to_vec(), test_data.to_vec()))
 }
 
+#[allow(dead_code)]
+pub struct InstructionDataset_ {
+    data: Vec<InstructionResponseExample>,
+    encoded_texts: Vec<Vec<u32>>,
+}
+
+/// [Listing 7.4] Implementing an `InsructionDataset` type
+///
+/// InsructionDataset is a wrapper for `InstructionDataset_` which is refcounted.
+/// Note: pad_token_id is handled via the tokenizer in this example.
+#[derive(Clone)]
+pub struct InstructionDataset(Rc<InstructionDataset_>);
+
+impl AsRef<InstructionDataset> for InstructionDataset {
+    fn as_ref(&self) -> &InstructionDataset {
+        self
+    }
+}
+
+impl std::ops::Deref for InstructionDataset {
+    type Target = InstructionDataset_;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+impl InstructionDataset {
+    /// Creates a new `InstructionDataset`.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch07::{
+    ///     InstructionDataset, InstructionResponseExample
+    /// };
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let entry = InstructionResponseExample::new(
+    ///     "Some instruction",
+    ///     None,
+    ///     "Some output"
+    /// );
+    /// let data = vec![entry];
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let dataset = InstructionDataset::new(data, &tokenizer);
+    /// ```
+    pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
+        let mut encoded_texts = vec![];
+        for entry in data.iter() {
+            let instruction_plus_input = format_input(entry);
+            let response_text = format!("\n\n### Response:\n{}", entry.output());
+            let full_text = instruction_plus_input + &response_text;
+            let encoded_text = tokenizer.encode_with_special_tokens(&full_text);
+            encoded_texts.push(encoded_text);
+        }
+        let dataset_ = InstructionDataset_ {
+            data,
+            encoded_texts,
+        };
+        Self(Rc::new(dataset_))
+    }
+
+    /// Gets the number of finetuning examples.
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Checks whether the dataset is empty or has no finetuning examples.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// Returns the tokenized and formatted instruction entry at specified index
+    pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<&Vec<u32>> {
+        let encoded = &self.encoded_texts[idx];
+        Ok(encoded)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use anyhow::Result;
     use rstest::*;
     use tempfile::NamedTempFile;
+    use tiktoken_rs::get_bpe_from_model;
 
     #[fixture]
     fn instruction_example() -> InstructionResponseExample {
@@ -183,6 +272,32 @@ mod tests {
         assert_eq!(train_data.len(), 3);
         assert_eq!(val_data.len(), 1);
         assert_eq!(test_data.len(), 1);
+
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_instruction_dataset_init(
+        instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let data = vec![
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+        ];
+        let instruction_dataset = InstructionDataset::new(data, &tokenizer);
+
+        // test encoded
+        let prompt = format_input(&instruction_example);
+        let response_text = format!("\n\n### Response:\n{}", instruction_example.output());
+        let full_text = prompt + &response_text;
+        let encoded = tokenizer.encode_with_special_tokens(&full_text);
+
+        assert_eq!(instruction_dataset.len(), 5);
+        assert_eq!(*instruction_dataset.get_item_at_index(0_usize)?, encoded);
 
         Ok(())
     }
