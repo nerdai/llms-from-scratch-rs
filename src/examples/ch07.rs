@@ -153,3 +153,42 @@ impl Example for EG03 {
         Ok(())
     }
 }
+
+/// # Example usage of `<|endoftext|>` special token with tiktoken
+///
+/// #### Id
+/// 07.04
+///
+/// #### Page
+/// This example starts on page 214
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.04
+///
+/// # with cuda
+/// cargo run --features cuda example 07.04
+/// ```
+pub struct EG04;
+
+impl Example for EG04 {
+    fn description(&self) -> String {
+        "Example usage of `<|endoftext|>` special token with tiktoken.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        214_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use std::collections::HashSet;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let allowed_special = HashSet::from(["<|endoftext|>"]);
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        println!("{:?}", tokenizer.encode("<|endoftext|>", allowed_special));
+
+        Ok(())
+    }
+}
