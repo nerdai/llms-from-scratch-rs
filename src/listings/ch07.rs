@@ -145,6 +145,23 @@ impl std::ops::Deref for InstructionDataset {
 }
 
 impl InstructionDataset {
+    /// Creates a new `InstructionDataset`.
+    ///
+    /// ```rust
+    /// use llms_from_scratch_rs::listings::ch07::{
+    ///     InstructionDataset, InstructionResponseExample
+    /// };
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let entry = InstructionResponseExample::new(
+    ///     "Some instruction",
+    ///     None,
+    ///     "Some output"
+    /// );
+    /// let data = vec![entry];
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let dataset = InstructionDataset::new(data, &tokenizer);
+    /// ```
     pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
         let mut encoded_texts = vec![];
         for entry in data.iter() {
