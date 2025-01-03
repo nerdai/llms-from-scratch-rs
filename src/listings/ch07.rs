@@ -317,14 +317,11 @@ impl InstructDataCollator {
         self.device = device;
         self
     }
-}
 
-impl CustomCollator for InstructDataCollator {
     /// [Listing 7.5] Implementing a custom batch collate function
     ///
     /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
-    #[allow(unused_variables)]
-    fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)> {
+    fn custom_collate_fn(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)> {
         let (input_batch, target_batch) = batch;
         // cast to Vec
         let input_batch = input_batch.to_vec2::<u32>()?;
@@ -340,9 +337,8 @@ impl CustomCollator for InstructDataCollator {
             .unwrap();
         let mut inputs_lst: Vec<Vec<u32>> = vec![];
         let mut targets_lst: Vec<Vec<i64>> = vec![];
-        let batch_iter = input_batch.into_iter().zip(target_batch);
 
-        for (ix, (mut input, target)) in batch_iter.enumerate() {
+        for (mut input, target) in input_batch.into_iter().zip(target_batch) {
             // convert to i32
             let mut target = target.into_iter().map(|el| el as i64).collect::<Vec<_>>();
 
@@ -383,6 +379,12 @@ impl CustomCollator for InstructDataCollator {
             &self.device,
         );
         candle_core::error::zip(inputs_tensor, targets_tensor)
+    }
+}
+
+impl CustomCollator for InstructDataCollator {
+    fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)> {
+        self.custom_collate_fn(batch)
     }
 }
 
