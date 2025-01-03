@@ -241,16 +241,22 @@ impl Iterator for InstructionDatasetIter {
 /// the `Iterator` Trait.
 pub type InstructionDataBatcher_ = Batcher<IterResult2<InstructionDatasetIter>>;
 
-pub struct InstructionDataBatcher(InstructionDataBatcher_);
+pub type CustomCollateFn = fn(Tensor, Tensor) -> Result<(Tensor, Tensor)>;
+
+pub struct InstructionDataBatcher(InstructionDataBatcher_, CustomCollateFn);
+
+impl InstructionDataBatcher {
+    pub fn new(batcher: InstructionDataBatcher_, customized_collate_fn: CustomCollateFn) -> Self {
+        Self(batcher, customized_collate_fn)
+    }
+}
 
 impl Iterator for InstructionDataBatcher {
     type Item = Result<(Tensor, Tensor)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|result| {
-            result.and_then(|(input_batch, target_batch)| {
-                custom_collate_fn(input_batch, target_batch)
-            })
+            result.and_then(|(input_batch, target_batch)| self.1(input_batch, target_batch))
         })
     }
 }
