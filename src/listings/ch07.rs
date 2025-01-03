@@ -544,6 +544,24 @@ mod tests {
         Ok(())
     }
 
-    // #[rstest]
-    // pub fn test_instruction_collator() -> Result<()> {}
+    #[rstest]
+    pub fn test_instruction_collator(
+        instruction_data: Vec<InstructionResponseExample>,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
+
+        let batch_size = 2_usize;
+        let batcher_ = InstructionDataBatcher_::new_r2(iter)
+            .batch_size(batch_size)
+            .return_last_incomplete_batch(false);
+        let collator = InstructDataCollator::new()
+            .device(Device::cuda_if_available(0)?)
+            .allowed_max_length(Some(5_usize));
+        let instruct_batcher = InstructionDataBatcher::new(batcher_, collator);
+
+        assert!(false);
+        Ok(())
+    }
 }
