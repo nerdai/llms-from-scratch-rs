@@ -556,12 +556,17 @@ mod tests {
         let batcher_ = InstructionDataBatcher_::new_r2(iter)
             .batch_size(batch_size)
             .return_last_incomplete_batch(false);
-        let collator = InstructDataCollator::new()
-            .device(Device::cuda_if_available(0)?)
-            .allowed_max_length(Some(5_usize));
-        let instruct_batcher = InstructionDataBatcher::new(batcher_, collator);
+        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
+        let mut instruct_batcher = InstructionDataBatcher::new(batcher_, collator);
+        let mut count = 0_usize;
 
-        assert!(false);
+        while let Some(Ok((inputs_batch, targets_batch))) = instruct_batcher.next() {
+            assert!(inputs_batch.dims()[0] == targets_batch.dims()[0]);
+            assert!(inputs_batch.dims()[1] == targets_batch.dims()[1]);
+            count += 1;
+        }
+
+        assert_eq!(count, 2_usize);
         Ok(())
     }
 }
