@@ -437,7 +437,6 @@ impl<'a> SpamDatasetBuilder<'a> {
     }
 }
 
-#[allow(dead_code)]
 pub struct SpamDatasetIter {
     dataset: SpamDataset,
     remaining_indices: Vec<usize>,

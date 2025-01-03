@@ -2,6 +2,9 @@
 
 use anyhow::Context;
 use bytes::Bytes;
+use candle_core::{Device, Result, Tensor};
+use candle_datasets::{batcher::IterResult2, Batcher};
+use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::{
@@ -192,6 +195,65 @@ impl InstructionDataset {
     pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<&Vec<u32>> {
         let encoded = &self.encoded_texts[idx];
         Ok(encoded)
+    }
+}
+
+#[allow(dead_code)]
+pub struct InstructionDatasetIter {
+    dataset: InstructionDataset,
+    remaining_indices: Vec<usize>,
+}
+
+impl InstructionDatasetIter {
+    pub fn new(dataset: InstructionDataset, shuffle: bool) -> Self {
+        let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
+        if shuffle {
+            remaining_indices.shuffle(&mut thread_rng());
+        }
+        Self {
+            dataset,
+            remaining_indices,
+        }
+    }
+}
+
+impl Iterator for InstructionDatasetIter {
+    type Item = Result<(Tensor, Tensor)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.remaining_indices.pop() {
+            let encoded = self.dataset.get_item_at_index(idx).unwrap();
+
+            // turn into Tensors and return
+            let dev = Device::cuda_if_available(0).unwrap();
+            let inputs_tensor = Tensor::new(&encoded[..], &dev);
+            let target_tensor = Tensor::new(&encoded[1..], &dev);
+            Some(candle_core::error::zip(inputs_tensor, target_tensor))
+        } else {
+            None
+        }
+    }
+}
+
+/// A type alias for candle_datasets::Batcher
+///
+/// This struct is responsible for getting batches from a type that implements
+/// the `Iterator` Trait.
+pub type InstructionDataBatcher_ = Batcher<IterResult2<InstructionDatasetIter>>;
+
+pub struct InstructionDataBatcher(InstructionDataBatcher_);
+
+impl AsRef<InstructionDataBatcher> for InstructionDataBatcher {
+    fn as_ref(&self) -> &InstructionDataBatcher {
+        self
+    }
+}
+
+impl std::ops::Deref for InstructionDataBatcher {
+    type Target = InstructionDataBatcher_;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
