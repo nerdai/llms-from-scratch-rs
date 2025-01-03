@@ -521,6 +521,29 @@ mod tests {
         Ok(())
     }
 
+    #[rstest]
+    fn test_instruction_dataset_with_batch(
+        instruction_data: Vec<InstructionResponseExample>,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
+
+        let batch_size = 2_usize;
+        let mut batch_iter = InstructionDataBatcher_::new_r2(iter)
+            .batch_size(batch_size)
+            .return_last_incomplete_batch(true);
+        let mut count = 0_usize;
+
+        while let Some(Ok((inputs, targets))) = batch_iter.next() {
+            assert!(inputs.dims()[0] == targets.dims()[0]);
+            count += 1;
+        }
+
+        assert_eq!(count, 3_usize);
+        Ok(())
+    }
+
     // #[rstest]
     // pub fn test_instruction_collator() -> Result<()> {}
 }
