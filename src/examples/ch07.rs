@@ -192,3 +192,50 @@ impl Example for EG04 {
         Ok(())
     }
 }
+
+/// # Example usage of `InstructDataCollator.custom_collate_fn`
+///
+/// #### Id
+/// 07.05
+///
+/// #### Page
+/// This example starts on page 220
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.05
+///
+/// # with cuda
+/// cargo run --features cuda example 07.05
+/// ```
+pub struct EG05;
+
+impl Example for EG05 {
+    fn description(&self) -> String {
+        String::from("Example usage of `InstructDataCollator.custom_collate_fn`.")
+    }
+
+    fn page_source(&self) -> usize {
+        220_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch07::InstructDataCollator;
+        use candle_core::{Device, Tensor};
+
+        let device = Device::cuda_if_available(0)?;
+        let inputs_1 = Tensor::new(&[0_u32, 1, 2, 3, 4], &device)?;
+        let inputs_2 = Tensor::new(&[5_u32, 6], &device)?;
+        let inputs_3 = Tensor::new(&[7_u32, 8, 9], &device)?;
+        let batch = vec![inputs_1, inputs_2, inputs_3];
+
+        let collator = InstructDataCollator::new();
+        let (inputs, targets) = collator.custom_collate_fn(batch)?;
+
+        println!("inputs:\n{:?}", inputs.to_vec2::<u32>()?);
+        println!("targets:\n{:?}", targets.to_vec2::<i64>()?);
+
+        Ok(())
+    }
+}
