@@ -241,22 +241,26 @@ impl Iterator for InstructionDatasetIter {
 /// the `Iterator` Trait.
 pub type InstructionDataBatcher_ = Batcher<IterResult2<InstructionDatasetIter>>;
 
-pub type CustomCollateFn = fn(Tensor, Tensor) -> Result<(Tensor, Tensor)>;
+pub trait CustomCollator {
+    fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)>;
+}
 
-pub struct InstructionDataBatcher(InstructionDataBatcher_, CustomCollateFn);
+pub struct InstructionDataBatcher<C: CustomCollator>(InstructionDataBatcher_, C);
 
-impl InstructionDataBatcher {
-    pub fn new(batcher: InstructionDataBatcher_, customized_collate_fn: CustomCollateFn) -> Self {
-        Self(batcher, customized_collate_fn)
+impl<C: CustomCollator> InstructionDataBatcher<C> {
+    pub fn new(batcher: InstructionDataBatcher_, custom_collator: C) -> Self {
+        Self(batcher, custom_collator)
     }
 }
 
-impl Iterator for InstructionDataBatcher {
+impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
     type Item = Result<(Tensor, Tensor)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|result| {
-            result.and_then(|(input_batch, target_batch)| self.1(input_batch, target_batch))
+            result.and_then(|(input_batch, target_batch)| {
+                self.1.collate_r2((input_batch, target_batch))
+            })
         })
     }
 }
@@ -264,6 +268,53 @@ impl Iterator for InstructionDataBatcher {
 /// [Listing 7.5] Implementing a custom batch collate function
 ///
 /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
+pub struct CustomInstructCollator {
+    pad_token_id: u32,
+    ignore_index: i32,
+    allowed_max_length: Option<usize>,
+    device: Device,
+}
+
+const DEFAULT_IGNORE_INDEX: i32 = -100;
+const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
+
+impl Default for CustomInstructCollator {
+    fn default() -> Self {
+        Self {
+            pad_token_id: DEFAULT_PAD_TOKEN_ID,
+            ignore_index: DEFAULT_IGNORE_INDEX,
+            allowed_max_length: None,
+            device: Device::Cpu,
+        }
+    }
+}
+
+impl CustomInstructCollator {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn pad_token_id(mut self, pad_token_id: u32) -> Self {
+        self.pad_token_id = pad_token_id;
+        self
+    }
+
+    pub fn ignore_index(mut self, ignore_index: i32) -> Self {
+        self.ignore_index = ignore_index;
+        self
+    }
+
+    pub fn allowed_max_length(mut self, allowed_max_length: Option<usize>) -> Self {
+        self.allowed_max_length = allowed_max_length;
+        self
+    }
+
+    pub fn device(mut self, device: Device) -> Self {
+        self.device = device;
+        self
+    }
+}
+
 #[allow(unused_variables)]
 pub fn custom_collate_fn(input_batch: Tensor, target_batch: Tensor) -> Result<(Tensor, Tensor)> {
     todo!()
