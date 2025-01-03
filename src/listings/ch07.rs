@@ -265,10 +265,10 @@ impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
     }
 }
 
-/// [Listing 7.5] Implementing a custom batch collate function
+/// A type for specifying how to collate batches of instruct entries
 ///
-/// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
-pub struct CustomInstructCollator {
+/// NOTE: used for implementing Listing 7.5
+pub struct InstructDataCollator {
     pad_token_id: u32,
     ignore_index: i32,
     allowed_max_length: Option<usize>,
@@ -278,7 +278,7 @@ pub struct CustomInstructCollator {
 const DEFAULT_IGNORE_INDEX: i32 = -100;
 const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 
-impl Default for CustomInstructCollator {
+impl Default for InstructDataCollator {
     fn default() -> Self {
         Self {
             pad_token_id: DEFAULT_PAD_TOKEN_ID,
@@ -289,7 +289,7 @@ impl Default for CustomInstructCollator {
     }
 }
 
-impl CustomInstructCollator {
+impl InstructDataCollator {
     pub fn new() -> Self {
         Self::default()
     }
@@ -315,9 +315,14 @@ impl CustomInstructCollator {
     }
 }
 
-#[allow(unused_variables)]
-pub fn custom_collate_fn(input_batch: Tensor, target_batch: Tensor) -> Result<(Tensor, Tensor)> {
-    todo!()
+impl CustomCollator for InstructDataCollator {
+    /// [Listing 7.5] Implementing a custom batch collate function
+    ///
+    /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
+    #[allow(unused_variables)]
+    fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
