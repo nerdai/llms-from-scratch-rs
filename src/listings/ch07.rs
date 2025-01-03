@@ -247,8 +247,20 @@ impl Iterator for InstructionDataBatcher {
     type Item = Result<(Tensor, Tensor)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        self.0.next().map(|result| {
+            result.and_then(|(input_batch, target_batch)| {
+                custom_collate_fn(input_batch, target_batch)
+            })
+        })
     }
+}
+
+/// [Listing 7.5] Implementing a custom batch collate function
+///
+/// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
+#[allow(unused_variables)]
+pub fn custom_collate_fn(input_batch: Tensor, target_batch: Tensor) -> Result<(Tensor, Tensor)> {
+    todo!()
 }
 
 #[cfg(test)]
