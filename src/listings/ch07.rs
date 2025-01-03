@@ -274,12 +274,12 @@ impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
 /// NOTE: used for implementing Listing 7.5
 pub struct InstructDataCollator {
     pad_token_id: u32,
-    ignore_index: i32,
+    ignore_index: i64,
     allowed_max_length: Option<usize>,
     device: Device,
 }
 
-const DEFAULT_IGNORE_INDEX: i32 = -100;
+const DEFAULT_IGNORE_INDEX: i64 = -100;
 const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 
 impl Default for InstructDataCollator {
@@ -303,7 +303,7 @@ impl InstructDataCollator {
         self
     }
 
-    pub fn ignore_index(mut self, ignore_index: i32) -> Self {
+    pub fn ignore_index(mut self, ignore_index: i64) -> Self {
         self.ignore_index = ignore_index;
         self
     }
@@ -325,7 +325,64 @@ impl CustomCollator for InstructDataCollator {
     /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
     #[allow(unused_variables)]
     fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)> {
-        todo!()
+        let (input_batch, target_batch) = batch;
+        // cast to Vec
+        let input_batch = input_batch.to_vec2::<u32>()?;
+        let target_batch = target_batch.to_vec2::<u32>()?;
+
+        // modify batch
+        let batch_max_length = input_batch
+            .iter()
+            .map(|el| el.len())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .max()
+            .unwrap();
+        let mut inputs_lst: Vec<Vec<u32>> = vec![];
+        let mut targets_lst: Vec<Vec<i64>> = vec![];
+        let batch_iter = input_batch.into_iter().zip(target_batch);
+
+        for (ix, (mut input, target)) in batch_iter.enumerate() {
+            // convert to i32
+            let mut target = target.into_iter().map(|el| el as i64).collect::<Vec<_>>();
+
+            // padding and ignore index
+            target.push(self.pad_token_id as i64);
+            let num_pad =
+                std::cmp::max(0isize, batch_max_length as isize - input.len() as isize) as usize;
+            if num_pad > 0 {
+                let padding_input = std::iter::repeat(self.pad_token_id)
+                    .take(num_pad)
+                    .collect::<Vec<u32>>();
+                input.extend(padding_input);
+            }
+            let ignore_index_target = std::iter::repeat(self.ignore_index)
+                .take(num_pad)
+                .collect::<Vec<i64>>();
+            target.extend(ignore_index_target);
+
+            if let Some(a) = self.allowed_max_length {
+                input = input[..a].to_vec();
+                target = target[..a].to_vec();
+            }
+
+            inputs_lst.push(input);
+            targets_lst.push(target);
+        }
+
+        let inputs_shape = (inputs_lst.len(), inputs_lst[0].len());
+        let inputs_tensor = Tensor::from_vec(
+            inputs_lst.into_iter().flatten().collect(),
+            inputs_shape,
+            &self.device,
+        );
+        let targets_shape = (targets_lst.len(), targets_lst[0].len());
+        let targets_tensor = Tensor::from_vec(
+            targets_lst.into_iter().flatten().collect(),
+            targets_shape,
+            &self.device,
+        );
+        candle_core::error::zip(inputs_tensor, targets_tensor)
     }
 }
 
