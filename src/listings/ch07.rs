@@ -3,7 +3,6 @@
 use anyhow::Context;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
-use candle_datasets::{batcher::IterResult2, Batcher};
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -198,7 +197,6 @@ impl InstructionDataset {
     }
 }
 
-#[allow(dead_code)]
 pub struct InstructionDatasetIter {
     dataset: InstructionDataset,
     remaining_indices: Vec<usize>,
@@ -218,7 +216,7 @@ impl InstructionDatasetIter {
 }
 
 impl Iterator for InstructionDatasetIter {
-    type Item = Result<(Tensor, Tensor)>;
+    type Item = Result<Tensor>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(idx) = self.remaining_indices.pop() {
@@ -227,33 +225,55 @@ impl Iterator for InstructionDatasetIter {
             // turn into Tensors and return
             let dev = Device::cuda_if_available(0).unwrap();
             let inputs_tensor = Tensor::new(&encoded[..], &dev);
-            let target_tensor = Tensor::new(&encoded[1..], &dev);
-            Some(candle_core::error::zip(inputs_tensor, target_tensor))
+            Some(inputs_tensor)
         } else {
             None
         }
     }
 }
 
+pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
+    inner: I,
+}
+
 /// A type alias for candle_datasets::Batcher
 ///
 /// This struct is responsible for getting batches from a type that implements
 /// the `Iterator` Trait.
-pub type InstructionDataBatcher_ = Batcher<IterResult2<InstructionDatasetIter>>;
-
-pub trait CustomCollator {
-    fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)>;
+pub struct InstructionDataBatcher<C: CustomCollator> {
+    inner: IterResult1<InstructionDatasetIter>,
+    batch_size: usize,
+    return_last_incomplete_batch: bool,
+    collator: C,
 }
 
-/// The InstructionDataBatcher type
-///
-/// NOTE: this is a wrapper on `InstructionDataBatcher_` in order to apply a
-/// custom collate function on top of a batch iter.
-pub struct InstructionDataBatcher<C: CustomCollator>(InstructionDataBatcher_, C);
+pub trait CustomCollator {
+    fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)>;
+}
 
 impl<C: CustomCollator> InstructionDataBatcher<C> {
-    pub fn new(batcher: InstructionDataBatcher_, custom_collator: C) -> Self {
-        Self(batcher, custom_collator)
+    pub fn new(inner: InstructionDatasetIter, collator: C) -> Self {
+        Self {
+            inner: IterResult1 { inner },
+            collator,
+            batch_size: 16,
+            return_last_incomplete_batch: false,
+        }
+    }
+
+    pub fn batch_size(mut self, batch_size: usize) -> Self {
+        self.batch_size = batch_size;
+        self
+    }
+
+    pub fn return_last_incomplete_batch(mut self, r: bool) -> Self {
+        self.return_last_incomplete_batch = r;
+        self
+    }
+
+    pub fn collator(mut self, collator: C) -> Self {
+        self.collator = collator;
+        self
     }
 }
 
@@ -261,11 +281,24 @@ impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
     type Item = Result<(Tensor, Tensor)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|result| {
-            result.and_then(|(input_batch, target_batch)| {
-                self.1.collate_r2((input_batch, target_batch))
-            })
-        })
+        let mut items = Vec::with_capacity(self.batch_size);
+        let mut errs = vec![];
+        for _i in 0..self.batch_size {
+            // We have two levels of inner here so that we can have two implementations of the
+            // Iterator trait that are different for Iter1 and Iter2. If rust gets better
+            // specialization at some point we can get rid of this.
+            match self.inner.inner.next() {
+                Some(Ok(item)) => items.push(item),
+                Some(Err(err)) => errs.push(err),
+                None => {
+                    if self.return_last_incomplete_batch {
+                        break;
+                    }
+                    return None;
+                }
+            }
+        }
+        Some(self.collator.collate(items))
     }
 }
 
@@ -321,16 +354,11 @@ impl InstructDataCollator {
     /// [Listing 7.5] Implementing a custom batch collate function
     ///
     /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
-    fn custom_collate_fn(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)> {
-        let (input_batch, target_batch) = batch;
-        // cast to Vec
-        let input_batch = input_batch.to_vec2::<u32>()?;
-        let target_batch = target_batch.to_vec2::<u32>()?;
-
+    fn custom_collate_fn(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         // modify batch
-        let batch_max_length = input_batch
+        let batch_max_length = batch
             .iter()
-            .map(|el| el.len())
+            .map(|el| el.elem_count())
             .collect::<Vec<_>>()
             .into_iter()
             .max()
@@ -338,9 +366,14 @@ impl InstructDataCollator {
         let mut inputs_lst: Vec<Vec<u32>> = vec![];
         let mut targets_lst: Vec<Vec<i64>> = vec![];
 
-        for (mut input, target) in input_batch.into_iter().zip(target_batch) {
-            // convert to i32
-            let mut target = target.into_iter().map(|el| el as i64).collect::<Vec<_>>();
+        for item in batch.into_iter() {
+            let mut input = item.to_vec1::<u32>()?;
+            let mut target = item
+                .to_vec1::<u32>()?
+                .into_iter()
+                .map(|el| el as i64)
+                .collect::<Vec<_>>()[1..]
+                .to_vec();
 
             // padding and ignore index
             target.push(self.pad_token_id as i64);
@@ -383,7 +416,7 @@ impl InstructDataCollator {
 }
 
 impl CustomCollator for InstructDataCollator {
-    fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)> {
+    fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         self.custom_collate_fn(batch)
     }
 }
@@ -392,6 +425,7 @@ impl CustomCollator for InstructDataCollator {
 mod tests {
     use super::*;
     use anyhow::Result;
+    use ndarray::iter;
     use rstest::*;
     use tempfile::NamedTempFile;
     use tiktoken_rs::get_bpe_from_model;
@@ -513,34 +547,11 @@ mod tests {
         let mut count = 0_usize;
 
         // user iter to sequentially get next pair checking equality with dataset
-        while let Some(Ok((this_input, this_target))) = iter.next() {
-            assert!(this_input.dims()[0] == this_target.dims()[0] + 1_usize);
+        while let Some(Ok(item)) = iter.next() {
+            assert!(item.dims()[0] == instruction_dataset.encoded_texts[count].len());
             count += 1;
         }
         assert_eq!(count, instruction_dataset.len());
-        Ok(())
-    }
-
-    #[rstest]
-    fn test_instruction_dataset_with_batch(
-        instruction_data: Vec<InstructionResponseExample>,
-    ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
-        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
-        let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
-
-        let batch_size = 2_usize;
-        let mut batch_iter = InstructionDataBatcher_::new_r2(iter)
-            .batch_size(batch_size)
-            .return_last_incomplete_batch(true);
-        let mut count = 0_usize;
-
-        while let Some(Ok((inputs, targets))) = batch_iter.next() {
-            assert!(inputs.dims()[0] == targets.dims()[0]);
-            count += 1;
-        }
-
-        assert_eq!(count, 3_usize);
         Ok(())
     }
 
@@ -551,13 +562,11 @@ mod tests {
         let tokenizer = get_bpe_from_model("gpt2")?;
         let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
         let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
-
         let batch_size = 2_usize;
-        let batcher_ = InstructionDataBatcher_::new_r2(iter)
+        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
+        let mut instruct_batcher = InstructionDataBatcher::new(iter, collator)
             .batch_size(batch_size)
             .return_last_incomplete_batch(false);
-        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
-        let mut instruct_batcher = InstructionDataBatcher::new(batcher_, collator);
         let mut count = 0_usize;
 
         while let Some(Ok((inputs_batch, targets_batch))) = instruct_batcher.next() {
