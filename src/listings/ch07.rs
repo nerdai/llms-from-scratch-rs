@@ -408,6 +408,20 @@ mod tests {
         }
     }
 
+    #[fixture]
+    fn instruction_data(
+        instruction_example: InstructionResponseExample,
+    ) -> Vec<InstructionResponseExample> {
+        let data = vec![
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example.clone(),
+            instruction_example,
+        ];
+        data
+    }
+
     #[rstest]
     fn test_download_and_load_file() -> Result<()> {
         let test_file = NamedTempFile::new().unwrap();
@@ -471,17 +485,11 @@ mod tests {
 
     #[rstest]
     pub fn test_instruction_dataset_init(
+        instruction_data: Vec<InstructionResponseExample>,
         instruction_example: InstructionResponseExample,
     ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let data = vec![
-            instruction_example.clone(),
-            instruction_example.clone(),
-            instruction_example.clone(),
-            instruction_example.clone(),
-            instruction_example.clone(),
-        ];
-        let instruction_dataset = InstructionDataset::new(data, &tokenizer);
+        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
 
         // test encoded
         let prompt = format_input(&instruction_example);
@@ -494,4 +502,25 @@ mod tests {
 
         Ok(())
     }
+
+    #[rstest]
+    pub fn test_instruction_dataset_iter(
+        instruction_data: Vec<InstructionResponseExample>,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let mut iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
+        let mut count = 0_usize;
+
+        // user iter to sequentially get next pair checking equality with dataset
+        while let Some(Ok((this_input, this_target))) = iter.next() {
+            assert!(this_input.dims()[0] == this_target.dims()[0] + 1_usize);
+            count += 1;
+        }
+        assert_eq!(count, instruction_dataset.len());
+        Ok(())
+    }
+
+    // #[rstest]
+    // pub fn test_instruction_collator() -> Result<()> {}
 }
