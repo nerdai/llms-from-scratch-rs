@@ -571,6 +571,34 @@ mod tests {
     }
 
     #[rstest]
+    pub fn test_instruction_collator() -> Result<()> {
+        // arrange
+        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
+        let device = Device::cuda_if_available(0)?;
+        let inputs_1 = Tensor::new(&[1_u32, 2, 3], &device)?;
+        let inputs_2 = Tensor::new(&[4_u32, 5, 6, 7], &device)?;
+        let batch = vec![inputs_1, inputs_2];
+
+        // act
+        let (inputs, targets) = collator.collate(batch)?;
+        println!("{:?}", inputs.to_vec2::<u32>()?);
+        println!("{:?}", targets.to_vec2::<i64>()?);
+
+        // assert
+        assert_eq!(inputs.dims(), targets.dims());
+        assert_eq!(
+            inputs.to_vec2::<u32>()?,
+            &[[1_u32, 2, 3, 50256], [4_u32, 5, 6, 7]],
+        );
+        assert_eq!(
+            targets.to_vec2::<i64>()?,
+            &[[2_i64, 3, 50256, -100], [5_i64, 6, 7, 50256]]
+        );
+
+        Ok(())
+    }
+
+    #[rstest]
     pub fn test_instruction_batcher(
         instruction_data: Vec<InstructionResponseExample>,
     ) -> Result<()> {
