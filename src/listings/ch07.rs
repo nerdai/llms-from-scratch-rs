@@ -425,7 +425,6 @@ impl CustomCollator for InstructDataCollator {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use ndarray::iter;
     use rstest::*;
     use tempfile::NamedTempFile;
     use tiktoken_rs::get_bpe_from_model;
@@ -443,14 +442,26 @@ mod tests {
     }
 
     #[fixture]
+    fn another_instruction_example() -> InstructionResponseExample {
+        let instruction = "Here is yet another fake instruction.".to_string();
+        let output = "here is yet another fake output.".to_string();
+        InstructionResponseExample {
+            instruction,
+            input: None,
+            output,
+        }
+    }
+
+    #[fixture]
     fn instruction_data(
         instruction_example: InstructionResponseExample,
+        another_instruction_example: InstructionResponseExample,
     ) -> Vec<InstructionResponseExample> {
         let data = vec![
             instruction_example.clone(),
+            another_instruction_example.clone(),
             instruction_example.clone(),
-            instruction_example.clone(),
-            instruction_example.clone(),
+            another_instruction_example.clone(),
             instruction_example,
         ];
         data
@@ -556,7 +567,7 @@ mod tests {
     }
 
     #[rstest]
-    pub fn test_instruction_collator(
+    pub fn test_instruction_batcher(
         instruction_data: Vec<InstructionResponseExample>,
     ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
