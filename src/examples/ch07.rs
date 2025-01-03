@@ -193,7 +193,7 @@ impl Example for EG04 {
     }
 }
 
-/// # Example usage of `custom_collate_fn`
+/// # Example usage of `InstructDataCollator.custom_collate_fn`
 ///
 /// #### Id
 /// 07.05
@@ -213,7 +213,7 @@ pub struct EG05;
 
 impl Example for EG05 {
     fn description(&self) -> String {
-        String::from("Example usage of `custom_collate_fn`.")
+        String::from("Example usage of `InstructDataCollator.custom_collate_fn`.")
     }
 
     fn page_source(&self) -> usize {
@@ -221,16 +221,21 @@ impl Example for EG05 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch07::{
-            download_and_load_file, partition_data, InstructDataCollator, InstructionDataBatcher,
-            InstructionDataBatcher_, DATA_DIR, INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
-        };
-        use candle_core::{DType, Device, Tensor};
-        use tiktoken_rs::get_bpe_from_model;
+        use crate::listings::ch07::InstructDataCollator;
+        use candle_core::{Device, Tensor};
 
         let device = Device::cuda_if_available(0)?;
         let inputs_1 = Tensor::new(&[0_u32, 1, 2, 3, 4], &device)?;
         let inputs_2 = Tensor::new(&[5_u32, 6], &device)?;
         let inputs_3 = Tensor::new(&[7_u32, 8, 9], &device)?;
+        let batch = vec![inputs_1, inputs_2, inputs_3];
+
+        let collator = InstructDataCollator::new();
+        let (inputs, targets) = collator.custom_collate_fn(batch)?;
+
+        println!("inputs:\n{:?}", inputs.to_vec2::<u32>()?);
+        println!("targets:\n{:?}", targets.to_vec2::<i64>()?);
+
+        Ok(())
     }
 }

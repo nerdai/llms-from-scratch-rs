@@ -358,7 +358,7 @@ impl InstructDataCollator {
     /// [Listing 7.5] Implementing a custom batch collate function
     ///
     /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
-    fn custom_collate_fn(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
+    pub fn custom_collate_fn(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         // modify batch
         let batch_max_length = batch
             .iter()
