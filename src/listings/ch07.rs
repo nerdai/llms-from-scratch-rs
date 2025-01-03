@@ -245,6 +245,10 @@ pub trait CustomCollator {
     fn collate_r2(&self, batch: (Tensor, Tensor)) -> Result<(Tensor, Tensor)>;
 }
 
+/// The InstructionDataBatcher type
+///
+/// NOTE: this is a wrapper on `InstructionDataBatcher_` in order to apply a
+/// custom collate function on top of a batch iter.
 pub struct InstructionDataBatcher<C: CustomCollator>(InstructionDataBatcher_, C);
 
 impl<C: CustomCollator> InstructionDataBatcher<C> {
