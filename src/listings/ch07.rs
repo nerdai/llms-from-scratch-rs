@@ -243,17 +243,11 @@ pub type InstructionDataBatcher_ = Batcher<IterResult2<InstructionDatasetIter>>;
 
 pub struct InstructionDataBatcher(InstructionDataBatcher_);
 
-impl AsRef<InstructionDataBatcher> for InstructionDataBatcher {
-    fn as_ref(&self) -> &InstructionDataBatcher {
-        self
-    }
-}
+impl Iterator for InstructionDataBatcher {
+    type Item = Result<(Tensor, Tensor)>;
 
-impl std::ops::Deref for InstructionDataBatcher {
-    type Target = InstructionDataBatcher_;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
     }
 }
 
