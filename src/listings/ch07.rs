@@ -232,14 +232,17 @@ impl Iterator for InstructionDatasetIter {
     }
 }
 
+// Taken from `candle_datasets::batcher` to create a similar interface for `InstructionDataBatcher`
 pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
     inner: I,
 }
 
-/// A type alias for candle_datasets::Batcher
+/// The `InstructionDataBatcher` for batching instruction examples
 ///
-/// This struct is responsible for getting batches from a type that implements
-/// the `Iterator` Trait.
+/// NOTE: Had to implement own version of candle_datasets::Batcher since we
+/// needed to work with Vec<Tensor> in collate function. The former utilizes
+/// Tensor::cat() which requires all Tensor's to have same rank, but we only
+/// get this after collation is performed.
 pub struct InstructionDataBatcher<C: CustomCollator> {
     inner: IterResult1<InstructionDatasetIter>,
     batch_size: usize,
@@ -247,6 +250,7 @@ pub struct InstructionDataBatcher<C: CustomCollator> {
     collator: C,
 }
 
+/// A trait for collating a Vector of Tensor's into a batch
 pub trait CustomCollator {
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)>;
 }
@@ -280,13 +284,13 @@ impl<C: CustomCollator> InstructionDataBatcher<C> {
 impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
     type Item = Result<(Tensor, Tensor)>;
 
+    // This closely mirrors logic used in candle_datasets::batcher.
+    // However here, the inner iterator has associated item Result<Tensor>
+    // and the outer iterator has associated item Result<(Tensor, Tensor)>
     fn next(&mut self) -> Option<Self::Item> {
         let mut items = Vec::with_capacity(self.batch_size);
         let mut errs = vec![];
         for _i in 0..self.batch_size {
-            // We have two levels of inner here so that we can have two implementations of the
-            // Iterator trait that are different for Iter1 and Iter2. If rust gets better
-            // specialization at some point we can get rid of this.
             match self.inner.inner.next() {
                 Some(Ok(item)) => items.push(item),
                 Some(Err(err)) => errs.push(err),
@@ -302,6 +306,9 @@ impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
     }
 }
 
+const DEFAULT_IGNORE_INDEX: i64 = -100;
+const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
+
 /// A type for specifying how to collate batches of instruct entries
 ///
 /// NOTE: used for implementing Listing 7.5
@@ -311,9 +318,6 @@ pub struct InstructDataCollator {
     allowed_max_length: Option<usize>,
     device: Device,
 }
-
-const DEFAULT_IGNORE_INDEX: i64 = -100;
-const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 
 impl Default for InstructDataCollator {
     fn default() -> Self {
