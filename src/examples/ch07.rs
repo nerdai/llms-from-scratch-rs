@@ -2,6 +2,7 @@
 
 use crate::Example;
 use anyhow::Result;
+use candle_core::Device;
 
 /// # Example usage of `download_and_load_file`
 ///
@@ -274,7 +275,46 @@ impl EG06 {
             crate::listings::ch07::InstructionDataCollator,
         >,
     )> {
-        todo!()
+        use crate::listings::ch07::{
+            download_and_load_file, partition_data, InstructionDataCollator, InstructionDataLoader,
+            InstructionDataset, DATA_DIR, INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
+        };
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+
+        // load instruction examples
+        let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+
+        // partition data and create train, val, test datasets
+        let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
+        let train_dataset = InstructionDataset::new(train_data, &tokenizer);
+        let val_dataset = InstructionDataset::new(val_data, &tokenizer);
+        let test_dataset = InstructionDataset::new(test_data, &tokenizer);
+
+        // create loaders
+        let batch_size = 8_usize;
+        let collator = InstructionDataCollator::new()
+            .device(Device::cuda_if_available(0)?)
+            .allowed_max_length(Some(1024_usize));
+        let train_loader =
+            InstructionDataLoader::new(train_dataset, batch_size, true, true, collator.clone());
+        let val_loader =
+            InstructionDataLoader::new(val_dataset, batch_size, false, false, collator.clone());
+        let test_loader =
+            InstructionDataLoader::new(test_dataset, batch_size, false, false, collator);
+
+        if verbose {
+            println!("Train loader:");
+            let mut batcher = train_loader.batcher();
+            while let Some(Ok((inputs, targets))) = batcher.next() {
+                println!("inputs: {:?} targets: {:?}", inputs, targets);
+            }
+        }
+
+        Ok((train_loader, val_loader, test_loader))
     }
 }
 

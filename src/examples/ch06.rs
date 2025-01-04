@@ -390,9 +390,9 @@ impl EG06 {
         let val_loader = SpamDataLoader::new(val_dataset, batch_size, false, false);
         let test_loader = SpamDataLoader::new(test_dataset, batch_size, false, false);
 
-        // see last batch of train loader
-        let (input_batch, target_batch) = train_loader.batcher().last().unwrap()?;
         if verbose {
+            // see last batch of train loader
+            let (input_batch, target_batch) = train_loader.batcher().last().unwrap()?;
             println!("Input batch dimensions: {:?}", input_batch.shape());
             println!("Label batch dimensions: {:?}", target_batch.shape());
 
