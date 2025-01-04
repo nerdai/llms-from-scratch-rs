@@ -313,14 +313,14 @@ const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 ///
 /// NOTE: used for implementing Listing 7.5
 #[derive(Clone)]
-pub struct InstructDataCollator {
+pub struct InstructionDataCollator {
     pad_token_id: u32,
     ignore_index: i64,
     allowed_max_length: Option<usize>,
     device: Device,
 }
 
-impl Default for InstructDataCollator {
+impl Default for InstructionDataCollator {
     fn default() -> Self {
         Self {
             pad_token_id: DEFAULT_PAD_TOKEN_ID,
@@ -331,7 +331,7 @@ impl Default for InstructDataCollator {
     }
 }
 
-impl InstructDataCollator {
+impl InstructionDataCollator {
     pub fn new() -> Self {
         Self::default()
     }
@@ -422,14 +422,14 @@ impl InstructDataCollator {
     }
 }
 
-impl CustomCollator for InstructDataCollator {
+impl CustomCollator for InstructionDataCollator {
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         self.custom_collate_fn(batch)
     }
 }
 
-/// [Listing 7.6] Initializing the data loaders (`InstructDataLoader`)
-pub struct InstructDataLoader<C: CustomCollator> {
+/// [Listing 7.6] Initializing the data loaders (`InstructionDataLoader`)
+pub struct InstructionDataLoader<C: CustomCollator> {
     dataset: InstructionDataset,
     batch_size: usize,
     shuffle: bool,
@@ -437,7 +437,35 @@ pub struct InstructDataLoader<C: CustomCollator> {
     collator: C,
 }
 
-impl<C: CustomCollator + Clone> InstructDataLoader<C> {
+impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
+    /// Creates a new `InstructionDataLoader`.
+    ///
+    /// ```rust
+    /// use candle_core::Device;
+    /// use llms_from_scratch_rs::listings::ch07::{
+    ///     InstructionDataset, InstructionResponseExample, InstructionDataLoader,
+    ///     InstructionDataCollator
+    /// };
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let entry = InstructionResponseExample::new(
+    ///     "Some instruction",
+    ///     None,
+    ///     "Some output"
+    /// );
+    /// let data = vec![entry];
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let dataset = InstructionDataset::new(data, &tokenizer);
+    ///
+    /// // create InstructionDataLoader
+    /// let batch_size = 2_usize;
+    /// let shuffle = false;
+    /// let drop_last = false;
+    /// let collator = InstructionDataCollator::default();
+    /// let data_loader = InstructionDataLoader::new(
+    ///     dataset, batch_size, shuffle, drop_last, collator
+    /// );
+    /// ```
     pub fn new(
         dataset: InstructionDataset,
         batch_size: usize,
@@ -454,7 +482,7 @@ impl<C: CustomCollator + Clone> InstructDataLoader<C> {
         }
     }
 
-    /// Returns a `InstructDataBatcher` that itself provides batches over the
+    /// Returns a `InstructionDataBatcher` that itself provides batches over the
     /// associated dataset.
     pub fn batcher(&self) -> InstructionDataBatcher<C> {
         let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
@@ -633,7 +661,7 @@ mod tests {
     #[rstest]
     pub fn test_instruction_collator() -> Result<()> {
         // arrange
-        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
+        let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
         let device = Device::cuda_if_available(0)?;
         let inputs_1 = Tensor::new(&[1_u32, 2, 3], &device)?;
         let inputs_2 = Tensor::new(&[4_u32, 5, 6, 7], &device)?;
@@ -664,7 +692,7 @@ mod tests {
         let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
         let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
         let batch_size = 2_usize;
-        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
+        let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
         let mut instruct_batcher = InstructionDataBatcher::new(iter, collator)
             .batch_size(batch_size)
             .return_last_incomplete_batch(false);
@@ -686,12 +714,12 @@ mod tests {
         let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
         let batch_size = 2_usize;
         let allowed_max_length = 10_usize;
-        let collator = InstructDataCollator::new()
+        let collator = InstructionDataCollator::new()
             .device(Device::cuda_if_available(0)?)
             .allowed_max_length(Some(allowed_max_length));
         let shuffle = false;
         let drop_last = false;
-        let data_loader = InstructDataLoader::new(
+        let data_loader = InstructionDataLoader::new(
             instruction_dataset,
             batch_size,
             shuffle,
