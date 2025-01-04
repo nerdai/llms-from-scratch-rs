@@ -312,6 +312,7 @@ const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 /// A type for specifying how to collate batches of instruct entries
 ///
 /// NOTE: used for implementing Listing 7.5
+#[derive(Clone)]
 pub struct InstructDataCollator {
     pad_token_id: u32,
     ignore_index: i64,
@@ -422,6 +423,63 @@ impl InstructDataCollator {
 impl CustomCollator for InstructDataCollator {
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         self.custom_collate_fn(batch)
+    }
+}
+
+/// [Listing 7.6] Initializing the data loaders (`InstructDataLoader`)
+pub struct InstructDataLoader<C: CustomCollator> {
+    dataset: InstructionDataset,
+    batch_size: usize,
+    shuffle: bool,
+    drop_last: bool,
+    collator: C,
+}
+
+impl<C: CustomCollator + Clone> InstructDataLoader<C> {
+    pub fn new(
+        dataset: InstructionDataset,
+        batch_size: usize,
+        shuffle: bool,
+        drop_last: bool,
+        collator: C,
+    ) -> Self {
+        Self {
+            dataset,
+            batch_size,
+            shuffle,
+            drop_last,
+            collator,
+        }
+    }
+
+    /// Returns a `InstructDataBatcher` that itself provides batches over the
+    /// associated dataset.
+    pub fn batcher(&self) -> InstructionDataBatcher<C> {
+        let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
+        InstructionDataBatcher::new(iter, self.collator.clone())
+            .batch_size(self.batch_size)
+            .return_last_incomplete_batch(!self.drop_last)
+    }
+
+    pub fn len(&self) -> usize {
+        if self.drop_last {
+            self.batcher().count()
+        } else {
+            // There is a bug in candle_datasets::Batcher, such that if
+            // return_last_incomplete_batch is set to true, then the iterator
+            // will never return None. This breaks `Iterator.count()` which consumes
+            // the iterator until a None is encountered.
+            let mut batcher = self.batcher();
+            let mut count = 0_usize;
+            while let Some(Ok(_el)) = batcher.next() {
+                count += 1;
+            }
+            count
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        (self.dataset.len() < self.batch_size) && (self.drop_last)
     }
 }
 
