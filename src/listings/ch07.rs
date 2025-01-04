@@ -367,7 +367,9 @@ impl InstructDataCollator {
             .collect::<Vec<_>>()
             .into_iter()
             .max()
-            .unwrap();
+            .ok_or_else(|| {
+                candle_core::Error::Msg("Unable to get max length for batch.".to_string())
+            })?;
         let mut inputs_lst: Vec<Vec<u32>> = vec![];
         let mut targets_lst: Vec<Vec<i64>> = vec![];
 
@@ -639,8 +641,6 @@ mod tests {
 
         // act
         let (inputs, targets) = collator.collate(batch)?;
-        println!("{:?}", inputs.to_vec2::<u32>()?);
-        println!("{:?}", targets.to_vec2::<i64>()?);
 
         // assert
         assert_eq!(inputs.dims(), targets.dims());
@@ -677,6 +677,39 @@ mod tests {
         }
 
         assert_eq!(count, 2_usize);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_instruct_data_loader(instruction_data: Vec<InstructionResponseExample>) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let batch_size = 2_usize;
+        let allowed_max_length = 10_usize;
+        let collator = InstructDataCollator::new()
+            .device(Device::cuda_if_available(0)?)
+            .allowed_max_length(Some(allowed_max_length));
+        let shuffle = false;
+        let drop_last = false;
+        let data_loader = InstructDataLoader::new(
+            instruction_dataset,
+            batch_size,
+            shuffle,
+            drop_last,
+            collator,
+        );
+
+        let mut batcher = data_loader.batcher();
+        let mut count = 0_usize;
+        while let Some(Ok((inputs, targets))) = batcher.next() {
+            assert!(inputs.dims()[0] <= batch_size);
+            assert!(targets.dims()[0] <= batch_size);
+            assert_eq!(inputs.dims()[1], allowed_max_length);
+            assert_eq!(targets.dims()[1], allowed_max_length);
+            count += 1;
+        }
+        assert_eq!(data_loader.len(), count);
+        assert!(!data_loader.is_empty());
         Ok(())
     }
 }
