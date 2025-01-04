@@ -312,14 +312,15 @@ const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 /// A type for specifying how to collate batches of instruct entries
 ///
 /// NOTE: used for implementing Listing 7.5
-pub struct InstructDataCollator {
+#[derive(Clone)]
+pub struct InstructionDataCollator {
     pad_token_id: u32,
     ignore_index: i64,
     allowed_max_length: Option<usize>,
     device: Device,
 }
 
-impl Default for InstructDataCollator {
+impl Default for InstructionDataCollator {
     fn default() -> Self {
         Self {
             pad_token_id: DEFAULT_PAD_TOKEN_ID,
@@ -330,7 +331,7 @@ impl Default for InstructDataCollator {
     }
 }
 
-impl InstructDataCollator {
+impl InstructionDataCollator {
     pub fn new() -> Self {
         Self::default()
     }
@@ -366,7 +367,9 @@ impl InstructDataCollator {
             .collect::<Vec<_>>()
             .into_iter()
             .max()
-            .unwrap();
+            .ok_or_else(|| {
+                candle_core::Error::Msg("Unable to get max length for batch.".to_string())
+            })?;
         let mut inputs_lst: Vec<Vec<u32>> = vec![];
         let mut targets_lst: Vec<Vec<i64>> = vec![];
 
@@ -419,9 +422,94 @@ impl InstructDataCollator {
     }
 }
 
-impl CustomCollator for InstructDataCollator {
+impl CustomCollator for InstructionDataCollator {
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         self.custom_collate_fn(batch)
+    }
+}
+
+/// [Listing 7.6] Initializing the data loaders (`InstructionDataLoader`)
+pub struct InstructionDataLoader<C: CustomCollator> {
+    dataset: InstructionDataset,
+    batch_size: usize,
+    shuffle: bool,
+    drop_last: bool,
+    collator: C,
+}
+
+impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
+    /// Creates a new `InstructionDataLoader`.
+    ///
+    /// ```rust
+    /// use candle_core::Device;
+    /// use llms_from_scratch_rs::listings::ch07::{
+    ///     InstructionDataset, InstructionResponseExample, InstructionDataLoader,
+    ///     InstructionDataCollator
+    /// };
+    /// use tiktoken_rs::get_bpe_from_model;
+    ///
+    /// let entry = InstructionResponseExample::new(
+    ///     "Some instruction",
+    ///     None,
+    ///     "Some output"
+    /// );
+    /// let data = vec![entry];
+    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let dataset = InstructionDataset::new(data, &tokenizer);
+    ///
+    /// // create InstructionDataLoader
+    /// let batch_size = 2_usize;
+    /// let shuffle = false;
+    /// let drop_last = false;
+    /// let collator = InstructionDataCollator::default();
+    /// let data_loader = InstructionDataLoader::new(
+    ///     dataset, batch_size, shuffle, drop_last, collator
+    /// );
+    /// ```
+    pub fn new(
+        dataset: InstructionDataset,
+        batch_size: usize,
+        shuffle: bool,
+        drop_last: bool,
+        collator: C,
+    ) -> Self {
+        Self {
+            dataset,
+            batch_size,
+            shuffle,
+            drop_last,
+            collator,
+        }
+    }
+
+    /// Returns a `InstructionDataBatcher` that itself provides batches over the
+    /// associated dataset.
+    pub fn batcher(&self) -> InstructionDataBatcher<C> {
+        let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
+        InstructionDataBatcher::new(iter, self.collator.clone())
+            .batch_size(self.batch_size)
+            .return_last_incomplete_batch(!self.drop_last)
+    }
+
+    pub fn len(&self) -> usize {
+        if self.drop_last {
+            self.batcher().count()
+        } else {
+            // There is a bug in candle_datasets::Batcher, such that if
+            // return_last_incomplete_batch is set to true, then the iterator
+            // will never return None. This breaks `Iterator.count()` which consumes
+            // the iterator until a None is encountered.
+            let mut batcher = self.batcher();
+            let mut count = 0_usize;
+            while let Some(Ok(_el)) = batcher.next() {
+                count += 1;
+            }
+            count
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        (self.dataset.len() < self.batch_size) && (self.drop_last)
     }
 }
 
@@ -573,7 +661,7 @@ mod tests {
     #[rstest]
     pub fn test_instruction_collator() -> Result<()> {
         // arrange
-        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
+        let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
         let device = Device::cuda_if_available(0)?;
         let inputs_1 = Tensor::new(&[1_u32, 2, 3], &device)?;
         let inputs_2 = Tensor::new(&[4_u32, 5, 6, 7], &device)?;
@@ -581,8 +669,6 @@ mod tests {
 
         // act
         let (inputs, targets) = collator.collate(batch)?;
-        println!("{:?}", inputs.to_vec2::<u32>()?);
-        println!("{:?}", targets.to_vec2::<i64>()?);
 
         // assert
         assert_eq!(inputs.dims(), targets.dims());
@@ -606,7 +692,7 @@ mod tests {
         let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
         let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
         let batch_size = 2_usize;
-        let collator = InstructDataCollator::new().device(Device::cuda_if_available(0)?);
+        let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
         let mut instruct_batcher = InstructionDataBatcher::new(iter, collator)
             .batch_size(batch_size)
             .return_last_incomplete_batch(false);
@@ -619,6 +705,39 @@ mod tests {
         }
 
         assert_eq!(count, 2_usize);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_instruct_data_loader(instruction_data: Vec<InstructionResponseExample>) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let batch_size = 2_usize;
+        let allowed_max_length = 10_usize;
+        let collator = InstructionDataCollator::new()
+            .device(Device::cuda_if_available(0)?)
+            .allowed_max_length(Some(allowed_max_length));
+        let shuffle = false;
+        let drop_last = false;
+        let data_loader = InstructionDataLoader::new(
+            instruction_dataset,
+            batch_size,
+            shuffle,
+            drop_last,
+            collator,
+        );
+
+        let mut batcher = data_loader.batcher();
+        let mut count = 0_usize;
+        while let Some(Ok((inputs, targets))) = batcher.next() {
+            assert!(inputs.dims()[0] <= batch_size);
+            assert!(targets.dims()[0] <= batch_size);
+            assert_eq!(inputs.dims()[1], allowed_max_length);
+            assert_eq!(targets.dims()[1], allowed_max_length);
+            count += 1;
+        }
+        assert_eq!(data_loader.len(), count);
+        assert!(!data_loader.is_empty());
         Ok(())
     }
 }
