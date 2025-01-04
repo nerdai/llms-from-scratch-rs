@@ -1,7 +1,7 @@
 //! Examples from Chapter 7
 
 use crate::Example;
-use anyhow::{Ok, Result};
+use anyhow::Result;
 
 /// # Example usage of `download_and_load_file`
 ///
@@ -236,6 +236,61 @@ impl Example for EG05 {
         println!("inputs:\n{:?}", inputs.to_vec2::<u32>()?);
         println!("targets:\n{:?}", targets.to_vec2::<i64>()?);
 
+        Ok(())
+    }
+}
+
+/// # Creating a `InstructionDataLoader` for each of the train, val and test data partitions
+///
+/// #### Id
+/// 07.06
+///
+/// #### Page
+/// This example starts on page 225
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.06
+///
+/// # with cuda
+/// cargo run --features cuda example 07.06
+/// ```
+pub struct EG06;
+
+impl EG06 {
+    #[allow(unused_variables)]
+    pub fn main_with_return(
+        &self,
+        verbose: bool,
+    ) -> Result<(
+        crate::listings::ch07::InstructionDataLoader<
+            crate::listings::ch07::InstructionDataCollator,
+        >,
+        crate::listings::ch07::InstructionDataLoader<
+            crate::listings::ch07::InstructionDataCollator,
+        >,
+        crate::listings::ch07::InstructionDataLoader<
+            crate::listings::ch07::InstructionDataCollator,
+        >,
+    )> {
+        todo!()
+    }
+}
+
+impl Example for EG06 {
+    fn description(&self) -> String {
+        let desc = "Creating a `InstructionDataLoader` for each of the train, \
+        val and test data partitions";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        225_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        let _ = self.main_with_return(true);
         Ok(())
     }
 }
