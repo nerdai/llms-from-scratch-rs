@@ -398,8 +398,8 @@ impl InstructionDataCollator {
             target.extend(ignore_index_target);
 
             if let Some(a) = self.allowed_max_length {
-                input = input[..a].to_vec();
-                target = target[..a].to_vec();
+                input = input[..std::cmp::min(a, batch_max_length)].to_vec();
+                target = target[..std::cmp::min(a, batch_max_length)].to_vec();
             }
 
             inputs_lst.push(input);
