@@ -3,6 +3,7 @@
 use anyhow::Context;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
+use hf_hub::api::sync::Api;
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -240,8 +241,8 @@ pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
 /// The `InstructionDataBatcher` for batching instruction examples
 ///
 /// NOTE: Had to implement own version of candle_datasets::Batcher since we
-/// needed to work with Vec<Tensor> in collate function. The former utilizes
-/// Tensor::cat() which requires all Tensor's to have same rank, but we only
+/// needed to work with `Vec<Tensor>` in collate function. The former utilizes
+/// `Tensor::cat()` which requires all Tensor's to have same rank, but we only
 /// get this after collation is performed.
 pub struct InstructionDataBatcher<C: CustomCollator> {
     inner: IterResult1<InstructionDatasetIter>,
@@ -511,6 +512,23 @@ impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
     pub fn is_empty(&self) -> bool {
         (self.dataset.len() < self.batch_size) && (self.drop_last)
     }
+}
+
+/// [Listing 7.7] Loading a pretrained GPT model
+///
+/// NOTE: This is merely a re-export from `listings::ch06`.
+pub use crate::listings::ch06::download_and_load_gpt2;
+
+/// Delete previously downloaded model weights from local HF cache.
+pub fn delete_hf_cache(model_id: &str) -> Result<()> {
+    let api = Api::new().map_err(candle_core::Error::wrap)?;
+    let repo = api.model(model_id.to_string());
+    let weights = repo
+        .get("model.safetensors")
+        .map_err(candle_core::Error::wrap)?;
+    std::fs::remove_file(weights)?;
+
+    Ok(())
 }
 
 #[cfg(test)]

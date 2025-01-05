@@ -334,3 +334,47 @@ impl Example for EG06 {
         Ok(())
     }
 }
+
+/// # Example usage of `download_and_load_gpt2` (gpt2-medium)
+///
+/// #### Id
+/// 07.07
+///
+/// #### Page
+/// This example starts on page 227
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.07
+///
+/// # with cuda
+/// cargo run --features cuda example 07.07
+/// ```
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        "Example usage of `download_and_load_gpt2` (gpt2-medium).".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        227_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{ch04::Config, ch07::download_and_load_gpt2};
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // use `download_and_load_gpt2` for gpt2-medium
+        let mut cfg = Config::gpt2_medium();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model_id = "openai-community/gpt2-medium";
+        let _model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+
+        Ok(())
+    }
+}
