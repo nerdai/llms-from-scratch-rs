@@ -307,7 +307,7 @@ impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
     }
 }
 
-const DEFAULT_IGNORE_INDEX: i64 = -100;
+pub use crate::listings::ch05::DEFAULT_IGNORE_INDEX;
 const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 
 /// A type for specifying how to collate batches of instruct entries

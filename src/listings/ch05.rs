@@ -39,6 +39,8 @@ pub fn token_ids_to_text(token_ids: Tensor, tokenizer: &CoreBPE) -> anyhow::Resu
     tokenizer.decode(flat.to_vec1::<u32>()?)
 }
 
+pub const DEFAULT_IGNORE_INDEX: i64 = -100;
+
 /// Calculate the cross entropy loss of a given batch
 pub fn calc_loss_batch(
     input_batch: &Tensor,
@@ -688,14 +690,24 @@ mod tests {
         let loss = calc_loss_batch(&inputs, &targets, &model, vb.device(), false, None)?;
 
         let inputs_2 = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
-        let targets_2 = Tensor::new(&[[1_i64, 2, 3], [-100_i64, -100, -100]], vb.device())?;
+        let targets_2 = Tensor::new(
+            &[
+                [1_i64, 2, 3],
+                [
+                    DEFAULT_IGNORE_INDEX,
+                    DEFAULT_IGNORE_INDEX,
+                    DEFAULT_IGNORE_INDEX,
+                ],
+            ],
+            vb.device(),
+        )?;
         let loss_2 = calc_loss_batch(
             &inputs_2,
             &targets_2,
             &model,
             vb.device(),
             false,
-            Some(-100_i64),
+            Some(DEFAULT_IGNORE_INDEX),
         )?;
 
         assert_eq!(loss.to_scalar::<f32>()?, loss_2.to_scalar::<f32>()?);
