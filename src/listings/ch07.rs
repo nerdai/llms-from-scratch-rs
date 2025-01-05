@@ -3,6 +3,7 @@
 use anyhow::Context;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
+use hf_hub::api::sync::Api;
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -517,6 +518,18 @@ impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
 ///
 /// NOTE: This is merely a re-export from `listings::ch06`.
 pub use crate::listings::ch06::download_and_load_gpt2;
+
+/// Delete previously downloaded model weights from local HF cache.
+pub fn delete_hf_cache(model_id: &str) -> Result<()> {
+    let api = Api::new().map_err(candle_core::Error::wrap)?;
+    let repo = api.model(model_id.to_string());
+    let weights = repo
+        .get("model.safetensors")
+        .map_err(candle_core::Error::wrap)?;
+    std::fs::remove_file(weights)?;
+
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
