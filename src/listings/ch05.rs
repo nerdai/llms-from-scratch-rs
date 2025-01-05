@@ -58,7 +58,8 @@ pub fn calc_loss_batch(
     let logits_flat = logits.flatten(0, 1)?;
     let targets_flat = target_batch.flatten_all()?;
 
-    // handle ignore_index
+    // handle ignore_index if set to a value — in such cases, we expect targets
+    // to be Tensor of DType::I64
     let (logits_flat, targets_flat) = if let Some(ignore_val) = ignore_index {
         // get indices to keep
         let keep = targets_flat

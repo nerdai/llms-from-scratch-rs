@@ -241,13 +241,13 @@ impl Example for EG05 {
     }
 }
 
-/// # Creating a `InstructionDataLoader` for each of the train, val and test data partitions
+/// # An adapted example demonstrating effect of `ignore_index` in `calc_loss_batch`
 ///
 /// #### Id
 /// 07.06
 ///
 /// #### Page
-/// This example starts on page 225
+/// This example starts on page 221
 ///
 /// #### CLI command
 /// ```sh
@@ -259,7 +259,95 @@ impl Example for EG05 {
 /// ```
 pub struct EG06;
 
-impl EG06 {
+impl Example for EG06 {
+    fn description(&self) -> String {
+        "An adapted example demonstrating effect of `ignore_index` in `calc_loss_batch`."
+            .to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        221_usize
+    }
+
+    /// In this example, we make a slight modification to the one found in the book
+    /// as the `candle_nn::loss::cross_entropy()` method does not allow for `ignore_index`.
+    /// So, we opt to implement such logic within `calc_loss_batch`.
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch05::{calc_loss_batch, DEFAULT_IGNORE_INDEX},
+        };
+        use candle_core::{DType, Device, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // create model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // create sample inputs
+        let inputs = Tensor::new(&[[100_u32, 20, 300]], vb.device())?;
+        let targets = Tensor::new(&[[1_u32, 2, 3]], vb.device())?;
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device(), false, None)?;
+
+        println!("Inputs: {:?}", inputs.to_vec2::<u32>()?);
+        println!("Targets: {:?}", inputs.to_vec2::<u32>()?);
+        println!("Loss: {:?}", loss);
+
+        // Note targets that use ignore_index will now be a Tensor of Dtype::I64
+        let inputs_2 = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
+        let targets_2 = Tensor::new(
+            &[
+                [1_i64, 2, 3],
+                [
+                    DEFAULT_IGNORE_INDEX,
+                    DEFAULT_IGNORE_INDEX,
+                    DEFAULT_IGNORE_INDEX,
+                ],
+            ],
+            vb.device(),
+        )?;
+        let loss_2 = calc_loss_batch(
+            &inputs_2,
+            &targets_2,
+            &model,
+            vb.device(),
+            false,
+            Some(DEFAULT_IGNORE_INDEX),
+        )?;
+
+        println!(
+            "---\nSimilar inputs but now a second sequence whose target has the ignore index:\n"
+        );
+
+        println!("Inputs: {:?}", inputs_2.to_vec2::<u32>()?);
+        println!("Targets: {:?}", targets_2.to_vec2::<i64>()?);
+        println!("Loss: {:?}", loss_2);
+
+        Ok(())
+    }
+}
+
+/// # Creating a `InstructionDataLoader` for each of the train, val and test data partitions
+///
+/// #### Id
+/// 07.07
+///
+/// #### Page
+/// This example starts on page 225
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.07
+///
+/// # with cuda
+/// cargo run --features cuda example 07.07
+/// ```
+pub struct EG07;
+
+impl EG07 {
     #[allow(unused_variables)]
     pub fn main_with_return(
         &self,
@@ -318,7 +406,7 @@ impl EG06 {
     }
 }
 
-impl Example for EG06 {
+impl Example for EG07 {
     fn description(&self) -> String {
         let desc = "Creating a `InstructionDataLoader` for each of the train, \
         val and test data partitions";
@@ -338,7 +426,7 @@ impl Example for EG06 {
 /// # Example usage of `download_and_load_gpt2` and sample instruction inference
 ///
 /// #### Id
-/// 07.07
+/// 07.08
 ///
 /// #### Page
 /// This example starts on page 227
@@ -346,14 +434,14 @@ impl Example for EG06 {
 /// #### CLI command
 /// ```sh
 /// # without cuda
-/// cargo run example 07.07
+/// cargo run example 07.08
 ///
 /// # with cuda
-/// cargo run --features cuda example 07.07
+/// cargo run --features cuda example 07.08
 /// ```
-pub struct EG07;
+pub struct EG08;
 
-impl Example for EG07 {
+impl Example for EG08 {
     fn description(&self) -> String {
         "Example usage of `download_and_load_gpt2` and sample instruction inference.".to_string()
     }
