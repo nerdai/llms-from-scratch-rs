@@ -273,7 +273,7 @@ pub fn generate(
                 .unwrap()
                 .sum_all()
                 .unwrap()
-                .to_scalar::<f32>()
+                .to_scalar::<u8>()
                 .unwrap();
 
             if num_eos as usize == b {
