@@ -240,8 +240,8 @@ pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
 /// The `InstructionDataBatcher` for batching instruction examples
 ///
 /// NOTE: Had to implement own version of candle_datasets::Batcher since we
-/// needed to work with Vec<Tensor> in collate function. The former utilizes
-/// Tensor::cat() which requires all Tensor's to have same rank, but we only
+/// needed to work with `Vec<Tensor>` in collate function. The former utilizes
+/// `Tensor::cat()` which requires all Tensor's to have same rank, but we only
 /// get this after collation is performed.
 pub struct InstructionDataBatcher<C: CustomCollator> {
     inner: IterResult1<InstructionDatasetIter>,
@@ -512,6 +512,11 @@ impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
         (self.dataset.len() < self.batch_size) && (self.drop_last)
     }
 }
+
+/// [Listing 7.7] Loading a pretrained GPT model
+///
+/// NOTE: This is merely a re-export from `listings::ch06`.
+pub use crate::listings::ch06::download_and_load_gpt2;
 
 #[cfg(test)]
 mod tests {
