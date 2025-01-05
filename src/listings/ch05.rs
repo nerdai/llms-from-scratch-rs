@@ -81,13 +81,15 @@ pub fn calc_loss_batch(
 }
 
 /// [Listing 5.2] Function to compute the training and validation loss
+///
+/// NOTE: Used for inference and so `train` param is `false` when invoking
+/// `calc_loss_batch`.
 pub fn calc_loss_loader(
     data_loader: &GPTDataLoader,
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
 ) -> Result<f32> {
-    // todo: ensure these calcs are done without gradient tracking
     let mut total_loss = 0_f32;
     let mut count = 0_usize;
 
@@ -95,7 +97,8 @@ pub fn calc_loss_loader(
     match num_batches {
         None => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, true, None)?;
+                let loss =
+                    calc_loss_batch(&input_batch, &target_batch, model, device, false, None)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
             }
@@ -103,7 +106,8 @@ pub fn calc_loss_loader(
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, true, None)?;
+                let loss =
+                    calc_loss_batch(&input_batch, &target_batch, model, device, false, None)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
                 if count >= n {
