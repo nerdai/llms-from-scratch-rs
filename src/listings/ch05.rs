@@ -45,6 +45,7 @@ pub fn calc_loss_batch(
     target_batch: &Tensor,
     model: &GPTModel,
     device: &Device,
+    _ignore_index: Option<i64>,
 ) -> Result<Tensor> {
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?;
@@ -73,7 +74,7 @@ pub fn calc_loss_loader(
     match num_batches {
         None => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, None)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
             }
@@ -81,7 +82,7 @@ pub fn calc_loss_loader(
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, None)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
                 if count >= n {
@@ -117,7 +118,7 @@ pub fn train_model_simple<T: Optimizer>(
     for epoch in 0..num_epochs {
         let mut train_batcher = train_loader.batcher();
         while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
-            let loss = calc_loss_batch(&input_batch, &target_batch, model, device)?;
+            let loss = calc_loss_batch(&input_batch, &target_batch, model, device, None)?;
             optimizer.backward_step(&loss)?;
             tokens_seen += input_batch.elem_count();
 
@@ -642,7 +643,7 @@ mod tests {
         // create sample inputs
         let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
         let targets = Tensor::new(&[[1_u32, 2, 3], [4, 5, 9]], vb.device())?;
-        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device())?;
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device(), None)?;
 
         assert_eq!(loss.elem_count(), 1);
         Ok(())
