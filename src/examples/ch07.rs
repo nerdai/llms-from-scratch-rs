@@ -335,7 +335,7 @@ impl Example for EG06 {
     }
 }
 
-/// # Example usage of `download_and_load_gpt2` (gpt2-medium)
+/// # Example usage of `download_and_load_gpt2` and sample instruction inference
 ///
 /// #### Id
 /// 07.07
@@ -355,7 +355,7 @@ pub struct EG07;
 
 impl Example for EG07 {
     fn description(&self) -> String {
-        "Example usage of `download_and_load_gpt2` (gpt2-medium).".to_string()
+        "Example usage of `download_and_load_gpt2` and sample instruction inference.".to_string()
     }
 
     fn page_source(&self) -> usize {
@@ -363,9 +363,24 @@ impl Example for EG07 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::{ch04::Config, ch07::download_and_load_gpt2};
-        use candle_core::{DType, Device};
+        use crate::listings::{
+            ch04::Config,
+            ch05::{generate, text_to_token_ids, token_ids_to_text},
+            ch07::{
+                download_and_load_file, download_and_load_gpt2, format_input, partition_data,
+                DATA_DIR, INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
+            },
+        };
+        use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
+        use rand::{rngs::StdRng, SeedableRng};
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // partition data and create train, val, test datasets
+        let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+        let (_train_data, val_data, _test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
 
         // use `download_and_load_gpt2` for gpt2-medium
         let mut cfg = Config::gpt2_medium();
@@ -373,7 +388,29 @@ impl Example for EG07 {
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
         let model_id = "openai-community/gpt2-medium";
-        let _model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+        let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+
+        // input instructions
+        let input_text = format_input(&val_data[0]);
+        println!("{}", input_text);
+
+        // run inference
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let mut rng = StdRng::seed_from_u64(42_u64);
+        let token_ids = generate(
+            &model,
+            text_to_token_ids(input_text.as_str(), &tokenizer, vb.device())?,
+            35_usize,
+            cfg.context_length,
+            None,
+            None,
+            Some(Tensor::new(&[50_256_u32], vb.device())?),
+            &mut rng,
+        )?;
+        let generated_text = token_ids_to_text(token_ids, &tokenizer)?;
+        let response_text = &generated_text[input_text.len()..].trim();
+
+        println!("---generated-text-below---\n{}", response_text);
 
         Ok(())
     }
