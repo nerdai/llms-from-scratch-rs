@@ -45,15 +45,36 @@ pub fn calc_loss_batch(
     target_batch: &Tensor,
     model: &GPTModel,
     device: &Device,
-    _ignore_index: Option<i64>,
+    train: bool,               // added to compute loss for train or otherwise
+    ignore_index: Option<i64>, // introduced for ch07 instruction finetuning
 ) -> Result<Tensor> {
     let input_batch = input_batch.to_device(device)?;
     let target_batch = target_batch.to_device(device)?;
-    let logits = model.forward_t(&input_batch, true)?;
+    let logits = model.forward_t(&input_batch, train)?;
 
     // flatten
     let logits_flat = logits.flatten(0, 1)?;
     let targets_flat = target_batch.flatten_all()?;
+
+    // handle ignore_index
+    let (logits_flat, targets_flat) = if let Some(ignore_val) = ignore_index {
+        // get indices to keep
+        let keep = targets_flat
+            .to_vec1::<i64>()? // has to be i64 to include ignore_index of -100
+            .iter()
+            .enumerate()
+            .filter(|(_, v)| **v != ignore_val)
+            .map(|(ix, _)| ix as u8)
+            .collect::<Vec<_>>();
+        let keep = Tensor::new(&keep[..], device)?;
+
+        (
+            logits_flat.index_select(&keep, 0)?,
+            targets_flat.index_select(&keep, 0)?,
+        )
+    } else {
+        (logits_flat, targets_flat)
+    };
 
     let loss = candle_nn::loss::cross_entropy(&logits_flat, &targets_flat)?;
     Ok(loss)
@@ -74,7 +95,7 @@ pub fn calc_loss_loader(
     match num_batches {
         None => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, None)?;
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, true, None)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
             }
@@ -82,7 +103,7 @@ pub fn calc_loss_loader(
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, None)?;
+                let loss = calc_loss_batch(&input_batch, &target_batch, model, device, true, None)?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
                 if count >= n {
@@ -118,7 +139,7 @@ pub fn train_model_simple<T: Optimizer>(
     for epoch in 0..num_epochs {
         let mut train_batcher = train_loader.batcher();
         while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
-            let loss = calc_loss_batch(&input_batch, &target_batch, model, device, None)?;
+            let loss = calc_loss_batch(&input_batch, &target_batch, model, device, true, None)?;
             optimizer.backward_step(&loss)?;
             tokens_seen += input_batch.elem_count();
 
@@ -643,9 +664,38 @@ mod tests {
         // create sample inputs
         let inputs = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
         let targets = Tensor::new(&[[1_u32, 2, 3], [4, 5, 9]], vb.device())?;
-        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device(), None)?;
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device(), true, None)?;
 
         assert_eq!(loss.elem_count(), 1);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_calc_loss_batch_with_ignore_index() -> Result<()> {
+        // create model
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // create sample inputs
+        let inputs = Tensor::new(&[[100_u32, 20, 300]], vb.device())?;
+        let targets = Tensor::new(&[[1_u32, 2, 3]], vb.device())?;
+        let loss = calc_loss_batch(&inputs, &targets, &model, vb.device(), false, None)?;
+
+        let inputs_2 = Tensor::new(&[[100_u32, 20, 300], [400, 7, 88]], vb.device())?;
+        let targets_2 = Tensor::new(&[[1_i64, 2, 3], [-100_i64, -100, -100]], vb.device())?;
+        let loss_2 = calc_loss_batch(
+            &inputs_2,
+            &targets_2,
+            &model,
+            vb.device(),
+            false,
+            Some(-100_i64),
+        )?;
+
+        assert_eq!(loss.to_scalar::<f32>()?, loss_2.to_scalar::<f32>()?);
+
         Ok(())
     }
 
