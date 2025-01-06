@@ -27,7 +27,7 @@ itertools = "0.14.0"
 lexical-core = "1.0.5"
 ndarray = "0.16.1"
 phf = { version = "0.11.2", features = ["macros"] }
-plotly = "0.11.0"
+plotly = "0.12.1"
 polars = { version = "0.45.1", features = ["csv", "dtype-struct", "lazy", "parquet", "rows"] }
 rand = "0.8.5"
 reqwest = { version = "0.12.12", features = ["blocking", "json"] }
