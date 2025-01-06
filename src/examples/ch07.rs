@@ -565,3 +565,65 @@ impl Example for EG09 {
         Ok(())
     }
 }
+
+/// # Example usage of `train_classifier_simple` and `plot_values` functions
+///
+/// NOTE: In the book this material is encapsulated within Listing 7.8. Here,
+/// we choose to make it as an example instead.
+///
+/// #### Id
+/// 07.10
+///
+/// #### Page
+/// This example starts on page 231
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.10
+///
+/// # with cuda
+/// cargo run --features cuda example 07.10
+/// ```
+pub struct EG10;
+
+impl Example for EG10 {
+    fn description(&self) -> String {
+        "Example usage of `train_classifier_simple` and `plot_values` functions".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        231_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch07::{calc_loss_loader, download_and_load_gpt2},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // use `download_and_load_gpt2` for gpt2-medium
+        let mut cfg = Config::gpt2_medium();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model_id = "openai-community/gpt2-medium";
+        let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+
+        // re-use eg 07.07
+        let eg07 = EG07;
+        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
+
+        // compute losses
+        let num_batches = Some(5_usize);
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches)?;
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches)?;
+
+        println!("Training loss: {}", train_loss);
+        println!("Validation loss: {}", val_loss);
+
+        Ok(())
+    }
+}
