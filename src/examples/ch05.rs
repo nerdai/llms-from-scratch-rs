@@ -343,6 +343,7 @@ impl Example for EG05 {
             eval_iter,
             start_context,
             &tokenizer,
+            None,
         );
 
         // run inference with trained model using deterministic decoding
@@ -631,6 +632,7 @@ impl Example for EG09 {
             eval_iter,
             start_context,
             &tokenizer,
+            None,
         );
 
         // save weights

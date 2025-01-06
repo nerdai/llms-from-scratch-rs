@@ -196,6 +196,10 @@ impl InstructionDataset {
         let encoded = &self.encoded_texts[idx];
         Ok(encoded)
     }
+
+    pub fn data(&self) -> &Vec<InstructionResponseExample> {
+        &self.data
+    }
 }
 
 pub struct InstructionDatasetIter {
@@ -515,6 +519,10 @@ impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
 
     pub fn is_empty(&self) -> bool {
         (self.dataset.len() < self.batch_size) && (self.drop_last)
+    }
+
+    pub fn dataset(&self) -> &InstructionDataset {
+        &self.dataset
     }
 }
 

@@ -3,7 +3,7 @@
 use crate::{
     candle_addons::TopK,
     listings::{
-        ch02::{DataLoader, GPTDataLoader},
+        ch02::DataLoader,
         ch04::{generate_text_simple, GPTModel},
     },
 };
@@ -126,10 +126,13 @@ pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Ten
 
 /// [Listing 5.3] The main function for pretraining LLMs
 #[allow(clippy::too_many_arguments)]
-pub fn train_model_simple<T: Optimizer>(
+pub fn train_model_simple<
+    T,
+    L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>,
+>(
     model: &GPTModel,
-    train_loader: &GPTDataLoader,
-    val_loader: &GPTDataLoader,
+    train_loader: &L,
+    val_loader: &L,
     mut optimizer: T,
     device: &Device,
     num_epochs: usize,
@@ -137,7 +140,11 @@ pub fn train_model_simple<T: Optimizer>(
     eval_iter: usize,
     start_context: &str,
     tokenizer: &CoreBPE,
-) -> Result<(Vec<f32>, Vec<f32>, Vec<usize>)> {
+    ignore_index: Option<i64>, // introduced for ch07 instruction finetuning
+) -> Result<(Vec<f32>, Vec<f32>, Vec<usize>)>
+where
+    T: Optimizer,
+{
     // retvals
     let mut train_losses: Vec<f32> = vec![];
     let mut val_losses: Vec<f32> = vec![];
@@ -148,7 +155,14 @@ pub fn train_model_simple<T: Optimizer>(
     for epoch in 0..num_epochs {
         let mut train_batcher = train_loader.batcher();
         while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
-            let loss = calc_loss_batch(&input_batch, &target_batch, model, device, true, None)?;
+            let loss = calc_loss_batch(
+                &input_batch,
+                &target_batch,
+                model,
+                device,
+                true,
+                ignore_index,
+            )?;
             optimizer.backward_step(&loss)?;
             tokens_seen += input_batch.elem_count();
 
@@ -177,10 +191,10 @@ pub fn train_model_simple<T: Optimizer>(
 }
 
 /// Returns train and validation loss of a `GPTModel`
-pub fn evaluate_model(
+pub fn evaluate_model<L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>>(
     model: &GPTModel,
-    train_loader: &GPTDataLoader,
-    val_loader: &GPTDataLoader,
+    train_loader: &L,
+    val_loader: &L,
     device: &Device,
     eval_iter: usize,
 ) -> Result<(f32, f32)> {
