@@ -302,6 +302,7 @@ impl Exercise for X4 {
             eval_iter,
             start_context,
             &tokenizer,
+            None,
         );
         Ok(())
     }

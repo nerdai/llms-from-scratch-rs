@@ -596,13 +596,17 @@ impl Example for EG10 {
         231_usize
     }
 
+    // TODO: This fails silently if run into OOM issues.
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::Config,
-            ch07::{calc_loss_loader, download_and_load_gpt2},
+            ch07::{
+                download_and_load_gpt2, format_input, train_model_simple, DEFAULT_IGNORE_INDEX,
+            },
         };
         use candle_core::{DType, Device};
-        use candle_nn::{VarBuilder, VarMap};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use tiktoken_rs::get_bpe_from_model;
 
         // use `download_and_load_gpt2` for gpt2-medium
         let mut cfg = Config::gpt2_medium();
@@ -616,13 +620,31 @@ impl Example for EG10 {
         let eg07 = EG07;
         let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
 
-        // compute losses
-        let num_batches = Some(5_usize);
-        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches)?;
-
-        println!("Training loss: {}", train_loss);
-        println!("Validation loss: {}", val_loss);
+        // invoke training
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.00005,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let start_context = format_input(&val_loader.dataset().data()[0]);
+        let _ = train_model_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context.as_str(),
+            &tokenizer,
+            Some(DEFAULT_IGNORE_INDEX),
+        );
 
         Ok(())
     }

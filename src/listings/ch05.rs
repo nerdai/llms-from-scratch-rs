@@ -140,6 +140,7 @@ pub fn train_model_simple<
     eval_iter: usize,
     start_context: &str,
     tokenizer: &CoreBPE,
+    ignore_index: Option<i64>, // introduced for ch07 instruction finetuning
 ) -> Result<(Vec<f32>, Vec<f32>, Vec<usize>)>
 where
     T: Optimizer,
@@ -154,7 +155,14 @@ where
     for epoch in 0..num_epochs {
         let mut train_batcher = train_loader.batcher();
         while let Some(Ok((input_batch, target_batch))) = train_batcher.next() {
-            let loss = calc_loss_batch(&input_batch, &target_batch, model, device, true, None)?;
+            let loss = calc_loss_batch(
+                &input_batch,
+                &target_batch,
+                model,
+                device,
+                true,
+                ignore_index,
+            )?;
             optimizer.backward_step(&loss)?;
             tokens_seen += input_batch.elem_count();
 
