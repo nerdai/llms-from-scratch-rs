@@ -531,6 +531,16 @@ pub fn delete_hf_cache(model_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// [Listing 7.8] Instruction fine-tuning the pretrained LLM
+///
+/// NOTE: This has been modified from the actual listing from the book. Here
+/// we merely re-export `listings::ch05::train_model_simple`. The act of actually
+/// fine-tuning is left as an example — see EG 07.10.
+pub use crate::listings::ch05::train_model_simple;
+
+// for convenience
+pub use crate::listings::ch05::calc_loss_loader;
+
 #[cfg(test)]
 mod tests {
     use super::*;
