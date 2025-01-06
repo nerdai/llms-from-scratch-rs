@@ -363,13 +363,13 @@ impl Example for EG05 {
         );
 
         // plot loss curves
-        println!("Saving weights to `./pretraining_loss.html`");
+        println!("Saving weights to `./plot_pretraining_loss.html`");
         let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
         let tokens_seen = tokens_seen
             .into_iter()
             .map(|el| el as f32)
             .collect::<Vec<_>>();
-        let save_path = Path::new("pretraining_loss.html").to_path_buf();
+        let save_path = Path::new("plot_retraining_loss.html").to_path_buf();
         plot_losses(
             epochs_seen,
             tokens_seen,

@@ -927,7 +927,8 @@ impl Example for EG13 {
         let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_loss.len()));
         let examples_seen = Vec::from_iter(linspace(0_f32, num_examples as f32, train_loss.len()));
         let label = "loss";
-        let save_path = Path::new(format!("classification_{label}.html").as_str()).to_path_buf();
+        let save_path =
+            Path::new(format!("plot_classification_{label}.html").as_str()).to_path_buf();
         plot_values(
             epochs_seen,
             examples_seen,
@@ -940,7 +941,8 @@ impl Example for EG13 {
         let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_accs.len()));
         let examples_seen = Vec::from_iter(linspace(0_f32, num_examples as f32, train_accs.len()));
         let label = "accuracy";
-        let save_path = Path::new(format!("classification_{label}.html").as_str()).to_path_buf();
+        let save_path =
+            Path::new(format!("plot_classification_{label}.html").as_str()).to_path_buf();
         plot_values(
             epochs_seen,
             examples_seen,
