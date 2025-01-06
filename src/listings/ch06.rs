@@ -896,7 +896,6 @@ impl std::fmt::Display for TextClassification {
 }
 
 /// [Listing 6.11] Plotting the classification loss
-#[allow(unused_variables)]
 pub fn plot_values<P: AsRef<Path>>(
     epochs_seen: Vec<f32>,
     examples_seen: Vec<f32>,

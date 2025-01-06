@@ -10,6 +10,7 @@ use crate::{
 use candle_core::{Device, Error, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::{ops::softmax, Optimizer, VarMap};
 use itertools::Itertools;
+use plotly::{common::Mode, layout::Axis, Layout, Plot, Scatter};
 use rand::{
     distributions::{Distribution, WeightedIndex},
     rngs::StdRng,
@@ -19,6 +20,7 @@ use std::{
     cmp,
     collections::{HashMap, HashSet},
     fmt::Display,
+    path::Path,
     rc::Rc,
     sync::LazyLock,
 };
@@ -122,6 +124,49 @@ pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Ten
             Ok(total_loss / std::cmp::min(n, count) as f32)
         }
     }
+}
+
+/// Plot loss curves
+pub fn plot_values<P: AsRef<Path>>(
+    epochs_seen: Vec<f32>,
+    tokens_seen: Vec<f32>,
+    train_losses: Vec<f32>,
+    val_losses: Vec<f32>,
+    save_path: P,
+) -> Result<()> {
+    let trace1 = Scatter::new(epochs_seen.clone(), train_losses.clone())
+        .show_legend(false)
+        .opacity(0_f64)
+        .mode(Mode::LinesMarkers);
+    let trace2 = Scatter::new(epochs_seen, val_losses.clone())
+        .show_legend(false)
+        .opacity(0_f64)
+        .mode(Mode::LinesMarkers);
+    let trace3 = Scatter::new(tokens_seen.clone(), train_losses)
+        .name("Training loss")
+        .x_axis("x2")
+        .mode(Mode::LinesMarkers);
+    let trace4 = Scatter::new(tokens_seen, val_losses)
+        .name("Validation loss")
+        .x_axis("x2")
+        .mode(Mode::LinesMarkers);
+
+    let layout = Layout::new()
+        .x_axis(Axis::new().title("Epochs"))
+        .x_axis2(
+            Axis::new()
+                .title("Tokens Seen")
+                .side(plotly::common::AxisSide::Top),
+        )
+        .y_axis(Axis::new().title("Loss"));
+    let mut plot = Plot::new();
+    plot.add_trace(trace1);
+    plot.add_trace(trace2);
+    plot.add_trace(trace3);
+    plot.add_trace(trace4);
+    plot.set_layout(layout);
+    plot.write_html(save_path);
+    Ok(())
 }
 
 /// [Listing 5.3] The main function for pretraining LLMs
