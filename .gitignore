@@ -1,5 +1,4 @@
 /target
-checkpoint.safetensors
-clf.checkpoint.safetensors
+*.checkpoint.safetensors
 /data
 *.html
