@@ -438,6 +438,19 @@ pub struct InstructionDataLoader<C: CustomCollator> {
     collator: C,
 }
 
+impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
+    type Item = InstructionDataBatcher<C>;
+
+    /// Returns a `InstructionDataBatcher` that itself provides batches over the
+    /// associated dataset.
+    fn batcher(&self) -> InstructionDataBatcher<C> {
+        let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
+        InstructionDataBatcher::new(iter, self.collator.clone())
+            .batch_size(self.batch_size)
+            .return_last_incomplete_batch(!self.drop_last)
+    }
+}
+
 impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
     /// Creates a new `InstructionDataLoader`.
     ///
@@ -481,15 +494,6 @@ impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
             drop_last,
             collator,
         }
-    }
-
-    /// Returns a `InstructionDataBatcher` that itself provides batches over the
-    /// associated dataset.
-    pub fn batcher(&self) -> InstructionDataBatcher<C> {
-        let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
-        InstructionDataBatcher::new(iter, self.collator.clone())
-            .batch_size(self.batch_size)
-            .return_last_incomplete_batch(!self.drop_last)
     }
 
     pub fn len(&self) -> usize {
@@ -538,7 +542,8 @@ pub fn delete_hf_cache(model_id: &str) -> Result<()> {
 /// fine-tuning is left as an example — see EG 07.10.
 pub use crate::listings::ch05::train_model_simple;
 
-// for convenience
+// for convenience we also re-export the following
+pub use crate::listings::ch02::DataLoader;
 pub use crate::listings::ch05::calc_loss_loader;
 
 #[cfg(test)]

@@ -82,7 +82,7 @@ impl Exercise for X2 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch02::create_dataloader_v1;
+        use crate::listings::ch02::{create_dataloader_v1, DataLoader};
         use std::fs;
 
         let raw_text = fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");

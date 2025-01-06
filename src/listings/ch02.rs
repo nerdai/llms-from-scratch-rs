@@ -326,6 +326,28 @@ pub struct GPTDataLoader {
     drop_last: bool,
 }
 
+/// A DataLoader trait
+///
+/// NOTE: Was introduced in ch07 since we wanted to re-use the methods here and
+/// those introduced in ch05, namely `calc_loss_loader`.
+pub trait DataLoader {
+    type Item;
+
+    fn batcher(&self) -> Self::Item;
+}
+
+impl DataLoader for GPTDataLoader {
+    type Item = GPTDataBatcher;
+    /// Returns a `GPTDataBatcher` that itself provides batches over the
+    /// associated dataset.
+    fn batcher(&self) -> GPTDataBatcher {
+        let iter = GPTDatasetIter::new(self.dataset.clone(), self.shuffle);
+        Batcher::new_r2(iter)
+            .batch_size(self.batch_size)
+            .return_last_incomplete_batch(!self.drop_last)
+    }
+}
+
 impl GPTDataLoader {
     /// Creates a new GPTDataLoader.
     ///
@@ -351,15 +373,6 @@ impl GPTDataLoader {
             shuffle,
             drop_last,
         }
-    }
-
-    /// Returns a `GPTDataBatcher` that itself provides batches over the
-    /// associated dataset.
-    pub fn batcher(&self) -> GPTDataBatcher {
-        let iter = GPTDatasetIter::new(self.dataset.clone(), self.shuffle);
-        Batcher::new_r2(iter)
-            .batch_size(self.batch_size)
-            .return_last_incomplete_batch(!self.drop_last)
     }
 
     pub fn len(&self) -> usize {

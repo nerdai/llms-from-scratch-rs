@@ -150,7 +150,7 @@ pub struct EG04;
 
 impl Example for EG04 {
     fn description(&self) -> String {
-        String::from("Create absolute postiional embeddings.")
+        String::from("Create absolute positional embeddings.")
     }
 
     fn page_source(&self) -> usize {
@@ -158,7 +158,7 @@ impl Example for EG04 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch02::create_dataloader_v1;
+        use crate::listings::ch02::{create_dataloader_v1, DataLoader};
         use candle_core::{DType, Tensor};
         use candle_nn::{embedding, VarBuilder, VarMap};
         use std::fs;
