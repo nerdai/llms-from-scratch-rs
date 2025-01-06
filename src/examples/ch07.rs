@@ -632,7 +632,7 @@ impl Example for EG10 {
         )?;
         let tokenizer = get_bpe_from_model("gpt2")?;
         let start_context = format_input(&val_loader.dataset().data()[0]);
-        let _ = train_model_simple(
+        let (_train_losses, _val_losses, _tokens_seen) = train_model_simple(
             &model,
             &train_loader,
             &val_loader,
@@ -644,7 +644,11 @@ impl Example for EG10 {
             start_context.as_str(),
             &tokenizer,
             Some(DEFAULT_IGNORE_INDEX),
-        );
+        )?;
+
+        // save model
+        println!("Saving weights to `./ift.checkpoint.safetensors`");
+        varmap.save("ift.checkpoint.safetensors")?;
 
         Ok(())
     }
