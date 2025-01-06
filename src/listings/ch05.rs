@@ -89,7 +89,7 @@ pub fn calc_loss_batch(
 /// `calc_loss_batch`. Also, introduced trait bounds on DataLoader so that we
 /// can re-use for ch07 (instruction-finetuning), for which we have a different
 /// DataLoader type.
-pub fn calc_loss_loader<L: DataLoader<Item = impl Iterator<Item = Result<(Tensor, Tensor)>>>>(
+pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>>(
     data_loader: &L,
     model: &GPTModel,
     device: &Device,

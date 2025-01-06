@@ -331,13 +331,13 @@ pub struct GPTDataLoader {
 /// NOTE: Was introduced in ch07 since we wanted to re-use the methods here and
 /// those introduced in ch05, namely `calc_loss_loader`.
 pub trait DataLoader {
-    type Item;
+    type Batcher;
 
-    fn batcher(&self) -> Self::Item;
+    fn batcher(&self) -> Self::Batcher;
 }
 
 impl DataLoader for GPTDataLoader {
-    type Item = GPTDataBatcher;
+    type Batcher = GPTDataBatcher;
     /// Returns a `GPTDataBatcher` that itself provides batches over the
     /// associated dataset.
     fn batcher(&self) -> GPTDataBatcher {

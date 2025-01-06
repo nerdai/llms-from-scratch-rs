@@ -439,7 +439,7 @@ pub struct InstructionDataLoader<C: CustomCollator> {
 }
 
 impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
-    type Item = InstructionDataBatcher<C>;
+    type Batcher = InstructionDataBatcher<C>;
 
     /// Returns a `InstructionDataBatcher` that itself provides batches over the
     /// associated dataset.
