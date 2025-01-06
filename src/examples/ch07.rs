@@ -600,12 +600,15 @@ impl Example for EG10 {
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::Config,
+            ch05::plot_losses,
             ch07::{
                 download_and_load_gpt2, format_input, train_model_simple, DEFAULT_IGNORE_INDEX,
             },
         };
         use candle_core::{DType, Device};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use ndarray::linspace;
+        use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
         // use `download_and_load_gpt2` for gpt2-medium
@@ -632,7 +635,7 @@ impl Example for EG10 {
         )?;
         let tokenizer = get_bpe_from_model("gpt2")?;
         let start_context = format_input(&val_loader.dataset().data()[0]);
-        let (_train_losses, _val_losses, _tokens_seen) = train_model_simple(
+        let (train_losses, val_losses, tokens_seen) = train_model_simple(
             &model,
             &train_loader,
             &val_loader,
@@ -649,6 +652,22 @@ impl Example for EG10 {
         // save model
         println!("Saving weights to `./ift.checkpoint.safetensors`");
         varmap.save("ift.checkpoint.safetensors")?;
+
+        // plot loss curves
+        println!("Saving weights to `./plot_ift_loss.html`");
+        let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
+        let tokens_seen = tokens_seen
+            .into_iter()
+            .map(|el| el as f32)
+            .collect::<Vec<_>>();
+        let save_path = Path::new("plot_ift_loss.html").to_path_buf();
+        plot_losses(
+            epochs_seen,
+            tokens_seen,
+            train_losses,
+            val_losses,
+            save_path,
+        )?;
 
         Ok(())
     }
