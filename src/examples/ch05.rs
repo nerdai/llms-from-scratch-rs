@@ -280,7 +280,7 @@ impl Example for EG04 {
     }
 }
 
-/// # Example usage of `train_model_simple` function
+/// # Example usage of `train_model_simple` function and plotting loss curves
 ///
 /// #### Id
 /// 05.05
@@ -300,7 +300,7 @@ pub struct EG05;
 
 impl Example for EG05 {
     fn description(&self) -> String {
-        String::from("Example usage of `train_model_simple` function.")
+        String::from("Example usage of `train_model_simple` function and plotting loss curves.")
     }
 
     fn page_source(&self) -> usize {
@@ -310,10 +310,12 @@ impl Example for EG05 {
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::{generate_text_simple, Config, GPTModel},
-            ch05::{text_to_token_ids, token_ids_to_text, train_model_simple},
+            ch05::{plot_losses, text_to_token_ids, token_ids_to_text, train_model_simple},
         };
         use candle_core::{DType, Device};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use ndarray::linspace;
+        use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
         let varmap = VarMap::new();
@@ -332,7 +334,7 @@ impl Example for EG05 {
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 10_usize);
         let (train_loader, val_loader) = addons::get_train_val_data_loaders(false)?;
         let start_context = "Every effort moves you";
-        let _ = train_model_simple(
+        let (train_losses, val_losses, tokens_seen) = train_model_simple(
             &model,
             &train_loader,
             &val_loader,
@@ -344,7 +346,7 @@ impl Example for EG05 {
             start_context,
             &tokenizer,
             None,
-        );
+        )?;
 
         // run inference with trained model using deterministic decoding
         let token_ids = generate_text_simple(
@@ -359,6 +361,23 @@ impl Example for EG05 {
             "Output text:\n{:?}",
             token_ids_to_text(token_ids, &tokenizer)
         );
+
+        // plot loss curves
+        println!("Saving weights to `./pretraining_loss.html`");
+        let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
+        let tokens_seen = tokens_seen
+            .into_iter()
+            .map(|el| el as f32)
+            .collect::<Vec<_>>();
+        let save_path = Path::new("pretraining_loss.html").to_path_buf();
+        plot_losses(
+            epochs_seen,
+            tokens_seen,
+            train_losses,
+            val_losses,
+            save_path,
+        )?;
+
         Ok(())
     }
 }

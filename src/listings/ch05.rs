@@ -127,7 +127,7 @@ pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Ten
 }
 
 /// Plot loss curves
-pub fn plot_values<P: AsRef<Path>>(
+pub fn plot_losses<P: AsRef<Path>>(
     epochs_seen: Vec<f32>,
     tokens_seen: Vec<f32>,
     train_losses: Vec<f32>,
