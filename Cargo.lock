@@ -2930,9 +2930,9 @@ dependencies = [
 
 [[package]]
 name = "plotly"
-version = "0.11.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77e50e865d46d1341c2271022853125604acf7d5f54c2bee318a517ca29fcd77"
+checksum = "0746e9faf2b051db76470fd428cbc0db792db05346dedaae4a75b16d7be503b5"
 dependencies = [
  "dyn-clone",
  "erased-serde",
@@ -2948,9 +2948,9 @@ dependencies = [
 
 [[package]]
 name = "plotly_derive"
-version = "0.11.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fd64e90c0425a679512dc379216730925c0bc4857df34e9316d997731772ac0"
+checksum = "2d683930282f098b9f524e2596e3e63483507ac499231c96127fcb166bc05d26"
 dependencies = [
  "darling",
  "proc-macro2",
