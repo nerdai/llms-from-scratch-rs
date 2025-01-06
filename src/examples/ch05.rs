@@ -206,6 +206,8 @@ impl Example for EG03 {
     }
 
     fn main(&self) -> Result<()> {
+        use crate::listings::ch02::DataLoader;
+
         let (train_loader, val_loader) = addons::get_train_val_data_loaders(true)?;
 
         let mut train_batcher = train_loader.batcher();

@@ -3,7 +3,7 @@
 use crate::{
     candle_addons::TopK,
     listings::{
-        ch02::GPTDataLoader,
+        ch02::{DataLoader, GPTDataLoader},
         ch04::{generate_text_simple, GPTModel},
     },
 };
@@ -86,9 +86,11 @@ pub fn calc_loss_batch(
 /// [Listing 5.2] Function to compute the training and validation loss
 ///
 /// NOTE: Used for inference and so `train` param is `false` when invoking
-/// `calc_loss_batch`.
-pub fn calc_loss_loader(
-    data_loader: &GPTDataLoader,
+/// `calc_loss_batch`. Also, introduced trait bounds on DataLoader so that we
+/// can re-use for ch07 (instruction-finetuning), for which we have a different
+/// DataLoader type.
+pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>>(
+    data_loader: &L,
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,

@@ -364,8 +364,9 @@ impl EG07 {
         >,
     )> {
         use crate::listings::ch07::{
-            download_and_load_file, partition_data, InstructionDataCollator, InstructionDataLoader,
-            InstructionDataset, DATA_DIR, INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
+            download_and_load_file, partition_data, DataLoader, InstructionDataCollator,
+            InstructionDataLoader, InstructionDataset, DATA_DIR, INSTRUCTION_DATA_FILENAME,
+            INSTRUCTION_DATA_URL,
         };
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
@@ -499,6 +500,67 @@ impl Example for EG08 {
         let response_text = &generated_text[input_text.len()..].trim();
 
         println!("---generated-text-below---\n{}", response_text);
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `calc_loss_loader` to compute cross-entropy loss on train, val, test sets
+///
+/// #### Id
+/// 07.09
+///
+/// #### Page
+/// This example starts on page 230
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.09
+///
+/// # with cuda
+/// cargo run --features cuda example 07.09
+/// ```
+pub struct EG09;
+
+impl Example for EG09 {
+    fn description(&self) -> String {
+        let desc = "Example usage of `calc_loss_loader` to compute accuracy on \
+        train, validation and test instruction datasets.";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        230_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch07::{calc_loss_loader, download_and_load_gpt2},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // use `download_and_load_gpt2` for gpt2-medium
+        let mut cfg = Config::gpt2_medium();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model_id = "openai-community/gpt2-medium";
+        let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+
+        // re-use eg 07.07
+        let eg07 = EG07;
+        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
+
+        // compute losses
+        let num_batches = Some(5_usize);
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches)?;
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches)?;
+
+        println!("Training loss: {}", train_loss);
+        println!("Validation loss: {}", val_loss);
 
         Ok(())
     }
