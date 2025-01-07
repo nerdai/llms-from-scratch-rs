@@ -1,8 +1,7 @@
 //! Examples from Chapter 7
 
-use crate::Example;
-use anyhow::Result;
-use candle_core::Device;
+use crate::{listings::ch07::format_input, Example};
+use anyhow::{Context, Result};
 
 /// # Example usage of `download_and_load_file`
 ///
@@ -368,6 +367,7 @@ impl EG07 {
             InstructionDataLoader, InstructionDataset, DATA_DIR, INSTRUCTION_DATA_FILENAME,
             INSTRUCTION_DATA_URL,
         };
+        use candle_core::Device;
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
@@ -611,12 +611,13 @@ impl Example for EG10 {
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
-        // use `download_and_load_gpt2` for gpt2-medium
-        let mut cfg = Config::gpt2_medium();
+        // use `download_and_load_gpt2`
+        let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
+        let mut cfg = Config::gpt2_124m(); // use `gpt2_medium()` for med instead
+
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let model_id = "openai-community/gpt2-medium";
         let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
 
         // re-use eg 07.07
@@ -668,6 +669,89 @@ impl Example for EG10 {
             val_losses,
             save_path,
         )?;
+
+        Ok(())
+    }
+}
+
+/// # Example of extracting model-generated responses and comparing to correct ones
+///
+/// #### Id
+/// 07.11
+///
+/// #### Page
+/// This example starts on page 234
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.11
+///
+/// # with cuda
+/// cargo run --features cuda example 07.11
+/// ```
+pub struct EG11;
+
+impl Example for EG11 {
+    fn description(&self) -> String {
+        let desc = "Example of extracting model-generated responses and \
+        comparing to correct ones";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        234_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch05::{generate, text_to_token_ids, token_ids_to_text},
+        };
+        use candle_core::{DType, Device, Tensor};
+        use candle_nn::{VarBuilder, VarMap};
+        use rand::{rngs::StdRng, SeedableRng};
+        use tiktoken_rs::get_bpe_from_model;
+
+        // setup the gpt2 model
+        let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // load instructed-finetuned weights
+        varmap
+            .load("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+
+        // extract responses
+        let eg07 = EG07;
+        let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(false)?;
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let mut rng = StdRng::seed_from_u64(42_u64);
+
+        for entry in &test_loader.dataset().data()[..3] {
+            let input_text = format_input(entry);
+            let token_ids = generate(
+                &model,
+                text_to_token_ids(&input_text[..], &tokenizer, vb.device())?,
+                256_usize,
+                cfg.context_length,
+                Some(0.1_f64),
+                Some(50_usize),
+                Some(Tensor::new(&[50_256_u32], vb.device())?),
+                &mut rng,
+            )?;
+            let generated_text = token_ids_to_text(token_ids, &tokenizer)?;
+            let response_text = &generated_text[input_text.len()..].trim();
+
+            // print
+            println!("{}", input_text);
+            println!("\nCorrect response:\n>>{}", entry.output());
+            println!("\nModel response:\n>>{}", response_text.trim());
+            println!("-----------------------------------------");
+        }
 
         Ok(())
     }

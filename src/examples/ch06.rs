@@ -987,11 +987,8 @@ impl Example for EG14 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::{
-            ch04::Config,
-            ch06::{
-                calc_accuracy_loader, download_and_load_gpt2, modify_out_head_for_classification,
-                HF_GPT2_MODEL_ID,
-            },
+            ch04::{Config, GPTModel},
+            ch06::{calc_accuracy_loader, modify_out_head_for_classification},
         };
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
@@ -1001,7 +998,7 @@ impl Example for EG14 {
         cfg.qkv_bias = true;
         let mut varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        let mut model = GPTModel::new(cfg, vb.pp("model"))?;
         modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
 
         // load safetensors
@@ -1059,10 +1056,10 @@ impl Example for EG15 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::{
-            ch04::Config,
+            ch04::{Config, GPTModel},
             ch06::{
-                classify_review, download_and_load_gpt2, modify_out_head_for_classification,
-                SpamDatasetBuilder, HF_GPT2_MODEL_ID, PAD_TOKEN_ID,
+                classify_review, modify_out_head_for_classification, SpamDatasetBuilder,
+                PAD_TOKEN_ID,
             },
         };
         use anyhow::anyhow;
@@ -1089,7 +1086,7 @@ impl Example for EG15 {
         cfg.qkv_bias = true;
         let mut varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+        let mut model = GPTModel::new(cfg, vb.pp("model"))?;
         modify_out_head_for_classification(&mut model, cfg, 2_usize, &varmap, vb.pp("model"))?;
 
         // load safetensors from finetuning
