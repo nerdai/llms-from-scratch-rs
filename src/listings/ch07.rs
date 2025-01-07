@@ -29,7 +29,7 @@ pub const INSTRUCTION_DATA_URL: &str = "https://raw.githubusercontent.com/rasbt/
 
 /// A type for containing an instruction-response pair
 #[serde_as]
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct InstructionResponseExample {
     instruction: String,
     #[serde_as(as = "NoneAsEmptyString")]
@@ -570,9 +570,21 @@ pub use crate::listings::ch05::train_model_simple;
 pub use crate::listings::ch02::DataLoader;
 pub use crate::listings::ch05::calc_loss_loader;
 
+/// Helper function to write instruction data to a json
+pub fn write_instruction_data_to_json<P: AsRef<Path>>(
+    instruction_data: &Vec<InstructionResponseExample>,
+    save_path: P,
+) -> anyhow::Result<()> {
+    let file = File::create(save_path)?;
+    let mut writer = io::BufWriter::new(file);
+    serde_json::to_writer(&mut writer, instruction_data)?;
+    writer.flush()?;
+    Ok(())
+}
+
 /// [Listing 7.9] Generating test set responses
 pub fn generate_test_set_responses<P: AsRef<Path>>(
-    test_data: &mut [InstructionResponseExample],
+    test_data: &mut Vec<InstructionResponseExample>,
     model: &GPTModel,
     context_size: usize,
     device: &Device,
@@ -605,10 +617,7 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
         "Saving test data with model responses to {:?}",
         save_path.as_ref().to_str()
     );
-    let file = File::create(save_path)?;
-    let mut writer = io::BufWriter::new(file);
-    serde_json::to_writer(&mut writer, test_data)?;
-    writer.flush()?;
+    write_instruction_data_to_json(test_data, save_path)?;
 
     Ok(())
 }
@@ -840,6 +849,24 @@ mod tests {
         }
         assert_eq!(data_loader.len(), count);
         assert!(!data_loader.is_empty());
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_write_instruction_data_to_json(
+        instruction_data: Vec<InstructionResponseExample>,
+    ) -> Result<()> {
+        let test_file = NamedTempFile::new().unwrap();
+        let save_path = test_file.into_temp_path().keep().unwrap();
+
+        // write data
+        write_instruction_data_to_json(&instruction_data, save_path.clone())?;
+
+        // load data
+        let json_str = read_to_string(AsRef::<Path>::as_ref(&save_path))?;
+        let reloaded_data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
+
+        assert_eq!(instruction_data, reloaded_data);
         Ok(())
     }
 }
