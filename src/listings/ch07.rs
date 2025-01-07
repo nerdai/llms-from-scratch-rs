@@ -21,6 +21,7 @@ use std::{
     rc::Rc,
 };
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
+use tqdm::tqdm;
 
 pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
 pub const DATA_DIR: &str = "data";
@@ -593,7 +594,7 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
     let tokenizer = get_bpe_from_model("gpt2")?;
     let mut rng = StdRng::seed_from_u64(42_u64);
 
-    for entry in test_data.iter_mut() {
+    for entry in tqdm(test_data.iter_mut()) {
         let input_text = format_input(entry);
         let token_ids = generate(
             model,
