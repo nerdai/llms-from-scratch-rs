@@ -1,8 +1,7 @@
 //! Examples from Chapter 7
 
 use crate::Example;
-use anyhow::Result;
-use candle_core::Device;
+use anyhow::{Context, Result};
 
 /// # Example usage of `download_and_load_file`
 ///
@@ -368,6 +367,7 @@ impl EG07 {
             InstructionDataLoader, InstructionDataset, DATA_DIR, INSTRUCTION_DATA_FILENAME,
             INSTRUCTION_DATA_URL,
         };
+        use candle_core::Device;
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
@@ -668,6 +668,56 @@ impl Example for EG10 {
             val_losses,
             save_path,
         )?;
+
+        Ok(())
+    }
+}
+
+/// # Example of extracting model-generated responses and comparing to correct ones
+///
+/// #### Id
+/// 07.11
+///
+/// #### Page
+/// This example starts on page 234
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.11
+///
+/// # with cuda
+/// cargo run --features cuda example 07.11
+/// ```
+pub struct EG11;
+
+impl Example for EG11 {
+    fn description(&self) -> String {
+        let desc = "Example of extracting model-generated responses and \
+        comparing to correct ones";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        234_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch04::{Config, GPTModel};
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let _model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // load safetensors
+        varmap
+            .load("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
 
         Ok(())
     }
