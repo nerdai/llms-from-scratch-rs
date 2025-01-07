@@ -1,9 +1,14 @@
 //! Listings from Chapter 7
 
+use super::{
+    ch04::GPTModel,
+    ch05::{generate, text_to_token_ids, token_ids_to_text},
+};
 use anyhow::Context;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use hf_hub::api::sync::Api;
+use rand::{rngs::StdRng, SeedableRng};
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -14,7 +19,7 @@ use std::{
     path::Path,
     rc::Rc,
 };
-use tiktoken_rs::CoreBPE;
+use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 
 pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
 pub const DATA_DIR: &str = "data";
@@ -29,6 +34,7 @@ pub struct InstructionResponseExample {
     #[serde_as(as = "NoneAsEmptyString")]
     input: Option<String>,
     output: String,
+    model_response: Option<String>, // added for Listing 7.9
 }
 
 impl InstructionResponseExample {
@@ -37,6 +43,7 @@ impl InstructionResponseExample {
             instruction: instruction.to_string(),
             input: input.map(|inp| inp.to_string()),
             output: output.to_string(),
+            model_response: None,
         }
     }
 
@@ -51,14 +58,22 @@ impl InstructionResponseExample {
     pub fn output(&self) -> &String {
         &self.output
     }
+
+    pub fn model_response(&self) -> &Option<String> {
+        &self.model_response
+    }
+
+    pub fn set_model_response(&mut self, model_response: &str) {
+        self.model_response = Some(model_response.to_string());
+    }
 }
 
 impl Display for InstructionResponseExample {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Instruction: {}\nInput: {:?}\nOutput: {}",
-            self.instruction, self.input, self.output
+            "Instruction: {}\nInput: {:?}\nOutput: {}\nModel Response: {:?}",
+            self.instruction, self.input, self.output, self.model_response
         )
     }
 }
@@ -554,6 +569,41 @@ pub use crate::listings::ch05::train_model_simple;
 pub use crate::listings::ch02::DataLoader;
 pub use crate::listings::ch05::calc_loss_loader;
 
+/// [Listing 7.9] Generating test set responses
+pub fn generate_test_set_responses<P: AsRef<Path>>(
+    test_data: &mut [InstructionResponseExample],
+    model: &GPTModel,
+    context_size: usize,
+    device: &Device,
+    _save_path: P,
+) -> anyhow::Result<()> {
+    let tokenizer = get_bpe_from_model("gpt2")?;
+    let mut rng = StdRng::seed_from_u64(42_u64);
+
+    for entry in test_data.iter_mut() {
+        let input_text = format_input(entry);
+        let token_ids = generate(
+            model,
+            text_to_token_ids(&input_text[..], &tokenizer, device)?,
+            256_usize,
+            context_size,
+            None,
+            None,
+            Some(Tensor::new(&[50_256_u32], device)?),
+            &mut rng,
+        )?;
+        let generated_text = token_ids_to_text(token_ids, &tokenizer)?;
+        let response_text = generated_text[input_text.len()..].trim();
+
+        // add model response
+        entry.set_model_response(response_text);
+    }
+
+    // write to json
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -571,6 +621,7 @@ mod tests {
             instruction,
             input,
             output,
+            model_response: None,
         }
     }
 
@@ -582,6 +633,7 @@ mod tests {
             instruction,
             input: None,
             output,
+            model_response: None,
         }
     }
 
