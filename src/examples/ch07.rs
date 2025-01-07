@@ -738,8 +738,8 @@ impl Example for EG11 {
                 text_to_token_ids(&input_text[..], &tokenizer, vb.device())?,
                 256_usize,
                 cfg.context_length,
-                Some(0.1_f64),
-                Some(50_usize),
+                None,
+                None,
                 Some(Tensor::new(&[50_256_u32], vb.device())?),
                 &mut rng,
             )?;
