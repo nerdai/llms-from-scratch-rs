@@ -611,12 +611,13 @@ impl Example for EG10 {
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
-        // use `download_and_load_gpt2` for gpt2-medium
-        let mut cfg = Config::gpt2_medium();
+        // use `download_and_load_gpt2`
+        let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
+        let mut cfg = Config::gpt2_124m(); // use `gpt2_medium()` for med instead
+
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let model_id = "openai-community/gpt2-medium";
         let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
 
         // re-use eg 07.07
@@ -708,7 +709,7 @@ impl Example for EG11 {
         use candle_nn::{VarBuilder, VarMap};
 
         // get gpt model with classification head
-        let mut cfg = Config::gpt2_124m();
+        let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
         cfg.qkv_bias = true;
         let mut varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
