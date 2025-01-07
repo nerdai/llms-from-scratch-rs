@@ -16,6 +16,7 @@ use std::{
     fmt::Display,
     fs::{read_to_string, File},
     io,
+    io::Write,
     path::Path,
     rc::Rc,
 };
@@ -575,7 +576,7 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
     model: &GPTModel,
     context_size: usize,
     device: &Device,
-    _save_path: P,
+    save_path: P,
 ) -> anyhow::Result<()> {
     let tokenizer = get_bpe_from_model("gpt2")?;
     let mut rng = StdRng::seed_from_u64(42_u64);
@@ -600,6 +601,14 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
     }
 
     // write to json
+    println!(
+        "Saving test data with model responses to {:?}",
+        save_path.as_ref().to_str()
+    );
+    let file = File::create(save_path)?;
+    let mut writer = io::BufWriter::new(file);
+    serde_json::to_writer(&mut writer, test_data)?;
+    writer.flush()?;
 
     Ok(())
 }
