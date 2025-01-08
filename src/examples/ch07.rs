@@ -907,7 +907,7 @@ impl Example for EG14 {
     }
 }
 
-/// # Example usage of `query_model`
+/// # Using Llama3.2 (via Ollama) as the LLM judge to evaluate model responses
 ///
 /// #### Id
 /// 07.15
@@ -927,7 +927,8 @@ pub struct EG15;
 
 impl Example for EG15 {
     fn description(&self) -> String {
-        "Example usage of `query_model`.".to_string()
+        let desc = "Using Llama3.2 (via Ollama) as the LLM judge to evaluate model responses";
+        desc.to_string()
     }
 
     fn page_source(&self) -> usize {
