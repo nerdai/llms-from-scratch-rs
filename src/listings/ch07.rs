@@ -607,10 +607,11 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
             &mut rng,
         )?;
         let generated_text = token_ids_to_text(token_ids, &tokenizer)?;
-        let response_text = generated_text[input_text.len()..].trim();
+        let mut response_text = generated_text[input_text.len()..].replace("### Response:", "");
+        response_text = response_text.trim().to_string();
 
         // add model response
-        entry.set_model_response(response_text);
+        entry.set_model_response(&response_text[..]);
     }
 
     // write to json
