@@ -756,3 +756,69 @@ impl Example for EG11 {
         Ok(())
     }
 }
+
+/// # Example usage of `generate_test_set_responses`
+///
+/// #### Id
+/// 07.12
+///
+/// #### Page
+/// This example starts on page 237
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.12
+///
+/// # with cuda
+/// cargo run --features cuda example 07.12
+/// ```
+pub struct EG12;
+
+impl Example for EG12 {
+    fn description(&self) -> String {
+        "Example usage of `generate_test_set_responses`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        237_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch07::{generate_test_set_responses, DATA_DIR},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+        use std::path::Path;
+
+        // setup the gpt2 model
+        let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // load instructed-finetuned weights
+        varmap
+            .load("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+
+        // get data loaders
+        let eg07 = EG07;
+        let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(false)?;
+
+        // generate test set responses
+        let save_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
+        generate_test_set_responses(
+            &mut test_loader.dataset().data().clone(),
+            &model,
+            cfg.context_length,
+            vb.device(),
+            save_path,
+        )?;
+
+        Ok(())
+    }
+}
