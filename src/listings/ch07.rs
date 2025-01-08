@@ -19,6 +19,7 @@ use std::{
     io::Write,
     path::Path,
     rc::Rc,
+    str::FromStr,
 };
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tqdm::tqdm;
@@ -697,6 +698,38 @@ pub fn query_model(prompt: &str, model: &str, url: &str) -> anyhow::Result<Strin
             res.status()
         ))
     }
+}
+
+/// [Listing 7.11] Evaluating the instruction fine-tuning LLM
+pub fn generate_model_scores(
+    instruction_data: Vec<InstructionResponseExample>,
+    url: &str,
+    model: &str,
+) -> anyhow::Result<Vec<f32>> {
+    let mut scores: Vec<f32> = vec![];
+
+    for (ix, entry) in tqdm(instruction_data.iter().enumerate()) {
+        let prompt = format!(
+            "Given the input `{}` and the correct output `{}`, score the \
+            model response `{}` on a scale from 0 to 100, where 100 is the ]
+            best score. Respond with the integer number only.",
+            format_input(entry),
+            entry.output(),
+            entry
+                .model_response()
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Entry {ix} is missing a model response."))?
+        );
+
+        let score_str = query_model(prompt.as_str(), model, url)?;
+        let score = f32::from_str(&score_str[..]);
+        match score {
+            Ok(val) => scores.push(val),
+            Err(_e) => println!("Unable to convert `score_str` to `u32`: {}.", score_str),
+        }
+    }
+
+    Ok(scores)
 }
 
 #[cfg(test)]
