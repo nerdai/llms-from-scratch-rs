@@ -2310,6 +2310,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "sysinfo 0.33.1",
  "tempfile",
  "tiktoken-rs",
  "tokenizers 0.21.0",
@@ -3487,7 +3488,7 @@ dependencies = [
  "raw-cpuid 11.2.0",
  "rayon",
  "stacker",
- "sysinfo",
+ "sysinfo 0.32.1",
  "version_check",
 ]
 
@@ -4413,6 +4414,20 @@ dependencies = [
  "libc",
  "memchr",
  "ntapi",
+ "windows",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.33.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fc858248ea01b66f19d8e8a6d55f41deaf91e9d495246fd01368d99935c6c01"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+ "memchr",
+ "ntapi",
+ "rayon",
  "windows",
 ]
 
