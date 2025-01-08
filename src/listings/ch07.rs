@@ -624,6 +624,8 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
     Ok(())
 }
 
+// Data types for convenience
+// NOTE: you could also opt to just more simply use the RequestBuilder reqwest offers
 /// OllamaRequestData type to represent payload for sending model query requests
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct OllamaRequestData {
@@ -633,7 +635,10 @@ pub struct OllamaRequestData {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
-pub struct OllamaChatMessage {}
+pub struct OllamaChatMessage {
+    role: String,
+    content: String,
+}
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct OllamaOptions {
@@ -642,10 +647,44 @@ pub struct OllamaOptions {
     num_ctx: u32,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+pub struct OllamaChatResponse {
+    message: OllamaChatMessage,
+}
+
 /// [Listing 7.10] Querying a local Ollama model
 #[allow(unused_variables)]
 pub fn query_model(prompt: &str, model: &str, url: &str) -> anyhow::Result<String> {
-    todo!()
+    let request_data = OllamaRequestData {
+        model: model.to_string(),
+        messages: vec![OllamaChatMessage {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }],
+        options: Some(OllamaOptions {
+            seed: 123_u32,
+            temperature: 0_f32,
+            num_ctx: 2048_u32,
+        }),
+    };
+    let client = reqwest::blocking::Client::new();
+    let res = client
+        .post(url)
+        .json(&request_data)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .send()?;
+
+    if res.status().is_success() {
+        let ollama_response = res.json::<OllamaChatResponse>()?;
+        Ok(ollama_response.message.content)
+    } else if res.status().is_server_error() {
+        Err(anyhow::anyhow!("server error!"))
+    } else {
+        Err(anyhow::anyhow!(
+            "Something else happened. Status: {:?}",
+            res.status()
+        ))
+    }
 }
 
 #[cfg(test)]
