@@ -927,7 +927,7 @@ pub struct EG15;
 
 impl Example for EG15 {
     fn description(&self) -> String {
-        let desc = "Using Llama3.2 (via Ollama) as the LLM judge to evaluate model responses";
+        let desc = "Using Llama3.2 (via Ollama) as the LLM judge to evaluate model responses.";
         desc.to_string()
     }
 
