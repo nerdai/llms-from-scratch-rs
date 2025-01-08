@@ -624,6 +624,24 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
     Ok(())
 }
 
+/// OllamaRequestData type to represent payload for sending model query requests
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+pub struct OllamaRequestData {
+    model: String,
+    messages: Vec<OllamaChatMessage>,
+    options: Option<OllamaOptions>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+pub struct OllamaChatMessage {}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+pub struct OllamaOptions {
+    seed: u32,
+    temperature: f32,
+    num_ctx: u32,
+}
+
 /// [Listing 7.10] Querying a local Ollama model
 #[allow(unused_variables)]
 pub fn query_model(prompt: &str, model: &str, url: &str) -> anyhow::Result<String> {
