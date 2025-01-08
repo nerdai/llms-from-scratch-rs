@@ -624,6 +624,12 @@ pub fn generate_test_set_responses<P: AsRef<Path>>(
     Ok(())
 }
 
+/// [Listing 7.10] Querying a local Ollama model
+#[allow(unused_variables)]
+pub fn query_model(prompt: &str, model: &str, url: &str) -> anyhow::Result<String> {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
