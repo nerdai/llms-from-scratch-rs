@@ -94,10 +94,8 @@ pub fn download_and_load_file<P: AsRef<Path>>(
         let mut out = File::create(file_path.as_ref())?;
         io::copy(&mut content.as_ref(), &mut out)?;
     }
-    let json_str = read_to_string(file_path.as_ref())
-        .with_context(|| format!("Unable to read {}", file_path.as_ref().display()))?;
-    let data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
-
+    // load json file
+    let data = load_instruction_data_from_json(file_path)?;
     Ok(data)
 }
 
@@ -570,6 +568,16 @@ pub use crate::listings::ch05::train_model_simple;
 // for convenience we also re-export the following
 pub use crate::listings::ch02::DataLoader;
 pub use crate::listings::ch05::calc_loss_loader;
+
+/// Helper function to write instruction data to a json
+pub fn load_instruction_data_from_json<P: AsRef<Path>>(
+    file_path: P,
+) -> anyhow::Result<Vec<InstructionResponseExample>> {
+    let json_str = read_to_string(file_path.as_ref())
+        .with_context(|| format!("Unable to read {}", file_path.as_ref().display()))?;
+    let data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
+    Ok(data)
+}
 
 /// Helper function to write instruction data to a json
 pub fn write_instruction_data_to_json<P: AsRef<Path>>(
