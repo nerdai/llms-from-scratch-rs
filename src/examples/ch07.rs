@@ -935,12 +935,17 @@ impl Example for EG15 {
     }
 
     fn main(&self) -> Result<()> {
-        use crate::listings::ch07::{query_model, DEFAULT_OLLAMA_API_URL};
+        use crate::listings::ch07::{
+            format_input, load_instruction_data_from_json, query_model, DATA_DIR,
+        };
+        use std::path::Path;
 
-        let model = "llama3";
-        let result = query_model("What do Llamas eat?", model, DEFAULT_OLLAMA_API_URL)?;
+        // load test instruction data with response
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
+        let test_data = load_instruction_data_from_json(file_path).with_context(|| {
+            "Missing 'instruction_data_with_response.json' file. Please run EG 07.12."
+        })?;
 
-        println!("{}", result);
         Ok(())
     }
 }
