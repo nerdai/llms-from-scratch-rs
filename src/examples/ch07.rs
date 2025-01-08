@@ -825,3 +825,46 @@ impl Example for EG12 {
         Ok(())
     }
 }
+
+/// # An example to check if `ollama` process is running
+///
+/// #### Id
+/// 07.13
+///
+/// #### Page
+/// This example starts on page 241
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.13
+///
+/// # with cuda
+/// cargo run --features cuda example 07.13
+/// ```
+pub struct EG13;
+
+impl Example for EG13 {
+    fn description(&self) -> String {
+        "An example to check if `ollama` process is running.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        241_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use anyhow::anyhow;
+        use sysinfo::System;
+
+        let sys = System::new_all();
+        let mut ollama_processes = sys.processes_by_exact_name("ollama".as_ref());
+        let _ = ollama_processes.next().ok_or(anyhow!(
+            "Ollama not running. Launch ollama before proceeding."
+        ))?;
+
+        println!("Ollama running");
+
+        Ok(())
+    }
+}
