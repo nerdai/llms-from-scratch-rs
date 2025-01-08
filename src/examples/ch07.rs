@@ -1,7 +1,7 @@
 //! Examples from Chapter 7
 
 use crate::{listings::ch07::format_input, Example};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 /// # Example usage of `download_and_load_file`
 ///
@@ -937,6 +937,7 @@ impl Example for EG15 {
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
             format_input, load_instruction_data_from_json, query_model, DATA_DIR,
+            DEFAULT_OLLAMA_API_URL,
         };
         use std::path::Path;
 
@@ -945,6 +946,32 @@ impl Example for EG15 {
         let test_data = load_instruction_data_from_json(file_path).with_context(|| {
             "Missing 'instruction_data_with_response.json' file. Please run EG 07.12."
         })?;
+
+        let model = "llama3";
+        for (ix, entry) in test_data.iter().enumerate().take(3_usize) {
+            let model_response = entry
+                .model_response()
+                .as_ref()
+                .ok_or_else(|| anyhow!("Entry {ix} is missing a model response."))?;
+            let prompt = format!(
+                "Given the input `{}` and the correct output `{}`, score the \
+                model response `{}` on a scale from 0 to 100, where 100 is the ]
+                best score.",
+                format_input(entry),
+                entry.output(),
+                model_response
+            );
+
+            println!("\nDataset response:");
+            println!("\n>>{}", entry.output());
+            println!("\nModel response:");
+            println!("\n>>{}", model_response);
+            println!("\nScore:");
+            println!(
+                "\n>>{}",
+                query_model(prompt.as_str(), model, DEFAULT_OLLAMA_API_URL)?
+            );
+        }
 
         Ok(())
     }
