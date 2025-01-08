@@ -632,6 +632,7 @@ pub struct OllamaRequestData {
     model: String,
     messages: Vec<OllamaChatMessage>,
     options: Option<OllamaOptions>,
+    stream: bool,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
@@ -649,8 +650,11 @@ pub struct OllamaOptions {
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct OllamaChatResponse {
+    model: String,
     message: OllamaChatMessage,
 }
+
+pub const DEFAULT_OLLAMA_API_URL: &str = "http://127.0.0.1:11434/api/chat";
 
 /// [Listing 7.10] Querying a local Ollama model
 pub fn query_model(prompt: &str, model: &str, url: &str) -> anyhow::Result<String> {
@@ -665,6 +669,7 @@ pub fn query_model(prompt: &str, model: &str, url: &str) -> anyhow::Result<Strin
             temperature: 0_f32,
             num_ctx: 2048_u32,
         }),
+        stream: false,
     };
     let client = reqwest::blocking::Client::new();
     let res = client

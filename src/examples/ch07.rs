@@ -868,3 +868,41 @@ impl Example for EG13 {
         Ok(())
     }
 }
+
+/// # Example usage of `query_model`
+///
+/// #### Id
+/// 07.14
+///
+/// #### Page
+/// This example starts on page 243
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.14
+///
+/// # with cuda
+/// cargo run --features cuda example 07.14
+/// ```
+pub struct EG14;
+
+impl Example for EG14 {
+    fn description(&self) -> String {
+        "Example usage of `query_model`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        243_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch07::{query_model, DEFAULT_OLLAMA_API_URL};
+
+        let model = "llama3";
+        let result = query_model("What do Llamas eat?", model, DEFAULT_OLLAMA_API_URL)?;
+
+        println!("{}", result);
+        Ok(())
+    }
+}
