@@ -811,13 +811,16 @@ impl Example for EG12 {
 
         // generate test set responses
         let save_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
+        let mut test_data = test_loader.dataset().data().clone();
         generate_test_set_responses(
-            &mut test_loader.dataset().data().clone(),
+            &mut test_data,
             &model,
             cfg.context_length,
             vb.device(),
             save_path,
         )?;
+
+        println!("{}", test_data[0]);
 
         Ok(())
     }
