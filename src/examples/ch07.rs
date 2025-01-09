@@ -79,17 +79,18 @@ impl Example for EG02 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
-            download_and_load_file, format_input, DATA_DIR, INSTRUCTION_DATA_FILENAME,
-            INSTRUCTION_DATA_URL,
+            download_and_load_file, AlpacaPromptFormatter, PromptFormatter, DATA_DIR,
+            INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
         };
         use std::path::Path;
 
         // load instruction examples
         let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
         let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+        let prompt_formatter = AlpacaPromptFormatter;
 
         // first model input
-        let model_input = format_input(&data[50]);
+        let model_input = prompt_formatter.format_input(&data[50]);
         let detailed_response = format!("\n\n### Response:\n{}", data[50].output());
         println!("{}", model_input + &detailed_response);
 
@@ -97,7 +98,7 @@ impl Example for EG02 {
         println!("\n---\n");
 
         // print another model input
-        let model_input = format_input(&data[999]);
+        let model_input = prompt_formatter.format_input(&data[999]);
         let detailed_response = format!("\n\n### Response:\n{}", data[999].output());
         println!("{}", model_input + &detailed_response);
 
@@ -363,9 +364,9 @@ impl EG07 {
         >,
     )> {
         use crate::listings::ch07::{
-            download_and_load_file, partition_data, DataLoader, InstructionDataCollator,
-            InstructionDataLoader, InstructionDataset, DATA_DIR, INSTRUCTION_DATA_FILENAME,
-            INSTRUCTION_DATA_URL,
+            download_and_load_file, partition_data, AlpacaPromptFormatter, DataLoader,
+            InstructionDataCollator, InstructionDataLoader, InstructionDataset, DATA_DIR,
+            INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
         };
         use candle_core::Device;
         use std::path::Path;
@@ -379,9 +380,10 @@ impl EG07 {
 
         // partition data and create train, val, test datasets
         let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
-        let train_dataset = InstructionDataset::new(train_data, &tokenizer);
-        let val_dataset = InstructionDataset::new(val_data, &tokenizer);
-        let test_dataset = InstructionDataset::new(test_data, &tokenizer);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let train_dataset = InstructionDataset::new(train_data, &tokenizer, &prompt_formatter);
+        let val_dataset = InstructionDataset::new(val_data, &tokenizer, &prompt_formatter);
+        let test_dataset = InstructionDataset::new(test_data, &tokenizer, &prompt_formatter);
 
         // create loaders
         let batch_size = 8_usize;
@@ -456,8 +458,9 @@ impl Example for EG08 {
             ch04::Config,
             ch05::{generate, text_to_token_ids, token_ids_to_text},
             ch07::{
-                download_and_load_file, download_and_load_gpt2, format_input, partition_data,
-                DATA_DIR, INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
+                download_and_load_file, download_and_load_gpt2, partition_data,
+                AlpacaPromptFormatter, PromptFormatter, DATA_DIR, INSTRUCTION_DATA_FILENAME,
+                INSTRUCTION_DATA_URL,
             },
         };
         use candle_core::{DType, Device, Tensor};
@@ -480,7 +483,8 @@ impl Example for EG08 {
         let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
 
         // input instructions
-        let input_text = format_input(&val_data[0]);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let input_text = prompt_formatter.format_input(&val_data[0]);
         println!("{}", input_text);
 
         // run inference
@@ -566,7 +570,7 @@ impl Example for EG09 {
     }
 }
 
-/// # Example usage of `train_classifier_simple` and `plot_values` functions
+/// # Example usage of `train_model_simple` and `plot_losses` functions
 ///
 /// NOTE: In the book this material is encapsulated within Listing 7.8. Here,
 /// we choose to make it as an example instead.
@@ -589,7 +593,7 @@ pub struct EG10;
 
 impl Example for EG10 {
     fn description(&self) -> String {
-        "Example usage of `train_classifier_simple` and `plot_values` functions".to_string()
+        "Example usage of `train_model_simple` and `plot_losses` functions".to_string()
     }
 
     fn page_source(&self) -> usize {
@@ -602,7 +606,8 @@ impl Example for EG10 {
             ch04::Config,
             ch05::plot_losses,
             ch07::{
-                download_and_load_gpt2, format_input, train_model_simple, DEFAULT_IGNORE_INDEX,
+                download_and_load_gpt2, train_model_simple, AlpacaPromptFormatter, PromptFormatter,
+                DEFAULT_IGNORE_INDEX,
             },
         };
         use candle_core::{DType, Device};
@@ -635,7 +640,8 @@ impl Example for EG10 {
             },
         )?;
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let start_context = format_input(&val_loader.dataset().data()[0]);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
         let (train_losses, val_losses, tokens_seen) = train_model_simple(
             &model,
             &train_loader,
@@ -707,7 +713,7 @@ impl Example for EG11 {
         use crate::listings::{
             ch04::{Config, GPTModel},
             ch05::{generate, text_to_token_ids, token_ids_to_text},
-            ch07::format_input,
+            ch07::{AlpacaPromptFormatter, PromptFormatter},
         };
         use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
@@ -731,9 +737,10 @@ impl Example for EG11 {
         let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(false)?;
         let tokenizer = get_bpe_from_model("gpt2")?;
         let mut rng = StdRng::seed_from_u64(42_u64);
+        let prompt_formatter = AlpacaPromptFormatter;
 
         for entry in &test_loader.dataset().data()[..3] {
-            let input_text = format_input(entry);
+            let input_text = prompt_formatter.format_input(entry);
             let token_ids = generate(
                 &model,
                 text_to_token_ids(&input_text[..], &tokenizer, vb.device())?,
@@ -788,7 +795,7 @@ impl Example for EG12 {
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::{Config, GPTModel},
-            ch07::{generate_test_set_responses, DATA_DIR},
+            ch07::{generate_test_set_responses, AlpacaPromptFormatter, DATA_DIR},
         };
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
@@ -812,6 +819,7 @@ impl Example for EG12 {
 
         // generate test set responses
         let save_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
+        let prompt_formatter = AlpacaPromptFormatter;
         let mut test_data = test_loader.dataset().data().clone();
         generate_test_set_responses(
             &mut test_data,
@@ -819,6 +827,7 @@ impl Example for EG12 {
             cfg.context_length,
             vb.device(),
             save_path,
+            &prompt_formatter,
         )?;
 
         println!("{}", test_data[0]);
@@ -938,8 +947,8 @@ impl Example for EG15 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
-            format_input, load_instruction_data_from_json, query_model, DATA_DIR,
-            DEFAULT_OLLAMA_API_URL,
+            load_instruction_data_from_json, query_model, AlpacaPromptFormatter, PromptFormatter,
+            DATA_DIR, DEFAULT_OLLAMA_API_URL,
         };
         use std::path::Path;
 
@@ -950,6 +959,7 @@ impl Example for EG15 {
         })?;
 
         let model = "llama3";
+        let prompt_formatter = AlpacaPromptFormatter;
         for (ix, entry) in test_data.iter().enumerate().take(3_usize) {
             let model_response = entry
                 .model_response()
@@ -959,7 +969,7 @@ impl Example for EG15 {
                 "Given the input `{}` and the correct output `{}`, score the \
                 model response `{}` on a scale from 0 to 100, where 100 is the ]
                 best score.",
-                format_input(entry),
+                prompt_formatter.format_input(entry),
                 entry.output(),
                 model_response
             );
@@ -1008,8 +1018,8 @@ impl Example for EG16 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
-            generate_model_scores, load_instruction_data_from_json, DATA_DIR,
-            DEFAULT_OLLAMA_API_URL,
+            generate_model_scores, load_instruction_data_from_json, AlpacaPromptFormatter,
+            DATA_DIR, DEFAULT_OLLAMA_API_URL,
         };
         use std::path::Path;
 
@@ -1021,7 +1031,9 @@ impl Example for EG16 {
 
         // invoke generate_model_scores
         let model = "llama3";
-        let scores = generate_model_scores(&test_data, DEFAULT_OLLAMA_API_URL, model)?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let scores =
+            generate_model_scores(&test_data, DEFAULT_OLLAMA_API_URL, model, &prompt_formatter)?;
 
         // print stats
         println!("Number of scores: {} of {}", scores.len(), test_data.len());
