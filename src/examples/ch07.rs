@@ -1,6 +1,6 @@
 //! Examples from Chapter 7
 
-use crate::{listings::ch07::format_input, Example};
+use crate::Example;
 use anyhow::{anyhow, Context, Result};
 
 /// # Example usage of `download_and_load_file`
@@ -707,6 +707,7 @@ impl Example for EG11 {
         use crate::listings::{
             ch04::{Config, GPTModel},
             ch05::{generate, text_to_token_ids, token_ids_to_text},
+            ch07::format_input,
         };
         use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
@@ -973,6 +974,59 @@ impl Example for EG15 {
                 query_model(prompt.as_str(), model, DEFAULT_OLLAMA_API_URL)?
             );
         }
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `generate_model_scores`
+///
+/// #### Id
+/// 07.16
+///
+/// #### Page
+/// This example starts on page 246
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.16
+///
+/// # with cuda
+/// cargo run --features cuda example 07.16
+/// ```
+pub struct EG16;
+
+impl Example for EG16 {
+    fn description(&self) -> String {
+        "Example usage of `generate_model_scores`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        246_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch07::{
+            generate_model_scores, load_instruction_data_from_json, DATA_DIR,
+            DEFAULT_OLLAMA_API_URL,
+        };
+        use std::path::Path;
+
+        // load test instruction data with response
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
+        let test_data = load_instruction_data_from_json(file_path).with_context(|| {
+            "Missing 'instruction_data_with_response.json' file. Please run EG 07.12."
+        })?;
+
+        // invoke generate_model_scores
+        let model = "llama3";
+        let scores = generate_model_scores(&test_data, DEFAULT_OLLAMA_API_URL, model)?;
+
+        // print stats
+        println!("Number of scores: {} of {}", scores.len(), test_data.len());
+        let average_score = scores.iter().sum::<f32>() / scores.len() as f32;
+        println!("Average score: {}", average_score);
 
         Ok(())
     }
