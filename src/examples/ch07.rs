@@ -660,7 +660,7 @@ impl Example for EG10 {
         varmap.save("ift.checkpoint.safetensors")?;
 
         // plot loss curves
-        println!("Saving weights to `./plot_ift_loss.html`");
+        println!("Saving plot to `./plot_ift_loss.html`");
         let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
         let tokens_seen = tokens_seen
             .into_iter()
