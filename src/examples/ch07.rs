@@ -348,7 +348,6 @@ impl Example for EG06 {
 pub struct EG07;
 
 impl EG07 {
-    #[allow(unused_variables)]
     pub fn main_with_return(
         &self,
         verbose: bool,

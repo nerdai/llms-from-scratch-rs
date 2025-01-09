@@ -827,7 +827,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_format_input_with_some_input(
+    fn test_alpaca_formatter_with_no_input(
         mut instruction_example: InstructionResponseExample,
     ) -> Result<()> {
         instruction_example.input = None; // set input to None
@@ -844,7 +844,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_format_input_with_no_input(
+    fn test_alpaca_formatter_with_some_input(
         instruction_example: InstructionResponseExample,
     ) -> Result<()> {
         let prompt_formatter = AlpacaPromptFormatter;
@@ -1024,6 +1024,40 @@ mod tests {
         let reloaded_data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
 
         assert_eq!(instruction_data, reloaded_data);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_phi3_formatter_with_no_input(
+        mut instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        instruction_example.input = None; // set input to None
+        let prompt_formatter = Phi3PromptFormatter;
+        let prompt = prompt_formatter.format_input(&instruction_example);
+        let expected_output = "<|user|>\n\
+        Here is a fake instruction.\n\n\
+        <|assistant|>\n\
+        here is a fake output.";
+
+        println!("{}", prompt);
+
+        assert_eq!(prompt, expected_output);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_phi3_formatter_with_some_input(
+        instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        let prompt_formatter = Phi3PromptFormatter;
+        let prompt = prompt_formatter.format_input(&instruction_example);
+        let expected_output = "<|user|>\n\
+        Here is a fake instruction.\n\
+        Here is a fake input.\n\n\
+        <|assistant|>\n\
+        here is a fake output.";
+
+        assert_eq!(prompt, expected_output);
         Ok(())
     }
 }
