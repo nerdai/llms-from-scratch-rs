@@ -1020,7 +1020,12 @@ impl Example for EG16 {
 
         // invoke generate_model_scores
         let model = "llama3";
-        let _scores = generate_model_scores(&test_data, DEFAULT_OLLAMA_API_URL, model)?;
+        let scores = generate_model_scores(&test_data, DEFAULT_OLLAMA_API_URL, model)?;
+
+        // print stats
+        println!("Number of scores: {} of {}", scores.len(), test_data.len());
+        let average_score = scores.iter().sum::<f32>() / scores.len() as f32;
+        println!("Average score: {}", average_score);
 
         Ok(())
     }
