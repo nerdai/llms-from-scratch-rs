@@ -31,6 +31,8 @@ static EXERCISE_REGISTRY: LazyLock<HashMap<&'static str, Box<dyn Exercise>>> =
         m.insert("6.1", Box::new(exercises::ch06::X1));
         m.insert("6.2", Box::new(exercises::ch06::X2));
         m.insert("6.3", Box::new(exercises::ch06::X3));
+        // ch07
+        m.insert("7.1", Box::new(exercises::ch07::X1));
         m
     });
 

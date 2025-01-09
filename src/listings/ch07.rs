@@ -99,19 +99,49 @@ pub fn download_and_load_file<P: AsRef<Path>>(
     Ok(data)
 }
 
-/// [Listing 7.2] Implementing the prompt formatting function
-pub fn format_input(entry: &InstructionResponseExample) -> String {
-    let instruction_text = format!(
-        "Below is an instruction that describes a task. Write a response that \
-        appropriately completes the request.\n\n### Instruction:\n{}",
-        entry.instruction
-    );
-    let input_text = if let Some(inp) = &entry.input {
-        format!("\n\n### Input:\n{}", inp)
-    } else {
-        String::default()
-    };
-    instruction_text + &input_text
+/// Prompt trait introduced for Excercise 7.1 to extend `format_input` to other prompt styles
+pub trait PromptFormatter {
+    fn format_input(&self, entry: &InstructionResponseExample) -> String;
+}
+
+/// Alpaca prompt formatter type
+pub struct AlpacaPromptFormatter;
+
+impl PromptFormatter for AlpacaPromptFormatter {
+    /// [Listing 7.2] Implementing the prompt formatting function
+    fn format_input(&self, entry: &InstructionResponseExample) -> String {
+        let instruction_text = format!(
+            "Below is an instruction that describes a task. Write a response that \
+            appropriately completes the request.\n\n### Instruction:\n{}",
+            entry.instruction
+        );
+        let input_text = if let Some(inp) = &entry.input {
+            format!("\n\n### Input:\n{}", inp)
+        } else {
+            String::default()
+        };
+        instruction_text + &input_text
+    }
+}
+
+pub struct Phi3PromptFormatter;
+
+impl PromptFormatter for Phi3PromptFormatter {
+    fn format_input(&self, entry: &InstructionResponseExample) -> String {
+        match entry.input() {
+            Some(input_str) => format!(
+                "<|user|>\n{}\n{}\n\n<|assistant|>\n{}",
+                entry.instruction(),
+                input_str,
+                entry.output()
+            ),
+            None => format!(
+                "<|user|>\n{}\n\n<|assistant|>\n{}",
+                entry.instruction(),
+                entry.output()
+            ),
+        }
+    }
 }
 
 /// [Listing 7.3] Partitioning the dataset
@@ -167,7 +197,7 @@ impl InstructionDataset {
     ///
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch07::{
-    ///     InstructionDataset, InstructionResponseExample
+    ///     AlpacaPromptFormatter, InstructionDataset, InstructionResponseExample,
     /// };
     /// use tiktoken_rs::get_bpe_from_model;
     ///
@@ -178,12 +208,17 @@ impl InstructionDataset {
     /// );
     /// let data = vec![entry];
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
-    /// let dataset = InstructionDataset::new(data, &tokenizer);
+    /// let prompt_formatter = AlpacaPromptFormatter;
+    /// let dataset = InstructionDataset::new(data, &tokenizer, &prompt_formatter);
     /// ```
-    pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
+    pub fn new<P: PromptFormatter>(
+        data: Vec<InstructionResponseExample>,
+        tokenizer: &CoreBPE,
+        prompt_formatter: &P, // introduced for Exercise 7.1
+    ) -> Self {
         let mut encoded_texts = vec![];
         for entry in data.iter() {
-            let instruction_plus_input = format_input(entry);
+            let instruction_plus_input = prompt_formatter.format_input(entry);
             let response_text = format!("\n\n### Response:\n{}", entry.output());
             let full_text = instruction_plus_input + &response_text;
             let encoded_text = tokenizer.encode_with_special_tokens(&full_text);
@@ -476,8 +511,8 @@ impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
     /// ```rust
     /// use candle_core::Device;
     /// use llms_from_scratch_rs::listings::ch07::{
-    ///     InstructionDataset, InstructionResponseExample, InstructionDataLoader,
-    ///     InstructionDataCollator
+    ///     AlpacaPromptFormatter, InstructionDataCollator, InstructionDataset,
+    ///     InstructionDataLoader, InstructionResponseExample
     /// };
     /// use tiktoken_rs::get_bpe_from_model;
     ///
@@ -488,7 +523,8 @@ impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
     /// );
     /// let data = vec![entry];
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
-    /// let dataset = InstructionDataset::new(data, &tokenizer);
+    /// let prompt_formatter = AlpacaPromptFormatter;
+    /// let dataset = InstructionDataset::new(data, &tokenizer, &prompt_formatter);
     ///
     /// // create InstructionDataLoader
     /// let batch_size = 2_usize;
@@ -592,18 +628,19 @@ pub fn write_instruction_data_to_json<P: AsRef<Path>>(
 }
 
 /// [Listing 7.9] Generating test set responses
-pub fn generate_test_set_responses<P: AsRef<Path>>(
+pub fn generate_test_set_responses<T: AsRef<Path>, P: PromptFormatter>(
     test_data: &mut Vec<InstructionResponseExample>,
     model: &GPTModel,
     context_size: usize,
     device: &Device,
-    save_path: P,
+    save_path: T,
+    prompt_formatter: &P, // introduced for Exercise 7.1
 ) -> anyhow::Result<()> {
     let tokenizer = get_bpe_from_model("gpt2")?;
     let mut rng = StdRng::seed_from_u64(42_u64);
 
     for entry in tqdm(test_data.iter_mut()) {
-        let input_text = format_input(entry);
+        let input_text = prompt_formatter.format_input(entry);
         let token_ids = generate(
             model,
             text_to_token_ids(&input_text[..], &tokenizer, device)?,
@@ -700,10 +737,11 @@ pub fn query_model(prompt: &str, model: &str, url: &str) -> anyhow::Result<Strin
 }
 
 /// [Listing 7.11] Evaluating the instruction fine-tuning LLM
-pub fn generate_model_scores(
+pub fn generate_model_scores<P: PromptFormatter>(
     instruction_data: &[InstructionResponseExample],
     url: &str,
     model: &str,
+    prompt_formatter: &P, // introduced for Exercise 7.1
 ) -> anyhow::Result<Vec<f32>> {
     let mut scores: Vec<f32> = vec![];
 
@@ -712,7 +750,7 @@ pub fn generate_model_scores(
             "Given the input `{}` and the correct output `{}`, score the \
             model response `{}` on a scale from 0 to 100, where 100 is the ]
             best score. Respond with the integer number only.",
-            format_input(entry),
+            prompt_formatter.format_input(entry),
             entry.output(),
             entry
                 .model_response()
@@ -789,11 +827,12 @@ mod tests {
     }
 
     #[rstest]
-    fn test_format_input_with_some_input(
+    fn test_alpaca_formatter_with_no_input(
         mut instruction_example: InstructionResponseExample,
     ) -> Result<()> {
         instruction_example.input = None; // set input to None
-        let prompt = format_input(&instruction_example);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let prompt = prompt_formatter.format_input(&instruction_example);
         let expected_output = format!(
             "Below is an instruction that describes a task. Write a response that \
             appropriately completes the request.\n\n### Instruction:\n{}",
@@ -805,10 +844,11 @@ mod tests {
     }
 
     #[rstest]
-    fn test_format_input_with_no_input(
+    fn test_alpaca_formatter_with_some_input(
         instruction_example: InstructionResponseExample,
     ) -> Result<()> {
-        let prompt = format_input(&instruction_example);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let prompt = prompt_formatter.format_input(&instruction_example);
         let expected_output = format!(
             "Below is an instruction that describes a task. Write a response that \
             appropriately completes the request.\n\n### Instruction:\n{}\
@@ -846,10 +886,12 @@ mod tests {
         instruction_example: InstructionResponseExample,
     ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let instruction_dataset =
+            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
 
         // test encoded
-        let prompt = format_input(&instruction_example);
+        let prompt = prompt_formatter.format_input(&instruction_example);
         let response_text = format!("\n\n### Response:\n{}", instruction_example.output());
         let full_text = prompt + &response_text;
         let encoded = tokenizer.encode_with_special_tokens(&full_text);
@@ -864,8 +906,10 @@ mod tests {
     pub fn test_instruction_dataset_iter(
         instruction_data: Vec<InstructionResponseExample>,
     ) -> Result<()> {
+        let prompt_formatter = AlpacaPromptFormatter;
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let instruction_dataset =
+            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
         let mut iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
         let mut count = 0_usize;
 
@@ -909,7 +953,9 @@ mod tests {
         instruction_data: Vec<InstructionResponseExample>,
     ) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let instruction_dataset =
+            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
         let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
         let batch_size = 2_usize;
         let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -931,7 +977,9 @@ mod tests {
     #[rstest]
     fn test_instruct_data_loader(instruction_data: Vec<InstructionResponseExample>) -> Result<()> {
         let tokenizer = get_bpe_from_model("gpt2")?;
-        let instruction_dataset = InstructionDataset::new(instruction_data, &tokenizer);
+        let prompt_formatter = AlpacaPromptFormatter;
+        let instruction_dataset =
+            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
         let batch_size = 2_usize;
         let allowed_max_length = 10_usize;
         let collator = InstructionDataCollator::new()
@@ -976,6 +1024,40 @@ mod tests {
         let reloaded_data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
 
         assert_eq!(instruction_data, reloaded_data);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_phi3_formatter_with_no_input(
+        mut instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        instruction_example.input = None; // set input to None
+        let prompt_formatter = Phi3PromptFormatter;
+        let prompt = prompt_formatter.format_input(&instruction_example);
+        let expected_output = "<|user|>\n\
+        Here is a fake instruction.\n\n\
+        <|assistant|>\n\
+        here is a fake output.";
+
+        println!("{}", prompt);
+
+        assert_eq!(prompt, expected_output);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_phi3_formatter_with_some_input(
+        instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        let prompt_formatter = Phi3PromptFormatter;
+        let prompt = prompt_formatter.format_input(&instruction_example);
+        let expected_output = "<|user|>\n\
+        Here is a fake instruction.\n\
+        Here is a fake input.\n\n\
+        <|assistant|>\n\
+        here is a fake output.";
+
+        assert_eq!(prompt, expected_output);
         Ok(())
     }
 }
