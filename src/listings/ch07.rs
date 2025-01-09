@@ -99,6 +99,30 @@ pub fn download_and_load_file<P: AsRef<Path>>(
     Ok(data)
 }
 
+/// Prompt trait introduced for Excercise 7.1 to extend `format_input` to other prompt styles
+pub trait PromptFormatter {
+    fn format_input(entry: &InstructionResponseExample) -> String;
+}
+
+pub struct AlpacaPromptFormatter;
+
+impl PromptFormatter for AlpacaPromptFormatter {
+    /// [Listing 7.2] Implementing the prompt formatting function
+    fn format_input(entry: &InstructionResponseExample) -> String {
+        let instruction_text = format!(
+            "Below is an instruction that describes a task. Write a response that \
+            appropriately completes the request.\n\n### Instruction:\n{}",
+            entry.instruction
+        );
+        let input_text = if let Some(inp) = &entry.input {
+            format!("\n\n### Input:\n{}", inp)
+        } else {
+            String::default()
+        };
+        instruction_text + &input_text
+    }
+}
+
 /// [Listing 7.2] Implementing the prompt formatting function
 pub fn format_input(entry: &InstructionResponseExample) -> String {
     let instruction_text = format!(
@@ -180,10 +204,14 @@ impl InstructionDataset {
     /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
     /// let dataset = InstructionDataset::new(data, &tokenizer);
     /// ```
-    pub fn new(data: Vec<InstructionResponseExample>, tokenizer: &CoreBPE) -> Self {
+    pub fn new<P: PromptFormatter>(
+        data: Vec<InstructionResponseExample>,
+        tokenizer: &CoreBPE,
+        prompt_formatter: P,
+    ) -> Self {
         let mut encoded_texts = vec![];
         for entry in data.iter() {
-            let instruction_plus_input = format_input(entry);
+            let instruction_plus_input = prompt_formatter.format_input(entry);
             let response_text = format!("\n\n### Response:\n{}", entry.output());
             let full_text = instruction_plus_input + &response_text;
             let encoded_text = tokenizer.encode_with_special_tokens(&full_text);
