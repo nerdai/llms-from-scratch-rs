@@ -104,6 +104,7 @@ pub trait PromptFormatter {
     fn format_input(&self, entry: &InstructionResponseExample) -> String;
 }
 
+/// Alpaca prompt formatter type
 pub struct AlpacaPromptFormatter;
 
 impl PromptFormatter for AlpacaPromptFormatter {
