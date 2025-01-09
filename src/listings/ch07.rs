@@ -123,6 +123,26 @@ impl PromptFormatter for AlpacaPromptFormatter {
     }
 }
 
+pub struct Phi3PromptFormatter;
+
+impl PromptFormatter for Phi3PromptFormatter {
+    fn format_input(&self, entry: &InstructionResponseExample) -> String {
+        match entry.input() {
+            Some(input_str) => format!(
+                "<|user|>\n{}\n{}\n\n<|assistant|>\n{}",
+                entry.instruction(),
+                input_str,
+                entry.output()
+            ),
+            None => format!(
+                "<|user|>\n{}\n\n<|assistant|>\n{}",
+                entry.instruction(),
+                entry.output()
+            ),
+        }
+    }
+}
+
 /// [Listing 7.3] Partitioning the dataset
 #[allow(unused_variables)]
 pub fn partition_data(
