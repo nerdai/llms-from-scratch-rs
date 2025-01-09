@@ -1,6 +1,6 @@
 //! Examples from Chapter 7
 
-use crate::{listings::ch07::format_input, Example};
+use crate::Example;
 use anyhow::{anyhow, Context, Result};
 
 /// # Example usage of `download_and_load_file`
@@ -707,6 +707,7 @@ impl Example for EG11 {
         use crate::listings::{
             ch04::{Config, GPTModel},
             ch05::{generate, text_to_token_ids, token_ids_to_text},
+            ch07::format_input,
         };
         use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
