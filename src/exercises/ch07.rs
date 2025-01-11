@@ -192,21 +192,15 @@ impl X2 {
         &self,
         verbose: bool,
     ) -> Result<(
-        crate::listings::ch07::InstructionDataLoader<
-            crate::listings::ch07::InstructionDataCollator,
-        >,
-        crate::listings::ch07::InstructionDataLoader<
-            crate::listings::ch07::InstructionDataCollator,
-        >,
-        crate::listings::ch07::InstructionDataLoader<
-            crate::listings::ch07::InstructionDataCollator,
-        >,
+        addons::InstructionDataLoader<addons::MaskedInstructionCollator>,
+        addons::InstructionDataLoader<addons::MaskedInstructionCollator>,
+        addons::InstructionDataLoader<addons::MaskedInstructionCollator>,
     )> {
         use crate::listings::ch07::{
-            download_and_load_file, partition_data, DataLoader, InstructionDataCollator,
-            InstructionDataLoader, InstructionDataset, Phi3PromptFormatter, DATA_DIR,
+            download_and_load_file, partition_data, DataLoader, Phi3PromptFormatter, DATA_DIR,
             INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
         };
+        use addons::{InstructionDataLoader, InstructionDataset, MaskedInstructionCollator};
         use candle_core::Device;
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
@@ -226,7 +220,7 @@ impl X2 {
 
         // create loaders
         let batch_size = 5_usize;
-        let collator = InstructionDataCollator::new()
+        let collator = MaskedInstructionCollator::new()
             .device(Device::cuda_if_available(0)?)
             .allowed_max_length(Some(1024_usize));
         let train_loader =
