@@ -213,7 +213,7 @@ impl Exercise for X3 {
 }
 
 pub mod addons {
-    //! Auxiliary module for exercises::ch05
+    //! Auxiliary module for exercises::ch04
     use crate::{
         candle_addons::seqt,
         listings::{
