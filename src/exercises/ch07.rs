@@ -369,14 +369,16 @@ pub mod addons {
             let mut inputs_lst: Vec<Vec<u32>> = vec![];
             let mut targets_lst: Vec<Vec<i64>> = vec![];
 
-            for (item, _) in batch.into_iter() {
-                let mut input = item.to_vec1::<u32>()?;
-                let mut target = item
+            for (encoded, instruction_length_tensor) in batch.into_iter() {
+                let mut input = encoded.to_vec1::<u32>()?;
+                let mut target = encoded
                     .to_vec1::<u32>()?
                     .into_iter()
                     .map(|el| el as i64)
                     .collect::<Vec<_>>()[1..]
                     .to_vec();
+                let instruction_length =
+                    instruction_length_tensor.squeeze(0)?.to_scalar::<u32>()? as usize;
 
                 // padding and ignore index
                 target.push(self.pad_token_id as i64);
@@ -393,6 +395,12 @@ pub mod addons {
                     .take(num_pad)
                     .collect::<Vec<i64>>();
                 target.extend(ignore_index_target);
+
+                // mask instructions and inputs
+                let masked_instruction_inputs = std::iter::repeat(self.ignore_index)
+                    .take(instruction_length)
+                    .collect::<Vec<i64>>();
+                target.splice(..instruction_length, masked_instruction_inputs);
 
                 if let Some(a) = self.allowed_max_length {
                     input = input[..std::cmp::min(a, batch_max_length)].to_vec();
@@ -424,6 +432,47 @@ pub mod addons {
 
         fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)> {
             self.custom_collate_fn(batch)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use anyhow::Result;
+        use rstest::*;
+
+        #[rstest]
+        pub fn test_instruction_collator() -> Result<()> {
+            // arrange
+            let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
+            let device = Device::cuda_if_available(0)?;
+            let inputs_1 = Tensor::new(&[1_u32, 2, 3, 4, 5], &device)?;
+            let instruction_len_1 = Tensor::new(&[3_u32], &device)?;
+            let inputs_2 = Tensor::new(&[8_u32, 9, 10, 11, 12, 13, 14], &device)?;
+            let instruction_len_2 = Tensor::new(&[2_u32], &device)?;
+            let batch = vec![(inputs_1, instruction_len_1), (inputs_2, instruction_len_2)];
+
+            // act
+            let (inputs, targets) = collator.collate(batch)?;
+
+            // assert
+            assert_eq!(inputs.dims(), targets.dims());
+            assert_eq!(
+                inputs.to_vec2::<u32>()?,
+                &[
+                    [1_u32, 2, 3, 4, 5, 50256, 50256],
+                    [8_u32, 9, 10, 11, 12, 13, 14]
+                ],
+            );
+            assert_eq!(
+                targets.to_vec2::<i64>()?,
+                &[
+                    [-100_i64, -100, -100, 5, 50256, -100, -100],
+                    [-100_i64, -100, 11, 12, 13, 14, 50256]
+                ]
+            );
+
+            Ok(())
         }
     }
 }

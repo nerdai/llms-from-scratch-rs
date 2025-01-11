@@ -1103,8 +1103,6 @@ mod tests {
         <|assistant|>\n\
         here is a fake output.";
 
-        println!("{}", prompt);
-
         assert_eq!(prompt, expected_output);
         Ok(())
     }
