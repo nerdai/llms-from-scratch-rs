@@ -171,3 +171,40 @@ impl Exercise for X1 {
         Ok(())
     }
 }
+
+/// # Instruction and input masking
+///
+/// #### Id
+/// 7.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 7.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 7.2
+/// ```
+pub struct X2;
+
+impl Exercise for X2 {
+    fn name(&self) -> String {
+        "7.2".to_string()
+    }
+
+    fn title(&self) -> String {
+        "Instruction and input masking.".to_string()
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "After completing the chapter and fine-tuning the model with \
+        `InstructionDataset`, replace the instruction and input tokens with the \
+        -100 mask to use the instruction masking method illustrated in figure \
+        7.13. Then evaluate whether this has a positive effect on model performance.";
+        stmt.to_string()
+    }
+
+    fn main(&self) -> Result<()> {
+        Ok(())
+    }
+}
