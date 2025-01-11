@@ -328,12 +328,34 @@ pub trait CustomCollator {
     fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)>;
 }
 
-impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>>
-    InstructionDataBatcher<C, IterResult1<I>>
+impl<C, I> InstructionDataBatcher<C, IterResult1<I>>
+where
+    C: CustomCollator<BatchItem = Tensor>,
+    I: Iterator<Item = Result<Tensor>>,
 {
     pub fn new(inner: I, collator: C) -> Self {
+        Self::new_r1(inner, collator)
+    }
+
+    pub fn new_r1(inner: I, collator: C) -> Self {
         Self {
             inner: IterResult1 { inner },
+            collator,
+            batch_size: 16,
+            return_last_incomplete_batch: false,
+        }
+    }
+}
+
+// needed for Exercise 7.2
+impl<C, I> InstructionDataBatcher<C, IterResult2<I>>
+where
+    C: CustomCollator<BatchItem = (Tensor, Tensor)>,
+    I: Iterator<Item = Result<(Tensor, Tensor)>>,
+{
+    pub fn new_r2(inner: I, collator: C) -> Self {
+        Self {
+            inner: IterResult2 { inner },
             collator,
             batch_size: 16,
             return_last_incomplete_batch: false,
@@ -387,6 +409,7 @@ where
     }
 }
 
+// needed for Exercise 7.2
 impl<C, I> Iterator for InstructionDataBatcher<C, IterResult2<I>>
 where
     C: CustomCollator<BatchItem = (Tensor, Tensor)>,
@@ -394,9 +417,6 @@ where
 {
     type Item = Result<(Tensor, Tensor)>;
 
-    // This closely mirrors logic used in candle_datasets::batcher.
-    // However here, the inner iterator has associated item Result<Tensor>
-    // and the outer iterator has associated item Result<(Tensor, Tensor)>
     fn next(&mut self) -> Option<Self::Item> {
         let mut items = Vec::with_capacity(self.batch_size);
         let mut errs = vec![];
