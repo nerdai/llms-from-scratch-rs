@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),  
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## Unreleased
+
+### Added
+
+- ...
+
+## [0.1.1] - 2025-01-11
 
 ### Added
 
@@ -14,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Make `listings::ch07::InstructionDataBatcher` more generic (#248)
 - Add associated type to `listings::ch07::CustomCollator` (#248)
+
+### Fixed
+
+- Incorrect cast of `keep` indices to `u8` in `calc_loss_loader` (#250)
+- Missing `ignore_index` in `calc_loss_loader` fn params (#250)
 
 ## [0.1.0] - 2025-01-09
 
