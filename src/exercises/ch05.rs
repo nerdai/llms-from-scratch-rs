@@ -373,8 +373,8 @@ impl Exercise for X5 {
         let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false)?;
 
         // compute train and val loss
-        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), None)?;
-        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), None)?;
+        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), None, None)?;
+        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), None, None)?;
 
         println!("Training loss {:?}", train_loss);
         println!("Validation loss {:?}", val_loss);

@@ -1,6 +1,6 @@
 //! Examples from Chapter 7
 
-use crate::Example;
+use crate::{listings::ch05::DEFAULT_IGNORE_INDEX, Example};
 use anyhow::{anyhow, Context, Result};
 
 /// # Example usage of `download_and_load_file`
@@ -546,21 +546,33 @@ impl Example for EG09 {
         use candle_nn::{VarBuilder, VarMap};
 
         // use `download_and_load_gpt2` for gpt2-medium
-        let mut cfg = Config::gpt2_medium();
+        let mut cfg = Config::gpt2_124m();
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let model_id = "openai-community/gpt2-medium";
+        let model_id = "openai-community/gpt2";
         let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
 
         // re-use eg 07.07
         let eg07 = EG07;
         let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
 
-        // compute losses
+        // // compute losses
         let num_batches = Some(5_usize);
-        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches)?;
+        let train_loss = calc_loss_loader(
+            &train_loader,
+            &model,
+            vb.device(),
+            num_batches,
+            Some(DEFAULT_IGNORE_INDEX),
+        )?;
+        let val_loss = calc_loss_loader(
+            &val_loader,
+            &model,
+            vb.device(),
+            num_batches,
+            Some(DEFAULT_IGNORE_INDEX),
+        )?;
 
         println!("Training loss: {}", train_loss);
         println!("Validation loss: {}", val_loss);
