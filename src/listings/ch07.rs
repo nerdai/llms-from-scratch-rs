@@ -306,7 +306,9 @@ pub struct InstructionDataBatcher<C: CustomCollator, I> {
 
 /// A trait for collating a Vector of Tensor's into a batch
 pub trait CustomCollator {
-    fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)>;
+    type BatchItem;
+
+    fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)>;
 }
 
 impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>>
@@ -339,7 +341,7 @@ impl<C: CustomCollator, I> InstructionDataBatcher<C, I> {
     }
 }
 
-impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>> Iterator
+impl<C: CustomCollator<BatchItem = Tensor>, I: Iterator<Item = Result<Tensor>>> Iterator
     for InstructionDataBatcher<C, IterResult1<I>>
 {
     type Item = Result<(Tensor, Tensor)>;
@@ -483,6 +485,8 @@ impl InstructionDataCollator {
 }
 
 impl CustomCollator for InstructionDataCollator {
+    type BatchItem = Tensor;
+
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         self.custom_collate_fn(batch)
     }
@@ -510,7 +514,7 @@ impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
     }
 }
 
-impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
+impl<C: CustomCollator<BatchItem = Tensor> + Clone> InstructionDataLoader<C> {
     /// Creates a new `InstructionDataLoader`.
     ///
     /// ```rust
