@@ -189,7 +189,10 @@ pub struct X2;
 
 pub mod addons {
     //! Auxiliary module for exercises::ch07
-    use crate::listings::ch07::{InstructionResponseExample, PromptFormatter};
+    use crate::listings::ch07::{
+        CustomCollator, InstructionResponseExample, PromptFormatter, DEFAULT_IGNORE_INDEX,
+        DEFAULT_PAD_TOKEN_ID,
+    };
     use candle_core::{Device, Result, Tensor};
     use rand::{seq::SliceRandom, thread_rng};
     use std::rc::Rc;
@@ -304,6 +307,125 @@ pub mod addons {
             } else {
                 None
             }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct InstructionDataCollator {
+        pad_token_id: u32,
+        ignore_index: i64,
+        allowed_max_length: Option<usize>,
+        device: Device,
+    }
+
+    impl Default for InstructionDataCollator {
+        fn default() -> Self {
+            Self {
+                pad_token_id: DEFAULT_PAD_TOKEN_ID,
+                ignore_index: DEFAULT_IGNORE_INDEX,
+                allowed_max_length: None,
+                device: Device::Cpu,
+            }
+        }
+    }
+
+    impl InstructionDataCollator {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn pad_token_id(mut self, pad_token_id: u32) -> Self {
+            self.pad_token_id = pad_token_id;
+            self
+        }
+
+        pub fn ignore_index(mut self, ignore_index: i64) -> Self {
+            self.ignore_index = ignore_index;
+            self
+        }
+
+        pub fn allowed_max_length(mut self, allowed_max_length: Option<usize>) -> Self {
+            self.allowed_max_length = allowed_max_length;
+            self
+        }
+
+        pub fn device(mut self, device: Device) -> Self {
+            self.device = device;
+            self
+        }
+
+        /// [Listing 7.5] Implementing a custom batch collate function
+        ///
+        /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
+        pub fn custom_collate_fn(&self, batch: Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor)> {
+            // modify batch
+            let batch_max_length = batch
+                .iter()
+                .map(|(el, _)| el.elem_count())
+                .collect::<Vec<_>>()
+                .into_iter()
+                .max()
+                .ok_or_else(|| {
+                    candle_core::Error::Msg("Unable to get max length for batch.".to_string())
+                })?;
+            let mut inputs_lst: Vec<Vec<u32>> = vec![];
+            let mut targets_lst: Vec<Vec<i64>> = vec![];
+
+            for (item, _) in batch.into_iter() {
+                let mut input = item.to_vec1::<u32>()?;
+                let mut target = item
+                    .to_vec1::<u32>()?
+                    .into_iter()
+                    .map(|el| el as i64)
+                    .collect::<Vec<_>>()[1..]
+                    .to_vec();
+
+                // padding and ignore index
+                target.push(self.pad_token_id as i64);
+                let num_pad =
+                    std::cmp::max(0isize, batch_max_length as isize - input.len() as isize)
+                        as usize;
+                if num_pad > 0 {
+                    let padding_input = std::iter::repeat(self.pad_token_id)
+                        .take(num_pad)
+                        .collect::<Vec<u32>>();
+                    input.extend(padding_input);
+                }
+                let ignore_index_target = std::iter::repeat(self.ignore_index)
+                    .take(num_pad)
+                    .collect::<Vec<i64>>();
+                target.extend(ignore_index_target);
+
+                if let Some(a) = self.allowed_max_length {
+                    input = input[..std::cmp::min(a, batch_max_length)].to_vec();
+                    target = target[..std::cmp::min(a, batch_max_length)].to_vec();
+                }
+
+                inputs_lst.push(input);
+                targets_lst.push(target);
+            }
+
+            let inputs_shape = (inputs_lst.len(), inputs_lst[0].len());
+            let inputs_tensor = Tensor::from_vec(
+                inputs_lst.into_iter().flatten().collect(),
+                inputs_shape,
+                &self.device,
+            );
+            let targets_shape = (targets_lst.len(), targets_lst[0].len());
+            let targets_tensor = Tensor::from_vec(
+                targets_lst.into_iter().flatten().collect(),
+                targets_shape,
+                &self.device,
+            );
+            candle_core::error::zip(inputs_tensor, targets_tensor)
+        }
+    }
+
+    impl CustomCollator for InstructionDataCollator {
+        type BatchItem = (Tensor, Tensor);
+
+        fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)> {
+            self.custom_collate_fn(batch)
         }
     }
 }
