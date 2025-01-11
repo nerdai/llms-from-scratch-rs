@@ -165,7 +165,6 @@ pub fn partition_data(
     Ok((train_data.to_vec(), val_data.to_vec(), test_data.to_vec()))
 }
 
-#[allow(dead_code)]
 pub struct InstructionDataset_ {
     data: Vec<InstructionResponseExample>,
     encoded_texts: Vec<Vec<u32>>,
@@ -292,14 +291,18 @@ pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
     inner: I,
 }
 
+pub struct IterResult2<I: Iterator<Item = Result<(Tensor, Tensor)>>> {
+    inner: I,
+}
+
 /// The `InstructionDataBatcher` for batching instruction examples
 ///
 /// NOTE: Had to implement own version of candle_datasets::Batcher since we
 /// needed to work with `Vec<Tensor>` in collate function. The former utilizes
 /// `Tensor::cat()` which requires all Tensor's to have same rank, but we only
 /// get this after collation is performed.
-pub struct InstructionDataBatcher<C: CustomCollator> {
-    inner: IterResult1<InstructionDatasetIter>,
+pub struct InstructionDataBatcher<C: CustomCollator, I> {
+    inner: I,
     batch_size: usize,
     return_last_incomplete_batch: bool,
     collator: C,
@@ -307,11 +310,21 @@ pub struct InstructionDataBatcher<C: CustomCollator> {
 
 /// A trait for collating a Vector of Tensor's into a batch
 pub trait CustomCollator {
-    fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)>;
+    type BatchItem;
+
+    fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)>;
 }
 
-impl<C: CustomCollator> InstructionDataBatcher<C> {
-    pub fn new(inner: InstructionDatasetIter, collator: C) -> Self {
+impl<C, I> InstructionDataBatcher<C, IterResult1<I>>
+where
+    C: CustomCollator<BatchItem = Tensor>,
+    I: Iterator<Item = Result<Tensor>>,
+{
+    pub fn new(inner: I, collator: C) -> Self {
+        Self::new_r1(inner, collator)
+    }
+
+    pub fn new_r1(inner: I, collator: C) -> Self {
         Self {
             inner: IterResult1 { inner },
             collator,
@@ -319,7 +332,25 @@ impl<C: CustomCollator> InstructionDataBatcher<C> {
             return_last_incomplete_batch: false,
         }
     }
+}
 
+// needed for Exercise 7.2
+impl<C, I> InstructionDataBatcher<C, IterResult2<I>>
+where
+    C: CustomCollator<BatchItem = (Tensor, Tensor)>,
+    I: Iterator<Item = Result<(Tensor, Tensor)>>,
+{
+    pub fn new_r2(inner: I, collator: C) -> Self {
+        Self {
+            inner: IterResult2 { inner },
+            collator,
+            batch_size: 16,
+            return_last_incomplete_batch: false,
+        }
+    }
+}
+
+impl<C: CustomCollator, I> InstructionDataBatcher<C, I> {
     pub fn batch_size(mut self, batch_size: usize) -> Self {
         self.batch_size = batch_size;
         self
@@ -336,7 +367,11 @@ impl<C: CustomCollator> InstructionDataBatcher<C> {
     }
 }
 
-impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
+impl<C, I> Iterator for InstructionDataBatcher<C, IterResult1<I>>
+where
+    C: CustomCollator<BatchItem = Tensor>,
+    I: Iterator<Item = Result<Tensor>>,
+{
     type Item = Result<(Tensor, Tensor)>;
 
     // This closely mirrors logic used in candle_datasets::batcher.
@@ -361,8 +396,35 @@ impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
     }
 }
 
+// needed for Exercise 7.2
+impl<C, I> Iterator for InstructionDataBatcher<C, IterResult2<I>>
+where
+    C: CustomCollator<BatchItem = (Tensor, Tensor)>,
+    I: Iterator<Item = Result<(Tensor, Tensor)>>,
+{
+    type Item = Result<(Tensor, Tensor)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut items = Vec::with_capacity(self.batch_size);
+        let mut errs = vec![];
+        for _i in 0..self.batch_size {
+            match self.inner.inner.next() {
+                Some(Ok(item)) => items.push(item),
+                Some(Err(err)) => errs.push(err),
+                None => {
+                    if self.return_last_incomplete_batch {
+                        break;
+                    }
+                    return None;
+                }
+            }
+        }
+        Some(self.collator.collate(items))
+    }
+}
+
 pub use crate::listings::ch05::DEFAULT_IGNORE_INDEX;
-const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
+pub const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 
 /// A type for specifying how to collate batches of instruct entries
 ///
@@ -478,13 +540,15 @@ impl InstructionDataCollator {
 }
 
 impl CustomCollator for InstructionDataCollator {
+    type BatchItem = Tensor;
+
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         self.custom_collate_fn(batch)
     }
 }
 
 /// [Listing 7.6] Initializing the data loaders (`InstructionDataLoader`)
-pub struct InstructionDataLoader<C: CustomCollator> {
+pub struct InstructionDataLoader<C: CustomCollator<BatchItem = Tensor>> {
     dataset: InstructionDataset,
     batch_size: usize,
     shuffle: bool,
@@ -492,12 +556,12 @@ pub struct InstructionDataLoader<C: CustomCollator> {
     collator: C,
 }
 
-impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
-    type Batcher = InstructionDataBatcher<C>;
+impl<C: CustomCollator<BatchItem = Tensor> + Clone> DataLoader for InstructionDataLoader<C> {
+    type Batcher = InstructionDataBatcher<C, IterResult1<InstructionDatasetIter>>;
 
     /// Returns a `InstructionDataBatcher` that itself provides batches over the
     /// associated dataset.
-    fn batcher(&self) -> InstructionDataBatcher<C> {
+    fn batcher(&self) -> InstructionDataBatcher<C, IterResult1<InstructionDatasetIter>> {
         let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
         InstructionDataBatcher::new(iter, self.collator.clone())
             .batch_size(self.batch_size)
@@ -505,7 +569,7 @@ impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
     }
 }
 
-impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
+impl<C: CustomCollator<BatchItem = Tensor> + Clone> InstructionDataLoader<C> {
     /// Creates a new `InstructionDataLoader`.
     ///
     /// ```rust
@@ -1038,8 +1102,6 @@ mod tests {
         Here is a fake instruction.\n\n\
         <|assistant|>\n\
         here is a fake output.";
-
-        println!("{}", prompt);
 
         assert_eq!(prompt, expected_output);
         Ok(())
