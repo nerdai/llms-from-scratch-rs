@@ -292,6 +292,22 @@ pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
     inner: I,
 }
 
+impl<I: Iterator<Item = Result<Tensor>>> IterResult1<I> {
+    pub fn set_inner(&mut self, inner: I) {
+        self.inner = inner
+    }
+}
+
+pub struct IterResult2<I: Iterator<Item = Result<(Tensor, Tensor)>>> {
+    inner: I,
+}
+
+impl<I: Iterator<Item = Result<(Tensor, Tensor)>>> IterResult2<I> {
+    pub fn set_inner(&mut self, inner: I) {
+        self.inner = inner
+    }
+}
+
 /// The `InstructionDataBatcher` for batching instruction examples
 ///
 /// NOTE: Had to implement own version of candle_datasets::Batcher since we
@@ -307,7 +323,9 @@ pub struct InstructionDataBatcher<C: CustomCollator, I> {
 
 /// A trait for collating a Vector of Tensor's into a batch
 pub trait CustomCollator {
-    fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)>;
+    type BatchItem;
+
+    fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)>;
 }
 
 impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>>
@@ -321,7 +339,9 @@ impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>>
             return_last_incomplete_batch: false,
         }
     }
+}
 
+impl<C: CustomCollator, I> InstructionDataBatcher<C, I> {
     pub fn batch_size(mut self, batch_size: usize) -> Self {
         self.batch_size = batch_size;
         self
@@ -338,8 +358,39 @@ impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>>
     }
 }
 
-impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>> Iterator
-    for InstructionDataBatcher<C, IterResult1<I>>
+impl<C, I> Iterator for InstructionDataBatcher<C, IterResult1<I>>
+where
+    C: CustomCollator<BatchItem = Tensor>,
+    I: Iterator<Item = Result<Tensor>>,
+{
+    type Item = Result<(Tensor, Tensor)>;
+
+    // This closely mirrors logic used in candle_datasets::batcher.
+    // However here, the inner iterator has associated item Result<Tensor>
+    // and the outer iterator has associated item Result<(Tensor, Tensor)>
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut items = Vec::with_capacity(self.batch_size);
+        let mut errs = vec![];
+        for _i in 0..self.batch_size {
+            match self.inner.inner.next() {
+                Some(Ok(item)) => items.push(item),
+                Some(Err(err)) => errs.push(err),
+                None => {
+                    if self.return_last_incomplete_batch {
+                        break;
+                    }
+                    return None;
+                }
+            }
+        }
+        Some(self.collator.collate(items))
+    }
+}
+
+impl<C, I> Iterator for InstructionDataBatcher<C, IterResult2<I>>
+where
+    C: CustomCollator<BatchItem = (Tensor, Tensor)>,
+    I: Iterator<Item = Result<(Tensor, Tensor)>>,
 {
     type Item = Result<(Tensor, Tensor)>;
 
@@ -482,13 +533,15 @@ impl InstructionDataCollator {
 }
 
 impl CustomCollator for InstructionDataCollator {
+    type BatchItem = Tensor;
+
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)> {
         self.custom_collate_fn(batch)
     }
 }
 
 /// [Listing 7.6] Initializing the data loaders (`InstructionDataLoader`)
-pub struct InstructionDataLoader<C: CustomCollator> {
+pub struct InstructionDataLoader<C: CustomCollator<BatchItem = Tensor>> {
     dataset: InstructionDataset,
     batch_size: usize,
     shuffle: bool,
@@ -496,7 +549,7 @@ pub struct InstructionDataLoader<C: CustomCollator> {
     collator: C,
 }
 
-impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
+impl<C: CustomCollator<BatchItem = Tensor> + Clone> DataLoader for InstructionDataLoader<C> {
     type Batcher = InstructionDataBatcher<C, IterResult1<InstructionDatasetIter>>;
 
     /// Returns a `InstructionDataBatcher` that itself provides batches over the
@@ -509,7 +562,7 @@ impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
     }
 }
 
-impl<C: CustomCollator + Clone> InstructionDataLoader<C> {
+impl<C: CustomCollator<BatchItem = Tensor> + Clone> InstructionDataLoader<C> {
     /// Creates a new `InstructionDataLoader`.
     ///
     /// ```rust
