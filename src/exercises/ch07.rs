@@ -282,30 +282,30 @@ pub mod addons {
     use std::rc::Rc;
     use tiktoken_rs::CoreBPE;
 
-    pub struct InstructionDatasetV2_ {
+    pub struct InstructionDataset_ {
         data: Vec<InstructionResponseExample>,
         encoded_texts: Vec<Vec<u32>>,
         instruction_lengths: Vec<u32>,
     }
 
     #[derive(Clone)]
-    pub struct InstructionDatasetV2(Rc<InstructionDatasetV2_>);
+    pub struct InstructionDataset(Rc<InstructionDataset_>);
 
-    impl AsRef<InstructionDatasetV2> for InstructionDatasetV2 {
-        fn as_ref(&self) -> &InstructionDatasetV2 {
+    impl AsRef<InstructionDataset> for InstructionDataset {
+        fn as_ref(&self) -> &InstructionDataset {
             self
         }
     }
 
-    impl std::ops::Deref for InstructionDatasetV2 {
-        type Target = InstructionDatasetV2_;
+    impl std::ops::Deref for InstructionDataset {
+        type Target = InstructionDataset_;
 
         fn deref(&self) -> &Self::Target {
             self.0.as_ref()
         }
     }
 
-    impl InstructionDatasetV2 {
+    impl InstructionDataset {
         pub fn new<P: PromptFormatter>(
             data: Vec<InstructionResponseExample>,
             tokenizer: &CoreBPE,
@@ -325,7 +325,7 @@ pub mod addons {
                 let encoded_text = tokenizer.encode_with_special_tokens(&full_text);
                 encoded_texts.push(encoded_text);
             }
-            let dataset_ = InstructionDatasetV2_ {
+            let dataset_ = InstructionDataset_ {
                 data,
                 encoded_texts,
                 instruction_lengths,
@@ -356,12 +356,12 @@ pub mod addons {
     }
 
     pub struct InstructionDatasetIter {
-        dataset: InstructionDatasetV2,
+        dataset: InstructionDataset,
         remaining_indices: Vec<usize>,
     }
 
     impl InstructionDatasetIter {
-        pub fn new(dataset: InstructionDatasetV2, shuffle: bool) -> Self {
+        pub fn new(dataset: InstructionDataset, shuffle: bool) -> Self {
             let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
             if shuffle {
                 remaining_indices.shuffle(&mut thread_rng());
@@ -520,7 +520,7 @@ pub mod addons {
     }
 
     pub struct InstructionDataLoader<C: CustomCollator<BatchItem = (Tensor, Tensor)>> {
-        dataset: InstructionDatasetV2,
+        dataset: InstructionDataset,
         batch_size: usize,
         shuffle: bool,
         drop_last: bool,
@@ -544,7 +544,7 @@ pub mod addons {
 
     impl<C: CustomCollator<BatchItem = (Tensor, Tensor)> + Clone> InstructionDataLoader<C> {
         pub fn new(
-            dataset: InstructionDatasetV2,
+            dataset: InstructionDataset,
             batch_size: usize,
             shuffle: bool,
             drop_last: bool,
@@ -580,7 +580,7 @@ pub mod addons {
             (self.dataset.len() < self.batch_size) && (self.drop_last)
         }
 
-        pub fn dataset(&self) -> &InstructionDatasetV2 {
+        pub fn dataset(&self) -> &InstructionDataset {
             &self.dataset
         }
     }
@@ -588,8 +588,40 @@ pub mod addons {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::listings::ch07::AlpacaPromptFormatter;
         use anyhow::Result;
         use rstest::*;
+        use tiktoken_rs::get_bpe_from_model;
+
+        #[fixture]
+        fn instruction_example() -> InstructionResponseExample {
+            let instruction = "Here is a fake instruction.";
+            let input = Some("Here is a fake input.");
+            let output = "here is a fake output.";
+            InstructionResponseExample::new(instruction, input, output)
+        }
+
+        #[fixture]
+        fn another_instruction_example() -> InstructionResponseExample {
+            let instruction = "Here is yet another fake instruction.";
+            let output = "here is yet another fake output.";
+            InstructionResponseExample::new(instruction, None, output)
+        }
+
+        #[fixture]
+        fn instruction_data(
+            instruction_example: InstructionResponseExample,
+            another_instruction_example: InstructionResponseExample,
+        ) -> Vec<InstructionResponseExample> {
+            let data = vec![
+                instruction_example.clone(),
+                another_instruction_example.clone(),
+                instruction_example.clone(),
+                another_instruction_example.clone(),
+                instruction_example,
+            ];
+            data
+        }
 
         #[rstest]
         pub fn test_instruction_collator() -> Result<()> {
@@ -622,6 +654,43 @@ pub mod addons {
                 ]
             );
 
+            Ok(())
+        }
+
+        #[rstest]
+        fn test_instruct_data_loader(
+            instruction_data: Vec<InstructionResponseExample>,
+        ) -> Result<()> {
+            let tokenizer = get_bpe_from_model("gpt2")?;
+            let prompt_formatter = AlpacaPromptFormatter;
+            let instruction_dataset =
+                InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
+            let batch_size = 2_usize;
+            let allowed_max_length = 10_usize;
+            let collator = MaskedInstructionCollator::new()
+                .device(Device::cuda_if_available(0)?)
+                .allowed_max_length(Some(allowed_max_length));
+            let shuffle = false;
+            let drop_last = false;
+            let data_loader = InstructionDataLoader::new(
+                instruction_dataset,
+                batch_size,
+                shuffle,
+                drop_last,
+                collator,
+            );
+
+            let mut batcher = data_loader.batcher();
+            let mut count = 0_usize;
+            while let Some(Ok((inputs, targets))) = batcher.next() {
+                assert!(inputs.dims()[0] <= batch_size);
+                assert!(targets.dims()[0] <= batch_size);
+                assert_eq!(inputs.dims()[1], allowed_max_length);
+                assert_eq!(targets.dims()[1], allowed_max_length);
+                count += 1;
+            }
+            assert_eq!(data_loader.len(), count);
+            assert!(!data_loader.is_empty());
             Ok(())
         }
     }
