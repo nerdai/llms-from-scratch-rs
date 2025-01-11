@@ -198,30 +198,30 @@ pub mod addons {
     use std::rc::Rc;
     use tiktoken_rs::CoreBPE;
 
-    pub struct InstructionDataset_ {
+    pub struct InstructionDatasetV2_ {
         data: Vec<InstructionResponseExample>,
         encoded_texts: Vec<Vec<u32>>,
         instruction_lengths: Vec<u32>,
     }
 
     #[derive(Clone)]
-    pub struct InstructionDataset(Rc<InstructionDataset_>);
+    pub struct InstructionDatasetV2(Rc<InstructionDatasetV2_>);
 
-    impl AsRef<InstructionDataset> for InstructionDataset {
-        fn as_ref(&self) -> &InstructionDataset {
+    impl AsRef<InstructionDatasetV2> for InstructionDatasetV2 {
+        fn as_ref(&self) -> &InstructionDatasetV2 {
             self
         }
     }
 
-    impl std::ops::Deref for InstructionDataset {
-        type Target = InstructionDataset_;
+    impl std::ops::Deref for InstructionDatasetV2 {
+        type Target = InstructionDatasetV2_;
 
         fn deref(&self) -> &Self::Target {
             self.0.as_ref()
         }
     }
 
-    impl InstructionDataset {
+    impl InstructionDatasetV2 {
         pub fn new<P: PromptFormatter>(
             data: Vec<InstructionResponseExample>,
             tokenizer: &CoreBPE,
@@ -241,7 +241,7 @@ pub mod addons {
                 let encoded_text = tokenizer.encode_with_special_tokens(&full_text);
                 encoded_texts.push(encoded_text);
             }
-            let dataset_ = InstructionDataset_ {
+            let dataset_ = InstructionDatasetV2_ {
                 data,
                 encoded_texts,
                 instruction_lengths,
@@ -272,12 +272,12 @@ pub mod addons {
     }
 
     pub struct InstructionDatasetIter {
-        dataset: InstructionDataset,
+        dataset: InstructionDatasetV2,
         remaining_indices: Vec<usize>,
     }
 
     impl InstructionDatasetIter {
-        pub fn new(dataset: InstructionDataset, shuffle: bool) -> Self {
+        pub fn new(dataset: InstructionDatasetV2, shuffle: bool) -> Self {
             let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
             if shuffle {
                 remaining_indices.shuffle(&mut thread_rng());
@@ -311,14 +311,14 @@ pub mod addons {
     }
 
     #[derive(Clone)]
-    pub struct InstructionDataCollator {
+    pub struct MaskedInstructionCollator {
         pad_token_id: u32,
         ignore_index: i64,
         allowed_max_length: Option<usize>,
         device: Device,
     }
 
-    impl Default for InstructionDataCollator {
+    impl Default for MaskedInstructionCollator {
         fn default() -> Self {
             Self {
                 pad_token_id: DEFAULT_PAD_TOKEN_ID,
@@ -329,7 +329,7 @@ pub mod addons {
         }
     }
 
-    impl InstructionDataCollator {
+    impl MaskedInstructionCollator {
         pub fn new() -> Self {
             Self::default()
         }
@@ -427,7 +427,7 @@ pub mod addons {
         }
     }
 
-    impl CustomCollator for InstructionDataCollator {
+    impl CustomCollator for MaskedInstructionCollator {
         type BatchItem = (Tensor, Tensor);
 
         fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)> {
@@ -444,7 +444,7 @@ pub mod addons {
         #[rstest]
         pub fn test_instruction_collator() -> Result<()> {
             // arrange
-            let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
+            let collator = MaskedInstructionCollator::new().device(Device::cuda_if_available(0)?);
             let device = Device::cuda_if_available(0)?;
             let inputs_1 = Tensor::new(&[1_u32, 2, 3, 4, 5], &device)?;
             let instruction_len_1 = Tensor::new(&[3_u32], &device)?;
