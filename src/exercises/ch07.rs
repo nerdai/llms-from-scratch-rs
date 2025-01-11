@@ -171,3 +171,139 @@ impl Exercise for X1 {
         Ok(())
     }
 }
+
+/// # Instruction and input masking
+///
+/// #### Id
+/// 7.2
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 7.2
+///
+/// # with cuda
+/// cargo run --features cuda exercise 7.2
+/// ```
+pub struct X2;
+
+pub mod addons {
+    //! Auxiliary module for exercises::ch07
+    use crate::listings::ch07::{InstructionResponseExample, PromptFormatter};
+    use candle_core::{Device, Result, Tensor};
+    use rand::{seq::SliceRandom, thread_rng};
+    use std::rc::Rc;
+    use tiktoken_rs::CoreBPE;
+
+    pub struct InstructionDataset_ {
+        data: Vec<InstructionResponseExample>,
+        encoded_texts: Vec<Vec<u32>>,
+        instruction_lengths: Vec<u32>,
+    }
+
+    #[derive(Clone)]
+    pub struct InstructionDataset(Rc<InstructionDataset_>);
+
+    impl AsRef<InstructionDataset> for InstructionDataset {
+        fn as_ref(&self) -> &InstructionDataset {
+            self
+        }
+    }
+
+    impl std::ops::Deref for InstructionDataset {
+        type Target = InstructionDataset_;
+
+        fn deref(&self) -> &Self::Target {
+            self.0.as_ref()
+        }
+    }
+
+    impl InstructionDataset {
+        pub fn new<P: PromptFormatter>(
+            data: Vec<InstructionResponseExample>,
+            tokenizer: &CoreBPE,
+            prompt_formatter: &P, // introduced for Exercise 7.1
+        ) -> Self {
+            let mut encoded_texts = vec![];
+            let mut instruction_lengths = vec![];
+            for entry in data.iter() {
+                let instruction_plus_input = prompt_formatter.format_input(entry);
+                instruction_lengths.push(
+                    tokenizer
+                        .encode_with_special_tokens(&instruction_plus_input)
+                        .len() as u32,
+                );
+                let response_text = format!("\n\n### Response:\n{}", entry.output());
+                let full_text = instruction_plus_input + &response_text;
+                let encoded_text = tokenizer.encode_with_special_tokens(&full_text);
+                encoded_texts.push(encoded_text);
+            }
+            let dataset_ = InstructionDataset_ {
+                data,
+                encoded_texts,
+                instruction_lengths,
+            };
+            Self(Rc::new(dataset_))
+        }
+
+        /// Gets the number of finetuning examples.
+        pub fn len(&self) -> usize {
+            self.data.len()
+        }
+
+        /// Checks whether the dataset is empty or has no finetuning examples.
+        pub fn is_empty(&self) -> bool {
+            self.data.is_empty()
+        }
+
+        /// Returns the tokenized and formatted instruction entry at specified index
+        pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<(&Vec<u32>, &u32)> {
+            let encoded = &self.encoded_texts[idx];
+            let instruction_length = &self.instruction_lengths[idx];
+            Ok((encoded, instruction_length))
+        }
+
+        pub fn data(&self) -> &Vec<InstructionResponseExample> {
+            &self.data
+        }
+    }
+
+    pub struct InstructionDatasetIter {
+        dataset: InstructionDataset,
+        remaining_indices: Vec<usize>,
+    }
+
+    impl InstructionDatasetIter {
+        pub fn new(dataset: InstructionDataset, shuffle: bool) -> Self {
+            let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
+            if shuffle {
+                remaining_indices.shuffle(&mut thread_rng());
+            }
+            Self {
+                dataset,
+                remaining_indices,
+            }
+        }
+    }
+
+    impl Iterator for InstructionDatasetIter {
+        type Item = Result<(Tensor, Tensor)>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(idx) = self.remaining_indices.pop() {
+                let (encoded, instruction_length) = self.dataset.get_item_at_index(idx).unwrap();
+
+                // turn into Tensors and return
+                let dev = Device::cuda_if_available(0).unwrap();
+                let inputs_tensor = Tensor::new(&encoded[..], &dev);
+                let instruction_len_tensor = Tensor::new(&[*instruction_length], &dev);
+                Some(candle_core::error::zip(
+                    inputs_tensor,
+                    instruction_len_tensor,
+                ))
+            } else {
+                None
+            }
+        }
+    }
+}

@@ -165,7 +165,6 @@ pub fn partition_data(
     Ok((train_data.to_vec(), val_data.to_vec(), test_data.to_vec()))
 }
 
-#[allow(dead_code)]
 pub struct InstructionDataset_ {
     data: Vec<InstructionResponseExample>,
     encoded_texts: Vec<Vec<u32>>,
