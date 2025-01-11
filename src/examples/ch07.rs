@@ -1,6 +1,6 @@
 //! Examples from Chapter 7
 
-use crate::Example;
+use crate::{listings::ch05::DEFAULT_IGNORE_INDEX, Example};
 use anyhow::{anyhow, Context, Result};
 
 /// # Example usage of `download_and_load_file`
@@ -557,10 +557,22 @@ impl Example for EG09 {
         let eg07 = EG07;
         let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
 
-        // compute losses
+        // // compute losses
         let num_batches = Some(5_usize);
-        let train_loss = calc_loss_loader(&train_loader, &model, vb.device(), num_batches)?;
-        let val_loss = calc_loss_loader(&val_loader, &model, vb.device(), num_batches)?;
+        let train_loss = calc_loss_loader(
+            &train_loader,
+            &model,
+            vb.device(),
+            num_batches,
+            Some(DEFAULT_IGNORE_INDEX),
+        )?;
+        let val_loss = calc_loss_loader(
+            &val_loader,
+            &model,
+            vb.device(),
+            num_batches,
+            Some(DEFAULT_IGNORE_INDEX),
+        )?;
 
         println!("Training loss: {}", train_loss);
         println!("Validation loss: {}", val_loss);

@@ -69,7 +69,7 @@ pub fn calc_loss_batch(
             .iter()
             .enumerate()
             .filter(|(_, v)| **v != ignore_val)
-            .map(|(ix, _)| ix as u8)
+            .map(|(ix, _)| ix as u32)
             .collect::<Vec<_>>();
         let keep = Tensor::new(&keep[..], device)?;
 
@@ -96,6 +96,7 @@ pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Ten
     model: &GPTModel,
     device: &Device,
     num_batches: Option<usize>,
+    ignore_index: Option<i64>, // introduced for ch07 instruction finetuning
 ) -> Result<f32> {
     let mut total_loss = 0_f32;
     let mut count = 0_usize;
@@ -104,8 +105,14 @@ pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Ten
     match num_batches {
         None => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss =
-                    calc_loss_batch(&input_batch, &target_batch, model, device, false, None)?;
+                let loss = calc_loss_batch(
+                    &input_batch,
+                    &target_batch,
+                    model,
+                    device,
+                    false,
+                    ignore_index,
+                )?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
             }
@@ -113,8 +120,14 @@ pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Ten
         }
         Some(n) => {
             while let Some(Ok((input_batch, target_batch))) = data_batcher.next() {
-                let loss =
-                    calc_loss_batch(&input_batch, &target_batch, model, device, false, None)?;
+                let loss = calc_loss_batch(
+                    &input_batch,
+                    &target_batch,
+                    model,
+                    device,
+                    false,
+                    ignore_index,
+                )?;
                 total_loss += loss.to_scalar::<f32>()?;
                 count += 1_usize;
                 if count >= n {
@@ -212,8 +225,14 @@ where
             tokens_seen += input_batch.elem_count();
 
             if global_step % eval_freq == 0 {
-                let (train_loss, val_loss) =
-                    evaluate_model(model, train_loader, val_loader, device, eval_iter)?;
+                let (train_loss, val_loss) = evaluate_model(
+                    model,
+                    train_loader,
+                    val_loader,
+                    device,
+                    eval_iter,
+                    ignore_index,
+                )?;
                 train_losses.push(train_loss);
                 val_losses.push(val_loss);
                 track_tokens_seen.push(tokens_seen);
@@ -242,9 +261,10 @@ pub fn evaluate_model<L: DataLoader<Batcher = impl Iterator<Item = Result<(Tenso
     val_loader: &L,
     device: &Device,
     eval_iter: usize,
+    ignore_index: Option<i64>, // introduced for ch07 instruction finetuning
 ) -> Result<(f32, f32)> {
-    let train_loss = calc_loss_loader(train_loader, model, device, Some(eval_iter))?;
-    let val_loss = calc_loss_loader(val_loader, model, device, Some(eval_iter))?;
+    let train_loss = calc_loss_loader(train_loader, model, device, Some(eval_iter), ignore_index)?;
+    let val_loss = calc_loss_loader(val_loader, model, device, Some(eval_iter), ignore_index)?;
     Ok((train_loss, val_loss))
 }
 
