@@ -546,11 +546,11 @@ impl Example for EG09 {
         use candle_nn::{VarBuilder, VarMap};
 
         // use `download_and_load_gpt2` for gpt2-medium
-        let mut cfg = Config::gpt2_124m();
+        let mut cfg = Config::gpt2_medium();
         cfg.qkv_bias = true;
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let model_id = "openai-community/gpt2";
+        let model_id = "openai-community/gpt2-medium";
         let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
 
         // re-use eg 07.07
