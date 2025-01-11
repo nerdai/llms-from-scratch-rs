@@ -298,8 +298,8 @@ pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
 /// needed to work with `Vec<Tensor>` in collate function. The former utilizes
 /// `Tensor::cat()` which requires all Tensor's to have same rank, but we only
 /// get this after collation is performed.
-pub struct InstructionDataBatcher<C: CustomCollator> {
-    inner: IterResult1<InstructionDatasetIter>,
+pub struct InstructionDataBatcher<C: CustomCollator, I> {
+    inner: I,
     batch_size: usize,
     return_last_incomplete_batch: bool,
     collator: C,
@@ -310,8 +310,10 @@ pub trait CustomCollator {
     fn collate(&self, batch: Vec<Tensor>) -> Result<(Tensor, Tensor)>;
 }
 
-impl<C: CustomCollator> InstructionDataBatcher<C> {
-    pub fn new(inner: InstructionDatasetIter, collator: C) -> Self {
+impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>>
+    InstructionDataBatcher<C, IterResult1<I>>
+{
+    pub fn new(inner: I, collator: C) -> Self {
         Self {
             inner: IterResult1 { inner },
             collator,
@@ -336,7 +338,9 @@ impl<C: CustomCollator> InstructionDataBatcher<C> {
     }
 }
 
-impl<C: CustomCollator> Iterator for InstructionDataBatcher<C> {
+impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>> Iterator
+    for InstructionDataBatcher<C, IterResult1<I>>
+{
     type Item = Result<(Tensor, Tensor)>;
 
     // This closely mirrors logic used in candle_datasets::batcher.
@@ -493,11 +497,11 @@ pub struct InstructionDataLoader<C: CustomCollator> {
 }
 
 impl<C: CustomCollator + Clone> DataLoader for InstructionDataLoader<C> {
-    type Batcher = InstructionDataBatcher<C>;
+    type Batcher = InstructionDataBatcher<C, IterResult1<InstructionDatasetIter>>;
 
     /// Returns a `InstructionDataBatcher` that itself provides batches over the
     /// associated dataset.
-    fn batcher(&self) -> InstructionDataBatcher<C> {
+    fn batcher(&self) -> InstructionDataBatcher<C, IterResult1<InstructionDatasetIter>> {
         let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
         InstructionDataBatcher::new(iter, self.collator.clone())
             .batch_size(self.batch_size)
