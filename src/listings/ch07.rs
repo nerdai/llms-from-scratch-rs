@@ -292,20 +292,8 @@ pub struct IterResult1<I: Iterator<Item = Result<Tensor>>> {
     inner: I,
 }
 
-impl<I: Iterator<Item = Result<Tensor>>> IterResult1<I> {
-    pub fn set_inner(&mut self, inner: I) {
-        self.inner = inner
-    }
-}
-
 pub struct IterResult2<I: Iterator<Item = Result<(Tensor, Tensor)>>> {
     inner: I,
-}
-
-impl<I: Iterator<Item = Result<(Tensor, Tensor)>>> IterResult2<I> {
-    pub fn set_inner(&mut self, inner: I) {
-        self.inner = inner
-    }
 }
 
 /// The `InstructionDataBatcher` for batching instruction examples
