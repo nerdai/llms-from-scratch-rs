@@ -187,11 +187,95 @@ impl Exercise for X1 {
 /// ```
 pub struct X2;
 
+impl X2 {
+    pub fn get_data_loaders(
+        &self,
+        verbose: bool,
+    ) -> Result<(
+        crate::listings::ch07::InstructionDataLoader<
+            crate::listings::ch07::InstructionDataCollator,
+        >,
+        crate::listings::ch07::InstructionDataLoader<
+            crate::listings::ch07::InstructionDataCollator,
+        >,
+        crate::listings::ch07::InstructionDataLoader<
+            crate::listings::ch07::InstructionDataCollator,
+        >,
+    )> {
+        use crate::listings::ch07::{
+            download_and_load_file, partition_data, DataLoader, InstructionDataCollator,
+            InstructionDataLoader, InstructionDataset, Phi3PromptFormatter, DATA_DIR,
+            INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
+        };
+        use candle_core::Device;
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+
+        // load instruction examples
+        let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+
+        // partition data and create train, val, test datasets
+        let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
+        let prompt_formatter = Phi3PromptFormatter;
+        let train_dataset = InstructionDataset::new(train_data, &tokenizer, &prompt_formatter);
+        let val_dataset = InstructionDataset::new(val_data, &tokenizer, &prompt_formatter);
+        let test_dataset = InstructionDataset::new(test_data, &tokenizer, &prompt_formatter);
+
+        // create loaders
+        let batch_size = 5_usize;
+        let collator = InstructionDataCollator::new()
+            .device(Device::cuda_if_available(0)?)
+            .allowed_max_length(Some(1024_usize));
+        let train_loader =
+            InstructionDataLoader::new(train_dataset, batch_size, true, true, collator.clone());
+        let val_loader =
+            InstructionDataLoader::new(val_dataset, batch_size, false, false, collator.clone());
+        let test_loader =
+            InstructionDataLoader::new(test_dataset, batch_size, false, false, collator);
+
+        if verbose {
+            println!("Train loader:");
+            let mut batcher = train_loader.batcher();
+            while let Some(Ok((inputs, targets))) = batcher.next() {
+                println!("inputs: {:?} targets: {:?}", inputs, targets);
+            }
+        }
+
+        Ok((train_loader, val_loader, test_loader))
+    }
+}
+
+impl Exercise for X2 {
+    fn name(&self) -> String {
+        "7.2".to_string()
+    }
+
+    fn title(&self) -> String {
+        "Instruction and input masking".to_string()
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "After completing the chapter and fine-tuning the model \
+        with `InstructionDataset`, replace the instruction and input tokens with \
+        the -100 mask to use the instruction masking method illustrated in \
+        figure 7.13. Then evaluate whether this has a positive effect on model \
+        performance.";
+        stmt.to_string()
+    }
+
+    fn main(&self) -> Result<()> {
+        todo!()
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for exercises::ch07
     use crate::listings::ch07::{
-        CustomCollator, InstructionResponseExample, PromptFormatter, DEFAULT_IGNORE_INDEX,
-        DEFAULT_PAD_TOKEN_ID,
+        CustomCollator, DataLoader, InstructionDataBatcher, InstructionResponseExample,
+        IterResult2, PromptFormatter, DEFAULT_IGNORE_INDEX, DEFAULT_PAD_TOKEN_ID,
     };
     use candle_core::{Device, Result, Tensor};
     use rand::{seq::SliceRandom, thread_rng};
@@ -432,6 +516,72 @@ pub mod addons {
 
         fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)> {
             self.custom_collate_fn(batch)
+        }
+    }
+
+    pub struct InstructionDataLoader<C: CustomCollator<BatchItem = (Tensor, Tensor)>> {
+        dataset: InstructionDatasetV2,
+        batch_size: usize,
+        shuffle: bool,
+        drop_last: bool,
+        collator: C,
+    }
+
+    impl<C: CustomCollator<BatchItem = (Tensor, Tensor)> + Clone> DataLoader
+        for InstructionDataLoader<C>
+    {
+        type Batcher = InstructionDataBatcher<C, IterResult2<InstructionDatasetIter>>;
+
+        /// Returns a `InstructionDataBatcher` that itself provides batches over the
+        /// associated dataset.
+        fn batcher(&self) -> InstructionDataBatcher<C, IterResult2<InstructionDatasetIter>> {
+            let iter = InstructionDatasetIter::new(self.dataset.clone(), self.shuffle);
+            InstructionDataBatcher::new_r2(iter, self.collator.clone())
+                .batch_size(self.batch_size)
+                .return_last_incomplete_batch(!self.drop_last)
+        }
+    }
+
+    impl<C: CustomCollator<BatchItem = (Tensor, Tensor)> + Clone> InstructionDataLoader<C> {
+        pub fn new(
+            dataset: InstructionDatasetV2,
+            batch_size: usize,
+            shuffle: bool,
+            drop_last: bool,
+            collator: C,
+        ) -> Self {
+            Self {
+                dataset,
+                batch_size,
+                shuffle,
+                drop_last,
+                collator,
+            }
+        }
+
+        pub fn len(&self) -> usize {
+            if self.drop_last {
+                self.batcher().count()
+            } else {
+                // There is a bug in candle_datasets::Batcher, such that if
+                // return_last_incomplete_batch is set to true, then the iterator
+                // will never return None. This breaks `Iterator.count()` which consumes
+                // the iterator until a None is encountered.
+                let mut batcher = self.batcher();
+                let mut count = 0_usize;
+                while let Some(Ok(_el)) = batcher.next() {
+                    count += 1;
+                }
+                count
+            }
+        }
+
+        pub fn is_empty(&self) -> bool {
+            (self.dataset.len() < self.batch_size) && (self.drop_last)
+        }
+
+        pub fn dataset(&self) -> &InstructionDatasetV2 {
+            &self.dataset
         }
     }
 
