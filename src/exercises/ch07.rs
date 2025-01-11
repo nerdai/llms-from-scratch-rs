@@ -354,9 +354,7 @@ pub mod addons {
             self
         }
 
-        /// [Listing 7.5] Implementing a custom batch collate function
-        ///
-        /// NOTE: this function gets applied via a wrapper on candle_datasets::Batcher
+        /// [Exercise 7.2] `custom_collate_fn` that masks instruction and inputs
         pub fn custom_collate_fn(&self, batch: Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor)> {
             // modify batch
             let batch_max_length = batch
