@@ -320,7 +320,9 @@ impl<C: CustomCollator, I: Iterator<Item = Result<Tensor>>>
             return_last_incomplete_batch: false,
         }
     }
+}
 
+impl<C: CustomCollator, I> InstructionDataBatcher<C, I> {
     pub fn batch_size(mut self, batch_size: usize) -> Self {
         self.batch_size = batch_size;
         self
