@@ -261,7 +261,78 @@ impl Exercise for X2 {
     }
 
     fn main(&self) -> Result<()> {
-        todo!()
+        use crate::listings::{
+            ch04::Config,
+            ch05::plot_losses,
+            ch07::{
+                download_and_load_gpt2, train_model_simple, AlpacaPromptFormatter, PromptFormatter,
+                DEFAULT_IGNORE_INDEX,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use ndarray::linspace;
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // use `download_and_load_gpt2`
+        let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
+        let mut cfg = Config::gpt2_124m(); // use `gpt2_medium()` for med instead
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+
+        let (train_loader, val_loader, _test_loader) = self.get_data_loaders(false)?;
+
+        // invoke training
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.00005,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
+        let (train_losses, val_losses, tokens_seen) = train_model_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context.as_str(),
+            &tokenizer,
+            Some(DEFAULT_IGNORE_INDEX),
+        )?;
+
+        // save model
+        println!("Saving weights to `./ift.masked_instruction.checkpoint.safetensors`");
+        varmap.save("ift.masked_instruction.checkpoint.safetensors")?;
+
+        // plot loss curves
+        println!("Saving plot to `./plot_ift_masked_instruction_loss.html`");
+        let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
+        let tokens_seen = tokens_seen
+            .into_iter()
+            .map(|el| el as f32)
+            .collect::<Vec<_>>();
+        let save_path = Path::new("plot_ift_masked_instruction_loss.html").to_path_buf();
+        plot_losses(
+            epochs_seen,
+            tokens_seen,
+            train_losses,
+            val_losses,
+            save_path,
+        )?;
+
+        Ok(())
     }
 }
 
@@ -276,12 +347,16 @@ pub mod addons {
     use std::rc::Rc;
     use tiktoken_rs::CoreBPE;
 
+    /// Modified `InstructionDataset_` for masking instruction and inputs
     pub struct InstructionDataset_ {
         data: Vec<InstructionResponseExample>,
         encoded_texts: Vec<Vec<u32>>,
         instruction_lengths: Vec<u32>,
     }
 
+    /// [Exercise 7.2] Modified `InstructionDataset` for masking instruction and inputs
+    ///
+    /// NOTE: This is a Rc-wrapped `InstructionDataset_`
     #[derive(Clone)]
     pub struct InstructionDataset(Rc<InstructionDataset_>);
 
@@ -368,6 +443,7 @@ pub mod addons {
     }
 
     impl Iterator for InstructionDatasetIter {
+        // Item is a tuple here with the second element represent instruction_len
         type Item = Result<(Tensor, Tensor)>;
 
         fn next(&mut self) -> Option<Self::Item> {
@@ -388,6 +464,7 @@ pub mod addons {
         }
     }
 
+    /// A custom collator for masking instruction and inputs
     #[derive(Clone)]
     pub struct MaskedInstructionCollator {
         pad_token_id: u32,
