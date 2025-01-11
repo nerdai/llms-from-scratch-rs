@@ -69,7 +69,7 @@ pub fn calc_loss_batch(
             .iter()
             .enumerate()
             .filter(|(_, v)| **v != ignore_val)
-            .map(|(ix, _)| ix as u8)
+            .map(|(ix, _)| ix as u32)
             .collect::<Vec<_>>();
         let keep = Tensor::new(&keep[..], device)?;
 
@@ -80,8 +80,6 @@ pub fn calc_loss_batch(
     } else {
         (logits_flat, targets_flat)
     };
-
-    println!("{:?}", targets_flat.min(0)?);
 
     let loss = candle_nn::loss::cross_entropy(&logits_flat, &targets_flat)?;
     Ok(loss)
