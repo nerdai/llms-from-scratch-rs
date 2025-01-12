@@ -465,7 +465,7 @@ impl Exercise for X3 {
 
         // get data loaders that is built on a dataset that used phi3 prompt format style
         let prompt_formatter = AlpacaPromptFormatter;
-        let batch_size = 5_usize;
+        let batch_size = 2_usize;
         let (train_loader, val_loader, _test_loader) =
             self.get_data_loaders(&prompt_formatter, batch_size, false)?;
 
