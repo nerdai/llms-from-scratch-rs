@@ -378,7 +378,23 @@ impl Exercise for X3 {
     }
 
     fn main(&self) -> Result<()> {
-        todo!()
+        use crate::listings::ch07::{download_and_load_file, DATA_DIR};
+        use std::path::Path;
+
+        let file_name = "alpaca_data.json";
+        let alpaca_url =
+            "https://raw.githubusercontent.com/tatsu-lab/stanford_alpaca/main/alpaca_data.json";
+        let file_path = Path::new(DATA_DIR).join(file_name);
+        let data = download_and_load_file(file_path, alpaca_url, false)?;
+        println!("Number of entries: {}", data.len());
+
+        // See example at index 50
+        println!("Example entry:\n{}\n", data[50]);
+
+        // See another example at index 999
+        println!("Another example entry:\n{}", data[999]);
+
+        Ok(())
     }
 }
 
