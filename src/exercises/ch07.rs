@@ -356,6 +356,7 @@ impl X3 {
         &self,
         prompt_formatter: &P,
         batch_size: usize,
+        allowed_max_length: Option<usize>,
         verbose: bool,
     ) -> Result<(
         crate::listings::ch07::InstructionDataLoader<
@@ -394,7 +395,7 @@ impl X3 {
         // create loaders
         let collator = InstructionDataCollator::new()
             .device(Device::cuda_if_available(0)?)
-            .allowed_max_length(Some(1024_usize));
+            .allowed_max_length(allowed_max_length);
         let train_loader =
             InstructionDataLoader::new(train_dataset, batch_size, true, true, collator.clone());
         let val_loader =
@@ -467,7 +468,7 @@ impl Exercise for X3 {
         let prompt_formatter = AlpacaPromptFormatter;
         let batch_size = 2_usize;
         let (train_loader, val_loader, _test_loader) =
-            self.get_data_loaders(&prompt_formatter, batch_size, false)?;
+            self.get_data_loaders(&prompt_formatter, batch_size, Some(256_usize), false)?;
 
         // invoke training
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
