@@ -336,6 +336,52 @@ impl Exercise for X2 {
     }
 }
 
+/// # Changing prompt styles
+///
+/// #### Id
+/// 7.3 Fine-tuning on the original Alpaca dataset
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 7.3
+///
+/// # with cuda
+/// cargo run --features cuda exercise 7.3
+/// ```
+pub struct X3;
+
+impl Exercise for X3 {
+    fn name(&self) -> String {
+        "7.3".to_string()
+    }
+
+    fn title(&self) -> String {
+        "Fine-tuning on the original Alpaca dataset".to_string()
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "The Alpaca dataset, by researchers at Stanford, is one \
+        of the earliest and most popular openly shared instruction datasets, \
+        consisting of 52,002 entries. As an alternative to the \
+        `instruction-data.json` file we use here, consider fine-tuning an LLM on \
+        this dataset. The dataset is available at https://mng.bz/NBnE. \
+        \n\n\
+        This dataset contains 52,002 entries, which is approximately 50 times \
+        more than those we used here, and most entries are longer. Thus, I \
+        highly recommend using a GPU to conduct the training, which will \
+        accelerate the fine-tuning process. If you encounter out-of-memory \
+        errors, consider reducing the batch_size from 8 to 4, 2, or even 1. \
+        Lowering the allowed_max_length from 1,024 to 512 or 256 can also \
+        help manage memory problems";
+        stmt.to_string()
+    }
+
+    fn main(&self) -> Result<()> {
+        todo!()
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for exercises::ch07
     use crate::listings::ch07::{
