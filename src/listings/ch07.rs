@@ -104,7 +104,7 @@ pub trait PromptFormatter {
     fn format_input(&self, entry: &InstructionResponseExample) -> String;
 }
 
-/// Alpaca prompt formatter type
+/// Alpaca prompt formatter type [used in Listing 7.2]
 pub struct AlpacaPromptFormatter;
 
 impl PromptFormatter for AlpacaPromptFormatter {
@@ -426,9 +426,7 @@ where
 pub use crate::listings::ch05::DEFAULT_IGNORE_INDEX;
 pub const DEFAULT_PAD_TOKEN_ID: u32 = 50_256;
 
-/// A type for specifying how to collate batches of instruct entries
-///
-/// NOTE: used for implementing Listing 7.5
+/// A type for specifying how to collate batches of instruct entries [used for Listing 7.5]
 #[derive(Clone)]
 pub struct InstructionDataCollator {
     pad_token_id: u32,
@@ -644,6 +642,7 @@ impl<C: CustomCollator<BatchItem = Tensor> + Clone> InstructionDataLoader<C> {
 /// [Listing 7.7] Loading a pretrained GPT model
 ///
 /// NOTE: This is merely a re-export from `listings::ch06`.
+#[doc(inline)]
 pub use crate::listings::ch06::download_and_load_gpt2;
 
 /// Delete previously downloaded model weights from local HF cache.
@@ -663,6 +662,7 @@ pub fn delete_hf_cache(model_id: &str) -> Result<()> {
 /// NOTE: This has been modified from the actual listing from the book. Here
 /// we merely re-export `listings::ch05::train_model_simple`. The act of actually
 /// fine-tuning is left as an example — see EG 07.10.
+#[doc(inline)]
 pub use crate::listings::ch05::train_model_simple;
 
 // for convenience we also re-export the following
