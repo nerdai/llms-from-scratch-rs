@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - ...
 
+## [0.1.2] - 2025-01-13
+
+### Added
+
+- Exercise 7.3 (#252)
+
+### Fixed
+
+- [docs] make listings more visible for ch07 (#260)
+
 ## [0.1.1] - 2025-01-11
 
 ### Added
