@@ -3,6 +3,7 @@
 //! This module contains Rust/Candle translations for all of the Listings provided
 //! in LLMs From Scratch book.
 
+pub mod apx_e;
 pub mod ch02;
 pub mod ch03;
 pub mod ch04;
