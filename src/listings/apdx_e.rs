@@ -2,7 +2,7 @@
 
 use crate::examples::ch06::addons::write_parquet;
 use crate::listings::ch06::{
-    create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataset,
+    create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader, SpamDataset,
     SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
 };
 use anyhow::anyhow;
@@ -85,4 +85,20 @@ pub fn create_candle_datasets() -> anyhow::Result<(SpamDataset, SpamDataset, Spa
         .build();
 
     Ok((train_dataset, val_dataset, test_dataset))
+}
+
+/// [Listing E.3] Creating Candle DataLoaders
+///
+/// NOTE: This is merely EG 06.06
+pub fn create_candle_dataloaders(
+) -> anyhow::Result<(SpamDataLoader, SpamDataLoader, SpamDataLoader)> {
+    let (train_dataset, val_dataset, test_dataset) = create_candle_datasets()?;
+
+    // create loaders
+    let batch_size = 8_usize;
+    let train_loader = SpamDataLoader::new(train_dataset, batch_size, true, true);
+    let val_loader = SpamDataLoader::new(val_dataset, batch_size, false, false);
+    let test_loader = SpamDataLoader::new(test_dataset, batch_size, false, false);
+
+    Ok((train_loader, val_loader, test_loader))
 }
