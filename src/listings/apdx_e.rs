@@ -1,11 +1,14 @@
 //! Listings from Appendix E
 
 use crate::examples::ch06::addons::write_parquet;
+use crate::listings::ch04::{Config, GPTModel};
 use crate::listings::ch06::{
-    create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader, SpamDataset,
-    SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
+    create_balanced_dataset, download_and_load_gpt2, download_smsspam_parquet, random_split,
+    SpamDataLoader, SpamDataset, SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
 };
 use anyhow::anyhow;
+use candle_core::{DType, Device};
+use candle_nn::{VarBuilder, VarMap};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -101,4 +104,15 @@ pub fn create_candle_dataloaders(
     let test_loader = SpamDataLoader::new(test_dataset, batch_size, false, false);
 
     Ok((train_loader, val_loader, test_loader))
+}
+
+/// [Listing E.4] Loading a pretrained GPT model
+///
+/// NOTE: This is merely EG 06.07
+pub fn load_pretrained_gpt2_model(cfg: Config, model_id: &str) -> anyhow::Result<GPTModel> {
+    let varmap = VarMap::new();
+    let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+    let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+
+    Ok(model)
 }
