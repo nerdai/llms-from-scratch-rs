@@ -6,6 +6,8 @@ use crate::listings::ch06::{
     SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
 };
 use anyhow::anyhow;
+use candle_core::{Module, Result, Tensor};
+use candle_nn::{init, VarBuilder};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -108,3 +110,101 @@ pub fn create_candle_dataloaders(
 /// NOTE: This is merely a re-export of `download_and_load_gpt2` from `listings::ch06`
 #[doc(inline)]
 pub use crate::listings::ch06::download_and_load_gpt2;
+
+/// [Listing E.5] Implementing a LoRA layer
+#[derive(Debug, Clone)]
+#[allow(non_snake_case)]
+pub struct LoRALayer {
+    A: Tensor,
+    B: Tensor,
+    alpha: f64,
+}
+
+impl LoRALayer {
+    #[allow(non_snake_case)]
+    pub fn new(
+        in_dim: usize,
+        out_dim: usize,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder,
+    ) -> Result<Self> {
+        let init_a = init::DEFAULT_KAIMING_NORMAL;
+        let init_b = init::ZERO;
+        let A = vb.get_with_hints((in_dim, rank), "A", init_a)?;
+        let B = vb.get_with_hints((rank, out_dim), "B", init_b)?;
+        Ok(Self { A, B, alpha })
+    }
+}
+
+impl Module for LoRALayer {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let a_mat = match *xs.dims() {
+            [b1, b2, _, _] => self.A.broadcast_left((b1, b2))?,
+            [bsize, _, _] => self.A.broadcast_left(bsize)?,
+            _ => self.A.clone(),
+        };
+        let b_mat = match *xs.dims() {
+            [b1, b2, _, _] => self.B.broadcast_left((b1, b2))?,
+            [bsize, _, _] => self.B.broadcast_left(bsize)?,
+            _ => self.B.clone(),
+        };
+        let mut retval = a_mat.matmul(&b_mat)?;
+        retval = xs.matmul(&retval)?;
+        self.alpha * retval
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::listings::ch04::Config;
+    use anyhow::Result;
+    use candle_core::{DType, Device, IndexOp, Tensor};
+    use candle_nn::{VarBuilder, VarMap};
+    use rstest::*;
+
+    #[fixture]
+    pub fn vb() -> VarBuilder<'static> {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        VarBuilder::from_varmap(&varmap, DType::F32, &dev)
+    }
+
+    #[rstest]
+    fn test_lora_layer_init(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let cfg = Config::gpt_sm_test();
+        let lora_layer = LoRALayer::new(cfg.emb_dim, cfg.emb_dim, rank, alpha, vb)?;
+
+        assert_eq!(lora_layer.A.dims(), &[cfg.emb_dim, rank]);
+        assert_eq!(lora_layer.B.dims(), &[rank, cfg.emb_dim]);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_lora_layer_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let cfg = Config::gpt_sm_test();
+        let lora_layer = LoRALayer::new(cfg.emb_dim, cfg.emb_dim, rank, alpha, vb.pp("lora"))?;
+
+        // create dummy batch
+        let input_length = 2_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, cfg.emb_dim), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+
+        // forward should result in 0s upon first construction
+        let outputs = lora_layer.forward(&batch)?;
+
+        assert_eq!(
+            outputs.i(0)?.to_vec2::<f32>()?,
+            &[
+                [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+                [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            ]
+        );
+        Ok(())
+    }
+}
