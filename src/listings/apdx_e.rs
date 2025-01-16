@@ -6,6 +6,9 @@ use crate::listings::ch06::{
     SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
 };
 use anyhow::anyhow;
+use candle_core::{Module, Result, Tensor};
+use candle_nn::init::DEFAULT_KAIMING_NORMAL;
+use candle_nn::VarBuilder;
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -108,3 +111,36 @@ pub fn create_candle_dataloaders(
 /// NOTE: This is merely a re-export of `download_and_load_gpt2` from `listings::ch06`
 #[doc(inline)]
 pub use crate::listings::ch06::download_and_load_gpt2;
+
+/// [Listing E.5] Implementing a LoRA layer
+#[derive(Debug, Clone)]
+#[allow(non_snake_case)]
+pub struct LoRALayer {
+    A: Tensor,
+    B: Tensor,
+    alpha: f64,
+}
+
+impl LoRALayer {
+    #[allow(non_snake_case)]
+    pub fn new(
+        in_dim: usize,
+        out_dim: usize,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder,
+    ) -> Result<Self> {
+        let init = DEFAULT_KAIMING_NORMAL;
+        let A = vb.get_with_hints((in_dim, rank), "A", init)?;
+        let B = vb.get_with_hints((rank, out_dim), "b", init)?;
+        Ok(Self { A, B, alpha })
+    }
+}
+
+impl Module for LoRALayer {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let mut retval = self.A.matmul(&self.B)?;
+        retval = xs.matmul(&retval)?;
+        self.alpha * retval
+    }
+}
