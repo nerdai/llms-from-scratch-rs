@@ -144,3 +144,32 @@ impl Module for LoRALayer {
         self.alpha * retval
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::listings::ch04::Config;
+    use anyhow::Result;
+    use candle_core::{DType, Device};
+    use candle_nn::{VarBuilder, VarMap};
+    use rstest::*;
+
+    #[fixture]
+    pub fn vb() -> VarBuilder<'static> {
+        let dev = Device::cuda_if_available(0).unwrap();
+        let varmap = VarMap::new();
+        VarBuilder::from_varmap(&varmap, DType::F32, &dev)
+    }
+
+    #[rstest]
+    fn test_lora_layer_init(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let cfg = Config::gpt_sm_test();
+        let lora_layer = LoRALayer::new(cfg.emb_dim, cfg.emb_dim, rank, alpha, vb)?;
+
+        assert_eq!(lora_layer.A.dims(), &[cfg.emb_dim, rank]);
+        assert_eq!(lora_layer.B.dims(), &[rank, cfg.emb_dim]);
+        Ok(())
+    }
+}
