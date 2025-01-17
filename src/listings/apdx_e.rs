@@ -198,6 +198,11 @@ pub fn replace_linear_with_lora(
     Ok(())
 }
 
+pub struct MultiHeadAttentionWithLoRA {}
+pub struct FeedForwardWithLoRA {}
+pub struct TransformerBlockWithLoRA {}
+pub struct GPTModelWithLoRA {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
