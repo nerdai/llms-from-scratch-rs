@@ -230,4 +230,21 @@ mod tests {
         );
         Ok(())
     }
+
+    #[rstest]
+    fn test_linear_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let cfg = Config::gpt_sm_test();
+        let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
+        let lora_with_linear = LinearWithLoRA::new(linear, rank, alpha, vb.pp("linear_with_lora"))?;
+
+        assert_eq!(lora_with_linear.lora.A.dims(), &[cfg.emb_dim, rank]);
+        assert_eq!(lora_with_linear.lora.B.dims(), &[rank, cfg.emb_dim]);
+        assert_eq!(
+            lora_with_linear.linear.weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        Ok(())
+    }
 }
