@@ -7,7 +7,7 @@ use crate::listings::ch06::{
 };
 use anyhow::anyhow;
 use candle_core::{Module, Result, Tensor};
-use candle_nn::{init, VarBuilder};
+use candle_nn::{init, Linear, VarBuilder};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -152,6 +152,29 @@ impl Module for LoRALayer {
         let mut retval = a_mat.matmul(&b_mat)?;
         retval = xs.matmul(&retval)?;
         self.alpha * retval
+    }
+}
+
+/// [Listing E.6] The `LinearWithLoRA` Module
+#[derive(Debug, Clone)]
+pub struct LinearWithLoRA {
+    linear: Linear,
+    lora: LoRALayer,
+}
+
+impl LinearWithLoRA {
+    pub fn new(linear: Linear, rank: usize, alpha: f64, vb: VarBuilder<'_>) -> Result<Self> {
+        let in_dim = linear.weight().dims()[0];
+        let out_dim = linear.weight().dims()[1];
+        let lora = LoRALayer::new(in_dim, out_dim, rank, alpha, vb)?;
+
+        Ok(Self { linear, lora })
+    }
+}
+
+impl Module for LinearWithLoRA {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.linear.forward(xs)? + self.lora.forward(xs)?
     }
 }
 
