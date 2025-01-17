@@ -184,6 +184,9 @@ impl Module for LinearWithLoRA {
 }
 
 /// Function to replace all `Linear` layers with `LinearWithLoRA` in a given model
+/// NOTE: this won't work for Candle
+/// Need to impl all the modules `XXXWithLoRA` and probably impl the `From` trait
+#[allow(unused_variables)]
 pub fn replace_linear_with_lora(
     model: &mut GPTModel,
     cfg: Config,
@@ -192,7 +195,7 @@ pub fn replace_linear_with_lora(
     varmap: &VarMap,
     vb: VarBuilder<'_>,
 ) -> Result<()> {
-    todo!()
+    Ok(())
 }
 
 #[cfg(test)]
