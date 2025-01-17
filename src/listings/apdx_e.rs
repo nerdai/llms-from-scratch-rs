@@ -1,13 +1,16 @@
 //! Listings from Appendix E
 
 use crate::examples::ch06::addons::write_parquet;
-use crate::listings::ch06::{
-    create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader, SpamDataset,
-    SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
+use crate::listings::{
+    ch04::Config,
+    ch06::{
+        create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader,
+        SpamDataset, SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
+    },
 };
 use anyhow::anyhow;
 use candle_core::{Module, Result, Tensor};
-use candle_nn::{init, Linear, VarBuilder};
+use candle_nn::{init, Linear, VarBuilder, VarMap};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -111,6 +114,8 @@ pub fn create_candle_dataloaders(
 #[doc(inline)]
 pub use crate::listings::ch06::download_and_load_gpt2;
 
+use super::ch04::GPTModel;
+
 /// [Listing E.5] Implementing a LoRA layer
 #[derive(Debug, Clone)]
 #[allow(non_snake_case)]
@@ -176,6 +181,18 @@ impl Module for LinearWithLoRA {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.linear.forward(xs)? + self.lora.forward(xs)?
     }
+}
+
+/// Function to replace all `Linear` layers with `LinearWithLoRA` in a given model
+pub fn replace_linear_with_lora(
+    model: &mut GPTModel,
+    cfg: Config,
+    rank: usize,
+    alpha: f64,
+    varmap: &VarMap,
+    vb: VarBuilder<'_>,
+) -> Result<()> {
+    todo!()
 }
 
 #[cfg(test)]
