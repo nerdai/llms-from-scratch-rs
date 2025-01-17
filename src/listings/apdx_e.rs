@@ -247,4 +247,31 @@ mod tests {
         );
         Ok(())
     }
+
+    #[rstest]
+    fn test_linear_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        // since this is only init linear_with_lora forward should be same as linear
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let cfg = Config::gpt_sm_test();
+        let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
+        let lora_with_linear =
+            LinearWithLoRA::new(linear.clone(), rank, alpha, vb.pp("linear_with_lora"))?;
+
+        // create dummy batch
+        let input_length = 2_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, cfg.emb_dim), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+
+        // forward should result in 0s upon first construction
+        let outputs = lora_with_linear.forward(&batch)?;
+        let outputs_linear_only = linear.forward(&batch)?;
+
+        assert_eq!(
+            outputs.to_vec3::<f32>()?,
+            outputs_linear_only.to_vec3::<f32>()?
+        );
+
+        Ok(())
+    }
 }
