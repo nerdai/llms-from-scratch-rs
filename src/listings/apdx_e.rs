@@ -7,7 +7,7 @@ use crate::listings::ch06::{
 };
 use anyhow::anyhow;
 use candle_core::{Module, Result, Tensor};
-use candle_nn::{init, VarBuilder};
+use candle_nn::{init, Linear, VarBuilder};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -155,6 +155,29 @@ impl Module for LoRALayer {
     }
 }
 
+/// [Listing E.6] The `LinearWithLoRA` Module
+#[derive(Debug, Clone)]
+pub struct LinearWithLoRA {
+    linear: Linear,
+    lora: LoRALayer,
+}
+
+impl LinearWithLoRA {
+    pub fn new(linear: Linear, rank: usize, alpha: f64, vb: VarBuilder<'_>) -> Result<Self> {
+        let in_dim = linear.weight().dims()[0];
+        let out_dim = linear.weight().dims()[1];
+        let lora = LoRALayer::new(in_dim, out_dim, rank, alpha, vb)?;
+
+        Ok(Self { linear, lora })
+    }
+}
+
+impl Module for LinearWithLoRA {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.linear.forward(xs)? + self.lora.forward(xs)?
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,6 +228,50 @@ mod tests {
                 [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
             ]
         );
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_linear_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let cfg = Config::gpt_sm_test();
+        let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
+        let lora_with_linear = LinearWithLoRA::new(linear, rank, alpha, vb.pp("linear_with_lora"))?;
+
+        assert_eq!(lora_with_linear.lora.A.dims(), &[cfg.emb_dim, rank]);
+        assert_eq!(lora_with_linear.lora.B.dims(), &[rank, cfg.emb_dim]);
+        assert_eq!(
+            lora_with_linear.linear.weight().dims(),
+            &[cfg.emb_dim, cfg.emb_dim]
+        );
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_linear_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        // since this is only init linear_with_lora forward should be same as linear
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let cfg = Config::gpt_sm_test();
+        let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
+        let lora_with_linear =
+            LinearWithLoRA::new(linear.clone(), rank, alpha, vb.pp("linear_with_lora"))?;
+
+        // create dummy batch
+        let input_length = 2_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, cfg.emb_dim), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+
+        // forward should result in 0s upon first construction
+        let outputs = lora_with_linear.forward(&batch)?;
+        let outputs_linear_only = linear.forward(&batch)?;
+
+        assert_eq!(
+            outputs.to_vec3::<f32>()?,
+            outputs_linear_only.to_vec3::<f32>()?
+        );
+
         Ok(())
     }
 }
