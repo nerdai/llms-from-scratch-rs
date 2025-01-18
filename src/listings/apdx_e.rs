@@ -398,7 +398,7 @@ impl FeedForwardWithLoRA {
         ))?;
         let second_linear_with_lora_layer = match third_ff_layer {
             crate::listings::ch04::FFLayer::Linear(l) => {
-                LinearWithLoRA::from_linear(l.clone(), rank, alpha, vb.pp("first_layer"))
+                LinearWithLoRA::from_linear(l.clone(), rank, alpha, vb.pp("second_layer"))
             }
             _ => candle_core::bail!("Third layer of FeedForward is not of Linear variant."),
         }?;
@@ -592,6 +592,17 @@ mod tests {
             context_vectors_from_mha.to_vec3::<f32>()?
         );
 
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_feedforward_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let ff = FeedForward::new(Config::gpt_sm_test(), vb.pp("ff"))?;
+        let ff_with_lora = FeedForwardWithLoRA::from_ff(ff, rank, alpha, vb.pp("ff_with_lora"))?;
+
+        assert_eq!(ff_with_lora.layers.len(), 3_usize);
         Ok(())
     }
 }
