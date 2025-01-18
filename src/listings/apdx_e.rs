@@ -176,6 +176,7 @@ impl LinearWithLoRA {
         alpha: f64,
         vb: VarBuilder<'_>,
     ) -> Result<Self> {
+        // NOTE: candle_nn::Linear's weights are transposed at init
         let out_dim = linear.weight().dims()[0];
         let in_dim = linear.weight().dims()[1];
         let lora = LoRALayer::new(in_dim, out_dim, rank, alpha, vb)?;
