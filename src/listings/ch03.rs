@@ -372,6 +372,18 @@ impl MultiHeadAttention {
         &self.out_proj
     }
 
+    pub fn d_out(&self) -> usize {
+        self.d_out
+    }
+
+    pub fn scaling(&self) -> f64 {
+        self.scaling
+    }
+
+    pub fn dropout(&self) -> &Dropout {
+        &self.dropout
+    }
+
     pub fn drop_p(&self) -> f32 {
         self.drop_p
     }

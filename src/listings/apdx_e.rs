@@ -10,7 +10,7 @@ use crate::listings::{
 };
 use anyhow::anyhow;
 use candle_core::{Module, Result, Tensor};
-use candle_nn::{init, Linear, VarBuilder, VarMap};
+use candle_nn::{init, Dropout, Linear, VarBuilder, VarMap};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -114,6 +114,7 @@ pub fn create_candle_dataloaders(
 #[doc(inline)]
 pub use crate::listings::ch06::download_and_load_gpt2;
 
+use super::ch03::MultiHeadAttention;
 use super::ch04::GPTModel;
 
 /// [Listing E.5] Implementing a LoRA layer
@@ -198,7 +199,45 @@ pub fn replace_linear_with_lora(
     Ok(())
 }
 
-pub struct MultiHeadAttentionWithLoRA {}
+pub struct MultiHeadAttentionWithLoRA {
+    num_heads: usize,
+    d_out: usize,
+    head_dim: usize,
+    w_query: LinearWithLoRA,
+    w_key: LinearWithLoRA,
+    w_value: LinearWithLoRA,
+    out_proj: LinearWithLoRA,
+    scaling: f64,
+    dropout: Dropout,
+    drop_p: f32,
+}
+
+impl MultiHeadAttentionWithLoRA {
+    pub fn new(
+        mha: MultiHeadAttention,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let w_query = LinearWithLoRA::new(mha.w_query().clone(), rank, alpha, vb.pp("query"))?;
+        let w_key = LinearWithLoRA::new(mha.w_key().clone(), rank, alpha, vb.pp("key"))?;
+        let w_value = LinearWithLoRA::new(mha.w_value().clone(), rank, alpha, vb.pp("value"))?;
+        let out_proj = LinearWithLoRA::new(mha.out_proj().clone(), rank, alpha, vb.pp("out_proj"))?;
+
+        Ok(Self {
+            num_heads: mha.num_heads(),
+            d_out: mha.d_out(),
+            head_dim: mha.head_dim(),
+            w_query,
+            w_key,
+            w_value,
+            out_proj,
+            scaling: mha.scaling(),
+            dropout: mha.dropout().clone(),
+            drop_p: mha.drop_p(),
+        })
+    }
+}
 pub struct FeedForwardWithLoRA {}
 pub struct TransformerBlockWithLoRA {}
 pub struct GPTModelWithLoRA {}
