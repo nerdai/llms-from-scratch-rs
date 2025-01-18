@@ -239,18 +239,18 @@ impl Module for GELU {
     }
 }
 
-/// Explicit `FFLayers`` enum
+/// Explicit `FFLayer`` enum
 #[derive(Clone, Debug)]
-pub enum FFLayers {
+pub enum FFLayer {
     Linear(Linear),
     GELU(GELU),
 }
 
-impl Module for FFLayers {
+impl Module for FFLayer {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         match self {
-            FFLayers::GELU(g) => g.forward(xs),
-            FFLayers::Linear(l) => l.forward(xs),
+            FFLayer::GELU(g) => g.forward(xs),
+            FFLayer::Linear(l) => l.forward(xs),
         }
     }
 }
@@ -263,7 +263,7 @@ impl Module for FFLayers {
 /// The type information is necessary when wanting to implement LoRA.
 #[derive(Clone, Debug)]
 pub struct FeedForward {
-    layers: Vec<FFLayers>,
+    layers: Vec<FFLayer>,
 }
 
 impl FeedForward {
@@ -283,14 +283,14 @@ impl FeedForward {
     /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
         let layers = vec![
-            FFLayers::Linear(linear_b(
+            FFLayer::Linear(linear_b(
                 cfg.emb_dim,
                 4_usize * cfg.emb_dim,
                 true,
                 vb.pp("first_layer"),
             )?),
-            FFLayers::GELU(GELU),
-            FFLayers::Linear(linear_b(
+            FFLayer::GELU(GELU),
+            FFLayer::Linear(linear_b(
                 4_usize * cfg.emb_dim,
                 cfg.emb_dim,
                 true,
@@ -300,8 +300,12 @@ impl FeedForward {
         Ok(Self { layers })
     }
 
-    pub fn from_fields(layers: Vec<FFLayers>) -> Result<Self> {
+    pub fn from_fields(layers: Vec<FFLayer>) -> Result<Self> {
         Ok(Self { layers })
+    }
+
+    pub fn layers(&self) -> &Vec<FFLayer> {
+        &self.layers
     }
 }
 
