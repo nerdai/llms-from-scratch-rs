@@ -295,6 +295,7 @@ impl Module for MultiHeadAttentionWrapper {
 }
 
 /// [Listing 3.5] An efficient multi-head attention type
+#[derive(Clone, Debug)]
 pub struct MultiHeadAttention {
     num_heads: usize,
     d_out: usize,

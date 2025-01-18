@@ -207,6 +207,7 @@ pub fn replace_linear_with_lora(
 #[doc(inline)]
 pub use crate::listings::ch03::{get_mask, masked_fill};
 
+#[derive(Clone, Debug)]
 pub struct MultiHeadAttentionWithLoRA {
     num_heads: usize,
     d_out: usize,
@@ -466,6 +467,32 @@ mod tests {
         assert_eq!(mha_with_lora.w_value.linear.weight().dims(), &[d_out, d_in]);
         assert_eq!(mha_with_lora.head_dim, d_out / num_heads);
         assert_eq!(mha_with_lora.drop_p, 0.5_f32);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_mha_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn"))?;
+        let mha_with_lora =
+            MultiHeadAttentionWithLoRA::from_mha(mha.clone(), rank, alpha, vb.pp("attn"))?;
+
+        // create batch
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+
+        // since this is only init these should be the same
+        let context_vectors = mha_with_lora.forward(&batch)?;
+        let context_vectors_from_mha = mha.forward(&batch)?;
+
+        assert_eq!(
+            context_vectors.to_vec3::<f32>()?,
+            context_vectors_from_mha.to_vec3::<f32>()?
+        );
+
         Ok(())
     }
 }
