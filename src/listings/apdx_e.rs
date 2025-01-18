@@ -1,13 +1,16 @@
 //! Listings from Appendix E
 
 use crate::examples::ch06::addons::write_parquet;
-use crate::listings::ch06::{
-    create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader, SpamDataset,
-    SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
+use crate::listings::{
+    ch04::Config,
+    ch06::{
+        create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader,
+        SpamDataset, SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
+    },
 };
 use anyhow::anyhow;
-use candle_core::{Module, Result, Tensor};
-use candle_nn::{init, Linear, VarBuilder};
+use candle_core::{Module, ModuleT, Result, Tensor, D};
+use candle_nn::{init, ops::softmax, Dropout, Linear, VarBuilder, VarMap};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -111,6 +114,9 @@ pub fn create_candle_dataloaders(
 #[doc(inline)]
 pub use crate::listings::ch06::download_and_load_gpt2;
 
+use super::ch03::MultiHeadAttention;
+use super::ch04::GPTModel;
+
 /// [Listing E.5] Implementing a LoRA layer
 #[derive(Debug, Clone)]
 #[allow(non_snake_case)]
@@ -131,8 +137,9 @@ impl LoRALayer {
     ) -> Result<Self> {
         let init_a = init::DEFAULT_KAIMING_NORMAL;
         let init_b = init::ZERO;
-        let A = vb.get_with_hints((in_dim, rank), "A", init_a)?;
-        let B = vb.get_with_hints((rank, out_dim), "B", init_b)?;
+        // candle_nn::Linear.weight is defined as transpose. We follow same convention here.
+        let A = vb.get_with_hints((rank, in_dim), "A", init_a)?;
+        let B = vb.get_with_hints((out_dim, rank), "B", init_b)?;
         Ok(Self { A, B, alpha })
     }
 }
@@ -140,14 +147,14 @@ impl LoRALayer {
 impl Module for LoRALayer {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let a_mat = match *xs.dims() {
-            [b1, b2, _, _] => self.A.broadcast_left((b1, b2))?,
-            [bsize, _, _] => self.A.broadcast_left(bsize)?,
-            _ => self.A.clone(),
+            [b1, b2, _, _] => self.A.broadcast_left((b1, b2))?.t()?,
+            [bsize, _, _] => self.A.broadcast_left(bsize)?.t()?,
+            _ => self.A.t()?,
         };
         let b_mat = match *xs.dims() {
-            [b1, b2, _, _] => self.B.broadcast_left((b1, b2))?,
-            [bsize, _, _] => self.B.broadcast_left(bsize)?,
-            _ => self.B.clone(),
+            [b1, b2, _, _] => self.B.broadcast_left((b1, b2))?.t()?,
+            [bsize, _, _] => self.B.broadcast_left(bsize)?.t()?,
+            _ => self.B.t()?,
         };
         let mut retval = a_mat.matmul(&b_mat)?;
         retval = xs.matmul(&retval)?;
@@ -163,9 +170,15 @@ pub struct LinearWithLoRA {
 }
 
 impl LinearWithLoRA {
-    pub fn new(linear: Linear, rank: usize, alpha: f64, vb: VarBuilder<'_>) -> Result<Self> {
-        let in_dim = linear.weight().dims()[0];
-        let out_dim = linear.weight().dims()[1];
+    pub fn from_linear(
+        linear: Linear,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        // NOTE: candle_nn::Linear's weights are transposed at init
+        let out_dim = linear.weight().dims()[0];
+        let in_dim = linear.weight().dims()[1];
         let lora = LoRALayer::new(in_dim, out_dim, rank, alpha, vb)?;
 
         Ok(Self { linear, lora })
@@ -177,6 +190,167 @@ impl Module for LinearWithLoRA {
         self.linear.forward(xs)? + self.lora.forward(xs)?
     }
 }
+
+/// Function to replace all `Linear` layers with `LinearWithLoRA` in a given model
+/// NOTE: this won't work for Candle
+/// Need to impl all the modules `XXXWithLoRA` and probably impl the `From` trait
+#[allow(unused_variables)]
+pub fn replace_linear_with_lora(
+    model: &mut GPTModel,
+    cfg: Config,
+    rank: usize,
+    alpha: f64,
+    varmap: &VarMap,
+    vb: VarBuilder<'_>,
+) -> Result<()> {
+    Ok(())
+}
+
+#[doc(inline)]
+pub use crate::listings::ch03::{get_mask, masked_fill};
+
+#[derive(Clone, Debug)]
+pub struct MultiHeadAttentionWithLoRA {
+    num_heads: usize,
+    d_out: usize,
+    head_dim: usize,
+    w_query: LinearWithLoRA,
+    w_key: LinearWithLoRA,
+    w_value: LinearWithLoRA,
+    out_proj: LinearWithLoRA,
+    scaling: f64,
+    dropout: Dropout,
+    drop_p: f32,
+}
+
+impl MultiHeadAttentionWithLoRA {
+    pub fn from_mha(
+        mha: MultiHeadAttention,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let w_query =
+            LinearWithLoRA::from_linear(mha.w_query().clone(), rank, alpha, vb.pp("query"))?;
+        let w_key = LinearWithLoRA::from_linear(mha.w_key().clone(), rank, alpha, vb.pp("key"))?;
+        let w_value =
+            LinearWithLoRA::from_linear(mha.w_value().clone(), rank, alpha, vb.pp("value"))?;
+        let out_proj =
+            LinearWithLoRA::from_linear(mha.out_proj().clone(), rank, alpha, vb.pp("out_proj"))?;
+
+        Ok(Self {
+            num_heads: mha.num_heads(),
+            d_out: mha.d_out(),
+            head_dim: mha.head_dim(),
+            w_query,
+            w_key,
+            w_value,
+            out_proj,
+            scaling: mha.scaling(),
+            dropout: mha.dropout().clone(),
+            drop_p: mha.drop_p(),
+        })
+    }
+
+    pub fn w_query(&self) -> &LinearWithLoRA {
+        &self.w_query
+    }
+
+    pub fn w_key(&self) -> &LinearWithLoRA {
+        &self.w_key
+    }
+
+    pub fn w_value(&self) -> &LinearWithLoRA {
+        &self.w_value
+    }
+
+    pub fn out_proj(&self) -> &LinearWithLoRA {
+        &self.out_proj
+    }
+
+    pub fn d_out(&self) -> usize {
+        self.d_out
+    }
+
+    pub fn scaling(&self) -> f64 {
+        self.scaling
+    }
+
+    pub fn dropout(&self) -> &Dropout {
+        &self.dropout
+    }
+
+    pub fn drop_p(&self) -> f32 {
+        self.drop_p
+    }
+
+    pub fn head_dim(&self) -> usize {
+        self.head_dim
+    }
+
+    pub fn num_heads(&self) -> usize {
+        self.num_heads
+    }
+
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
+}
+
+impl ModuleT for MultiHeadAttentionWithLoRA {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let (b, num_tokens, _d_in) = xs.dims3()?;
+        let queries = self.w_query.forward_t(xs, train)?;
+        let keys = self.w_key.forward_t(xs, train)?;
+        let values = self.w_value.forward_t(xs, train)?;
+
+        // reshapes to facilitate getting attn scores each of the individual heads
+        // with one matrix multiplication
+        let queries = queries
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+        let keys = keys
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+        let values = values
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+
+        let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
+
+        let mask = get_mask(num_tokens, xs.device())?;
+        let masked = masked_fill(
+            &attn_scores,
+            &mask.broadcast_left((b, self.num_heads)).unwrap(),
+            f32::NEG_INFINITY,
+        )?;
+
+        // scale
+        let mut attn_weights = softmax(&(masked * self.scaling)?, D::Minus1)?;
+        // dropout
+        attn_weights = self.dropout.forward(&attn_weights, train)?;
+
+        // context vectors
+        let context_vec = attn_weights.matmul(&values)?.transpose(1, 2)?;
+        let context_vec = context_vec
+            .reshape((b, num_tokens, self.d_out))?
+            .contiguous()?;
+
+        // projection
+        self.out_proj.forward_t(&context_vec, train)
+    }
+}
+pub struct FeedForwardWithLoRA {}
+pub struct TransformerBlockWithLoRA {}
+pub struct GPTModelWithLoRA {}
 
 #[cfg(test)]
 mod tests {
@@ -198,11 +372,11 @@ mod tests {
     fn test_lora_layer_init(vb: VarBuilder<'_>) -> Result<()> {
         let alpha = 0.5_f64;
         let rank = 3_usize;
-        let cfg = Config::gpt_sm_test();
-        let lora_layer = LoRALayer::new(cfg.emb_dim, cfg.emb_dim, rank, alpha, vb)?;
+        let (d_in, d_out) = (2_usize, 3_usize);
+        let lora_layer = LoRALayer::new(d_in, d_out, rank, alpha, vb)?;
 
-        assert_eq!(lora_layer.A.dims(), &[cfg.emb_dim, rank]);
-        assert_eq!(lora_layer.B.dims(), &[rank, cfg.emb_dim]);
+        assert_eq!(lora_layer.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(lora_layer.B.t()?.dims(), &[rank, d_out]);
         Ok(())
     }
 
@@ -237,10 +411,11 @@ mod tests {
         let rank = 3_usize;
         let cfg = Config::gpt_sm_test();
         let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
-        let lora_with_linear = LinearWithLoRA::new(linear, rank, alpha, vb.pp("linear_with_lora"))?;
+        let lora_with_linear =
+            LinearWithLoRA::from_linear(linear, rank, alpha, vb.pp("linear_with_lora"))?;
 
-        assert_eq!(lora_with_linear.lora.A.dims(), &[cfg.emb_dim, rank]);
-        assert_eq!(lora_with_linear.lora.B.dims(), &[rank, cfg.emb_dim]);
+        assert_eq!(lora_with_linear.lora.A.t()?.dims(), &[cfg.emb_dim, rank]);
+        assert_eq!(lora_with_linear.lora.B.t()?.dims(), &[rank, cfg.emb_dim]);
         assert_eq!(
             lora_with_linear.linear.weight().dims(),
             &[cfg.emb_dim, cfg.emb_dim]
@@ -256,7 +431,7 @@ mod tests {
         let cfg = Config::gpt_sm_test();
         let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
         let lora_with_linear =
-            LinearWithLoRA::new(linear.clone(), rank, alpha, vb.pp("linear_with_lora"))?;
+            LinearWithLoRA::from_linear(linear.clone(), rank, alpha, vb.pp("linear_with_lora"))?;
 
         // create dummy batch
         let input_length = 2_usize;
@@ -270,6 +445,69 @@ mod tests {
         assert_eq!(
             outputs.to_vec3::<f32>()?,
             outputs_linear_only.to_vec3::<f32>()?
+        );
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_mha_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn"))?;
+        let mha_with_lora = MultiHeadAttentionWithLoRA::from_mha(mha, rank, alpha, vb.pp("attn"))?;
+
+        assert_eq!(mha_with_lora.w_query.lora.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(mha_with_lora.w_query.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.w_query.linear.weight().t()?.dims(),
+            &[d_in, d_out]
+        );
+        assert_eq!(mha_with_lora.w_key.lora.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(mha_with_lora.w_key.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.w_key.linear.weight().t()?.dims(),
+            &[d_in, d_out]
+        );
+        assert_eq!(mha_with_lora.w_value.lora.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(mha_with_lora.w_value.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.w_value.linear.weight().t()?.dims(),
+            &[d_in, d_out]
+        );
+        assert_eq!(mha_with_lora.out_proj.lora.A.t()?.dims(), &[d_out, rank]);
+        assert_eq!(mha_with_lora.out_proj.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.out_proj.linear.weight().t()?.dims(),
+            &[d_out, d_out]
+        );
+        assert_eq!(mha_with_lora.head_dim, d_out / num_heads);
+        assert_eq!(mha_with_lora.drop_p, 0.5_f32);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_mha_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn"))?;
+        let mha_with_lora =
+            MultiHeadAttentionWithLoRA::from_mha(mha.clone(), rank, alpha, vb.pp("attn"))?;
+
+        // create batch
+        let input_length = 10_usize;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let batch = Tensor::stack(&[&xs, &xs], 0)?;
+
+        // since this is only init these should be the same
+        let context_vectors = mha_with_lora.forward_t(&batch, false)?;
+        let context_vectors_from_mha = mha.forward_t(&batch, false)?;
+
+        assert_eq!(
+            context_vectors.to_vec3::<f32>()?,
+            context_vectors_from_mha.to_vec3::<f32>()?
         );
 
         Ok(())

@@ -4,14 +4,14 @@ use candle_core::{Device, Module, ModuleT, Result, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{linear_b, Dropout, Linear, VarBuilder};
 
-fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
+pub fn get_mask(size: usize, device: &Device) -> Result<Tensor> {
     let mask: Vec<_> = (0..size)
         .flat_map(|i| (0..size).map(move |j| u32::from(j > i)))
         .collect();
     Tensor::from_slice(&mask, (size, size), device)
 }
 
-fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
+pub fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor> {
     let shape = mask.shape();
     let on_true = Tensor::new(on_true, on_false.device())?.broadcast_as(shape.dims())?;
     let m = mask.where_cond(&on_true, on_false)?;
@@ -295,6 +295,7 @@ impl Module for MultiHeadAttentionWrapper {
 }
 
 /// [Listing 3.5] An efficient multi-head attention type
+#[derive(Clone, Debug)]
 pub struct MultiHeadAttention {
     num_heads: usize,
     d_out: usize,
@@ -370,6 +371,18 @@ impl MultiHeadAttention {
 
     pub fn out_proj(&self) -> &Linear {
         &self.out_proj
+    }
+
+    pub fn d_out(&self) -> usize {
+        self.d_out
+    }
+
+    pub fn scaling(&self) -> f64 {
+        self.scaling
+    }
+
+    pub fn dropout(&self) -> &Dropout {
+        &self.dropout
     }
 
     pub fn drop_p(&self) -> f32 {
