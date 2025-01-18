@@ -169,7 +169,12 @@ pub struct LinearWithLoRA {
 }
 
 impl LinearWithLoRA {
-    pub fn new(linear: Linear, rank: usize, alpha: f64, vb: VarBuilder<'_>) -> Result<Self> {
+    pub fn from_linear(
+        linear: Linear,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
         let in_dim = linear.weight().dims()[0];
         let out_dim = linear.weight().dims()[1];
         let lora = LoRALayer::new(in_dim, out_dim, rank, alpha, vb)?;
@@ -213,16 +218,19 @@ pub struct MultiHeadAttentionWithLoRA {
 }
 
 impl MultiHeadAttentionWithLoRA {
-    pub fn new(
+    pub fn from_mha(
         mha: MultiHeadAttention,
         rank: usize,
         alpha: f64,
         vb: VarBuilder<'_>,
     ) -> Result<Self> {
-        let w_query = LinearWithLoRA::new(mha.w_query().clone(), rank, alpha, vb.pp("query"))?;
-        let w_key = LinearWithLoRA::new(mha.w_key().clone(), rank, alpha, vb.pp("key"))?;
-        let w_value = LinearWithLoRA::new(mha.w_value().clone(), rank, alpha, vb.pp("value"))?;
-        let out_proj = LinearWithLoRA::new(mha.out_proj().clone(), rank, alpha, vb.pp("out_proj"))?;
+        let w_query =
+            LinearWithLoRA::from_linear(mha.w_query().clone(), rank, alpha, vb.pp("query"))?;
+        let w_key = LinearWithLoRA::from_linear(mha.w_key().clone(), rank, alpha, vb.pp("key"))?;
+        let w_value =
+            LinearWithLoRA::from_linear(mha.w_value().clone(), rank, alpha, vb.pp("value"))?;
+        let out_proj =
+            LinearWithLoRA::from_linear(mha.out_proj().clone(), rank, alpha, vb.pp("out_proj"))?;
 
         Ok(Self {
             num_heads: mha.num_heads(),
@@ -301,7 +309,8 @@ mod tests {
         let rank = 3_usize;
         let cfg = Config::gpt_sm_test();
         let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
-        let lora_with_linear = LinearWithLoRA::new(linear, rank, alpha, vb.pp("linear_with_lora"))?;
+        let lora_with_linear =
+            LinearWithLoRA::from_linear(linear, rank, alpha, vb.pp("linear_with_lora"))?;
 
         assert_eq!(lora_with_linear.lora.A.dims(), &[cfg.emb_dim, rank]);
         assert_eq!(lora_with_linear.lora.B.dims(), &[rank, cfg.emb_dim]);
@@ -320,7 +329,7 @@ mod tests {
         let cfg = Config::gpt_sm_test();
         let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear"))?;
         let lora_with_linear =
-            LinearWithLoRA::new(linear.clone(), rank, alpha, vb.pp("linear_with_lora"))?;
+            LinearWithLoRA::from_linear(linear.clone(), rank, alpha, vb.pp("linear_with_lora"))?;
 
         // create dummy batch
         let input_length = 2_usize;
@@ -336,6 +345,28 @@ mod tests {
             outputs_linear_only.to_vec3::<f32>()?
         );
 
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_mha_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 3_usize;
+        let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+        let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn"))?;
+        let mha_with_lora = MultiHeadAttentionWithLoRA::from_mha(mha, rank, alpha, vb.pp("attn"))?;
+
+        assert_eq!(mha_with_lora.w_query.lora.A.dims(), &[d_out, rank]);
+        assert_eq!(mha_with_lora.w_query.lora.B.dims(), &[rank, d_in]);
+        assert_eq!(mha_with_lora.w_query.linear.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha_with_lora.w_key.lora.A.dims(), &[d_out, rank]);
+        assert_eq!(mha_with_lora.w_key.lora.B.dims(), &[rank, d_in]);
+        assert_eq!(mha_with_lora.w_key.linear.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha_with_lora.w_value.lora.A.dims(), &[d_out, rank]);
+        assert_eq!(mha_with_lora.w_value.lora.B.dims(), &[rank, d_in]);
+        assert_eq!(mha_with_lora.w_value.linear.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha_with_lora.head_dim, d_out / num_heads);
+        assert_eq!(mha_with_lora.drop_p, 0.5_f32);
         Ok(())
     }
 }
