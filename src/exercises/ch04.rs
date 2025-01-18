@@ -214,15 +214,14 @@ impl Exercise for X3 {
 
 pub mod addons {
     //! Auxiliary module for exercises::ch04
-    use crate::{
-        candle_addons::seqt,
-        listings::{
-            ch03::MultiHeadAttention,
-            ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+    use crate::listings::{
+        ch03::MultiHeadAttention,
+        ch04::{
+            seqtransformers, FFLayers, FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU,
         },
     };
     use candle_core::Result;
-    use candle_nn::{embedding, linear_b, seq, Dropout, VarBuilder};
+    use candle_nn::{embedding, linear_b, Dropout, VarBuilder};
 
     /// A second `Config` variation for Exercise 4.3 to specify individual drop rates
     #[derive(Debug, Clone, Copy)]
@@ -257,20 +256,22 @@ pub mod addons {
     /// New `FeedForward` constructor using `ConfigV2`
     impl FeedForward {
         fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
-            let layers = seq()
-                .add(linear_b(
+            let layers = vec![
+                FFLayers::Linear(linear_b(
                     cfg.emb_dim,
                     4_usize * cfg.emb_dim,
                     true,
                     vb.pp("first_layer"),
-                )?)
-                .add(GELU) // you should use Activation::Gelu in actual builds
-                .add(linear_b(
+                )?),
+                FFLayers::GELU(GELU),
+                FFLayers::Linear(linear_b(
                     4_usize * cfg.emb_dim,
                     cfg.emb_dim,
                     true,
                     vb.pp("second_layer"),
-                )?);
+                )?),
+            ];
+
             FeedForward::from_fields(layers)
         }
     }
@@ -300,7 +301,7 @@ pub mod addons {
             let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
             let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
             let drop_emb = Dropout::new(cfg.drop_rate_emb);
-            let mut trf_blocks = seqt();
+            let mut trf_blocks = seqtransformers();
             for ix in 0..cfg.n_layers {
                 trf_blocks =
                     trf_blocks.add(TransformerBlock::new_v2(cfg, vb.pp(format!("trf-{}", ix)))?);

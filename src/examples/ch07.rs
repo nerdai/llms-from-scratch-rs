@@ -641,7 +641,7 @@ impl Example for EG10 {
         let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
 
         // invoke training
-        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
         let optimizer = AdamW::new(
             varmap.all_vars(),
             ParamsAdamW {
