@@ -218,11 +218,11 @@ pub mod addons {
         candle_addons::seqt,
         listings::{
             ch03::MultiHeadAttention,
-            ch04::{FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+            ch04::{FFLayers, FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
         },
     };
     use candle_core::Result;
-    use candle_nn::{embedding, linear_b, seq, Dropout, VarBuilder};
+    use candle_nn::{embedding, linear_b, Dropout, VarBuilder};
 
     /// A second `Config` variation for Exercise 4.3 to specify individual drop rates
     #[derive(Debug, Clone, Copy)]
@@ -257,20 +257,22 @@ pub mod addons {
     /// New `FeedForward` constructor using `ConfigV2`
     impl FeedForward {
         fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
-            let layers = seq()
-                .add(linear_b(
+            let layers = vec![
+                FFLayers::Linear(linear_b(
                     cfg.emb_dim,
                     4_usize * cfg.emb_dim,
                     true,
                     vb.pp("first_layer"),
-                )?)
-                .add(GELU) // you should use Activation::Gelu in actual builds
-                .add(linear_b(
+                )?),
+                FFLayers::GELU(GELU),
+                FFLayers::Linear(linear_b(
                     4_usize * cfg.emb_dim,
                     cfg.emb_dim,
                     true,
                     vb.pp("second_layer"),
-                )?);
+                )?),
+            ];
+
             FeedForward::from_fields(layers)
         }
     }

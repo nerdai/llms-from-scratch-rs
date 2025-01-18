@@ -238,9 +238,23 @@ impl Module for GELU {
     }
 }
 
+pub enum FFLayers {
+    Linear(Linear),
+    GELU(GELU),
+}
+
+impl Module for FFLayers {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        match self {
+            FFLayers::GELU(g) => g.forward(xs),
+            FFLayers::Linear(l) => l.forward(xs),
+        }
+    }
+}
+
 /// [Listing 4.4] A feed forward neural network module
 pub struct FeedForward {
-    layers: Sequential,
+    layers: Vec<FFLayers>,
 }
 
 impl FeedForward {
@@ -259,31 +273,36 @@ impl FeedForward {
     /// let ff = FeedForward::new(cfg, vb.pp("ff")).unwrap();
     /// ```
     pub fn new(cfg: Config, vb: VarBuilder<'_>) -> Result<Self> {
-        let layers = seq()
-            .add(linear_b(
+        let layers = vec![
+            FFLayers::Linear(linear_b(
                 cfg.emb_dim,
                 4_usize * cfg.emb_dim,
                 true,
                 vb.pp("first_layer"),
-            )?)
-            .add(GELU) // you should use Activation::Gelu in actual builds
-            .add(linear_b(
+            )?),
+            FFLayers::GELU(GELU),
+            FFLayers::Linear(linear_b(
                 4_usize * cfg.emb_dim,
                 cfg.emb_dim,
                 true,
                 vb.pp("second_layer"),
-            )?);
+            )?),
+        ];
         Ok(Self { layers })
     }
 
-    pub fn from_fields(layers: Sequential) -> Result<Self> {
+    pub fn from_fields(layers: Vec<FFLayers>) -> Result<Self> {
         Ok(Self { layers })
     }
 }
 
 impl Module for FeedForward {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        self.layers.forward(xs)
+        let mut xs = xs.clone();
+        for layer in self.layers.iter() {
+            xs = layer.forward(&xs)?;
+        }
+        Ok(xs)
     }
 }
 
@@ -667,7 +686,7 @@ mod tests {
     fn test_feedforward_init(vb: VarBuilder<'_>) -> Result<()> {
         let ff = FeedForward::new(Config::gpt_sm_test(), vb.pp("ff"))?;
 
-        assert_eq!(ff.layers.len(), 3_i64);
+        assert_eq!(ff.layers.len(), 3_usize);
         Ok(())
     }
 
@@ -727,7 +746,7 @@ mod tests {
             &[cfg.emb_dim, cfg.emb_dim]
         );
         assert_eq!(transformer_block.att.head_dim(), cfg.emb_dim / cfg.n_heads);
-        assert_eq!(transformer_block.ff.layers.len(), 3_i64);
+        assert_eq!(transformer_block.ff.layers.len(), 3_usize);
         assert_eq!(transformer_block.norm1.scale.dims(), &[cfg.emb_dim]);
         assert_eq!(transformer_block.norm1.shift.dims(), &[cfg.emb_dim]);
         Ok(())
