@@ -115,7 +115,7 @@ pub fn create_candle_dataloaders(
 pub use crate::listings::ch06::download_and_load_gpt2;
 
 use super::ch03::MultiHeadAttention;
-use super::ch04::GPTModel;
+use super::ch04::{FeedForward, GPTModel, GELU};
 
 /// [Listing E.5] Implementing a LoRA layer
 #[derive(Debug, Clone)]
@@ -348,7 +348,89 @@ impl ModuleT for MultiHeadAttentionWithLoRA {
         self.out_proj.forward_t(&context_vec, train)
     }
 }
-pub struct FeedForwardWithLoRA {}
+
+/// Explicit `FFLayer`` enum
+#[derive(Clone, Debug)]
+pub enum FFLayer {
+    LinearWithLoRA(LinearWithLoRA),
+    GELU(GELU),
+}
+
+impl Module for FFLayer {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        match self {
+            FFLayer::GELU(g) => g.forward(xs),
+            FFLayer::LinearWithLoRA(l) => l.forward(xs),
+        }
+    }
+}
+
+/// FeedForward with LoRA type
+#[derive(Clone, Debug)]
+pub struct FeedForwardWithLoRA {
+    layers: Vec<FFLayer>,
+}
+
+impl FeedForwardWithLoRA {
+    pub fn from_ff(ff: FeedForward, rank: usize, alpha: f64, vb: VarBuilder<'_>) -> Result<Self> {
+        let mut iter = ff.layers().iter();
+
+        let first_ff_layer = iter.next().ok_or(candle_core::Error::Msg(
+            "Unable to extract first FFLayer from FeedForward".to_string(),
+        ))?;
+        let first_linear_with_lora_layer = match first_ff_layer {
+            crate::listings::ch04::FFLayer::Linear(l) => {
+                LinearWithLoRA::from_linear(l.clone(), rank, alpha, vb.pp("first_layer"))
+            }
+            _ => candle_core::bail!("First layer of FeedForward is not of Linear variant."),
+        }?;
+
+        let second_ff_layer = iter.next().ok_or(candle_core::Error::Msg(
+            "Unable to extract second FFLayer from FeedForward".to_string(),
+        ))?;
+        let gelu = match second_ff_layer {
+            crate::listings::ch04::FFLayer::GELU(g) => Ok::<GELU, candle_core::Error>(g.clone()),
+            _ => candle_core::bail!("Second layer of FeedForward is not of GELU variant."),
+        }?;
+
+        let third_ff_layer = iter.next().ok_or(candle_core::Error::Msg(
+            "Unable to extract third FFLayer from FeedForward".to_string(),
+        ))?;
+        let second_linear_with_lora_layer = match third_ff_layer {
+            crate::listings::ch04::FFLayer::Linear(l) => {
+                LinearWithLoRA::from_linear(l.clone(), rank, alpha, vb.pp("first_layer"))
+            }
+            _ => candle_core::bail!("Third layer of FeedForward is not of Linear variant."),
+        }?;
+
+        let layers = vec![
+            FFLayer::LinearWithLoRA(first_linear_with_lora_layer),
+            FFLayer::GELU(gelu),
+            FFLayer::LinearWithLoRA(second_linear_with_lora_layer),
+        ];
+
+        Ok(Self { layers })
+    }
+
+    pub fn from_fields(layers: Vec<FFLayer>) -> Result<Self> {
+        Ok(Self { layers })
+    }
+
+    pub fn layers(&self) -> &Vec<FFLayer> {
+        &self.layers
+    }
+}
+
+impl Module for FeedForwardWithLoRA {
+    fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let mut xs = xs.clone();
+        for layer in self.layers.iter() {
+            xs = layer.forward(&xs)?;
+        }
+        Ok(xs)
+    }
+}
+
 pub struct TransformerBlockWithLoRA {}
 pub struct GPTModelWithLoRA {}
 

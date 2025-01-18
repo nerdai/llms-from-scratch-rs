@@ -217,7 +217,7 @@ pub mod addons {
     use crate::listings::{
         ch03::MultiHeadAttention,
         ch04::{
-            seqtransformers, FFLayers, FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU,
+            seqtransformers, FFLayer, FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU,
         },
     };
     use candle_core::Result;
@@ -257,14 +257,14 @@ pub mod addons {
     impl FeedForward {
         fn new_v2(cfg: ConfigV2, vb: VarBuilder<'_>) -> Result<Self> {
             let layers = vec![
-                FFLayers::Linear(linear_b(
+                FFLayer::Linear(linear_b(
                     cfg.emb_dim,
                     4_usize * cfg.emb_dim,
                     true,
                     vb.pp("first_layer"),
                 )?),
-                FFLayers::GELU(GELU),
-                FFLayers::Linear(linear_b(
+                FFLayer::GELU(GELU),
+                FFLayer::Linear(linear_b(
                     4_usize * cfg.emb_dim,
                     cfg.emb_dim,
                     true,
