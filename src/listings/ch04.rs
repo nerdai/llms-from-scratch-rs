@@ -239,6 +239,7 @@ impl Module for GELU {
     }
 }
 
+/// Explicit `FFLayers`` enum
 #[derive(Clone, Debug)]
 pub enum FFLayers {
     Linear(Linear),
@@ -255,6 +256,11 @@ impl Module for FFLayers {
 }
 
 /// [Listing 4.4] A feed forward neural network module
+///
+/// NOTE: previously used candle_nn::Sequential but this creates trait objects
+/// which lose information on the concrete type. Downcasting to the concrete
+/// type was proven difficult. Thus, opting for explicit sequence instead.
+/// The type information is necessary when wanting to implement LoRA.
 #[derive(Clone, Debug)]
 pub struct FeedForward {
     layers: Vec<FFLayers>,
@@ -450,6 +456,12 @@ impl ModuleT for TransformerBlock {
     }
 }
 
+/// Explicit sequential like type for TransformerBlock
+///
+/// NOTE: preivously used candle_nn::Sequential but this creates trait objects
+/// which lose information on the concrete type. Downcasting to the concrete
+/// type was proven difficult. Thus, opting for explicit sequence instead.
+/// The type information is necessary when wanting to implement LoRA.
 #[derive(Clone, Debug)]
 pub struct SequentialTransformers {
     layers: Vec<TransformerBlock>,
