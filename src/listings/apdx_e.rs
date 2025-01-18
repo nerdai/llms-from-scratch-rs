@@ -605,4 +605,27 @@ mod tests {
         assert_eq!(ff_with_lora.layers.len(), 3_usize);
         Ok(())
     }
+
+    #[rstest]
+    fn test_feedforward_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let cfg = Config::gpt_sm_test();
+        let ff = FeedForward::new(cfg, vb.pp("ff"))?;
+        let ff_with_lora =
+            FeedForwardWithLoRA::from_ff(ff.clone(), rank, alpha, vb.pp("ff_with_lora"))?;
+
+        // create test batch
+        let (batch_size, seq_len) = (2_usize, 3_usize);
+        let batch_example =
+            Tensor::rand(0f32, 1f32, (batch_size, seq_len, cfg.emb_dim), vb.device())?;
+
+        // since this is only init these should be the same
+        let out = ff_with_lora.forward(&batch_example)?;
+        let out_from_ff_only = ff.forward(&batch_example)?;
+
+        assert_eq!(out.to_vec3::<f32>()?, out_from_ff_only.to_vec3::<f32>()?);
+
+        Ok(())
+    }
 }
