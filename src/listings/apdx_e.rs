@@ -137,8 +137,9 @@ impl LoRALayer {
     ) -> Result<Self> {
         let init_a = init::DEFAULT_KAIMING_NORMAL;
         let init_b = init::ZERO;
-        let A = vb.get_with_hints((in_dim, rank), "A", init_a)?;
-        let B = vb.get_with_hints((rank, out_dim), "B", init_b)?;
+        // candle_nn::Linear.weight is defined as transpose. We follow same convention here.
+        let A = vb.get_with_hints((rank, in_dim), "A", init_a)?;
+        let B = vb.get_with_hints((out_dim, rank), "B", init_b)?;
         Ok(Self { A, B, alpha })
     }
 }
@@ -146,14 +147,14 @@ impl LoRALayer {
 impl Module for LoRALayer {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let a_mat = match *xs.dims() {
-            [b1, b2, _, _] => self.A.broadcast_left((b1, b2))?,
-            [bsize, _, _] => self.A.broadcast_left(bsize)?,
-            _ => self.A.clone(),
+            [b1, b2, _, _] => self.A.broadcast_left((b1, b2))?.t()?,
+            [bsize, _, _] => self.A.broadcast_left(bsize)?.t()?,
+            _ => self.A.t()?,
         };
         let b_mat = match *xs.dims() {
-            [b1, b2, _, _] => self.B.broadcast_left((b1, b2))?,
-            [bsize, _, _] => self.B.broadcast_left(bsize)?,
-            _ => self.B.clone(),
+            [b1, b2, _, _] => self.B.broadcast_left((b1, b2))?.t()?,
+            [bsize, _, _] => self.B.broadcast_left(bsize)?.t()?,
+            _ => self.B.t()?,
         };
         let mut retval = a_mat.matmul(&b_mat)?;
         retval = xs.matmul(&retval)?;
@@ -175,8 +176,8 @@ impl LinearWithLoRA {
         alpha: f64,
         vb: VarBuilder<'_>,
     ) -> Result<Self> {
-        let in_dim = linear.weight().dims()[0];
-        let out_dim = linear.weight().dims()[1];
+        let out_dim = linear.weight().dims()[0];
+        let in_dim = linear.weight().dims()[1];
         let lora = LoRALayer::new(in_dim, out_dim, rank, alpha, vb)?;
 
         Ok(Self { linear, lora })
@@ -370,11 +371,11 @@ mod tests {
     fn test_lora_layer_init(vb: VarBuilder<'_>) -> Result<()> {
         let alpha = 0.5_f64;
         let rank = 3_usize;
-        let cfg = Config::gpt_sm_test();
-        let lora_layer = LoRALayer::new(cfg.emb_dim, cfg.emb_dim, rank, alpha, vb)?;
+        let (d_in, d_out) = (2_usize, 3_usize);
+        let lora_layer = LoRALayer::new(d_in, d_out, rank, alpha, vb)?;
 
-        assert_eq!(lora_layer.A.dims(), &[cfg.emb_dim, rank]);
-        assert_eq!(lora_layer.B.dims(), &[rank, cfg.emb_dim]);
+        assert_eq!(lora_layer.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(lora_layer.B.t()?.dims(), &[rank, d_out]);
         Ok(())
     }
 
@@ -412,8 +413,8 @@ mod tests {
         let lora_with_linear =
             LinearWithLoRA::from_linear(linear, rank, alpha, vb.pp("linear_with_lora"))?;
 
-        assert_eq!(lora_with_linear.lora.A.dims(), &[cfg.emb_dim, rank]);
-        assert_eq!(lora_with_linear.lora.B.dims(), &[rank, cfg.emb_dim]);
+        assert_eq!(lora_with_linear.lora.A.t()?.dims(), &[cfg.emb_dim, rank]);
+        assert_eq!(lora_with_linear.lora.B.t()?.dims(), &[rank, cfg.emb_dim]);
         assert_eq!(
             lora_with_linear.linear.weight().dims(),
             &[cfg.emb_dim, cfg.emb_dim]
@@ -451,20 +452,35 @@ mod tests {
     #[rstest]
     fn test_mha_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
         let alpha = 0.5_f64;
-        let rank = 3_usize;
+        let rank = 2_usize;
         let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
         let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn"))?;
         let mha_with_lora = MultiHeadAttentionWithLoRA::from_mha(mha, rank, alpha, vb.pp("attn"))?;
 
-        assert_eq!(mha_with_lora.w_query.lora.A.dims(), &[d_out, rank]);
-        assert_eq!(mha_with_lora.w_query.lora.B.dims(), &[rank, d_in]);
-        assert_eq!(mha_with_lora.w_query.linear.weight().dims(), &[d_out, d_in]);
-        assert_eq!(mha_with_lora.w_key.lora.A.dims(), &[d_out, rank]);
-        assert_eq!(mha_with_lora.w_key.lora.B.dims(), &[rank, d_in]);
-        assert_eq!(mha_with_lora.w_key.linear.weight().dims(), &[d_out, d_in]);
-        assert_eq!(mha_with_lora.w_value.lora.A.dims(), &[d_out, rank]);
-        assert_eq!(mha_with_lora.w_value.lora.B.dims(), &[rank, d_in]);
-        assert_eq!(mha_with_lora.w_value.linear.weight().dims(), &[d_out, d_in]);
+        assert_eq!(mha_with_lora.w_query.lora.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(mha_with_lora.w_query.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.w_query.linear.weight().t()?.dims(),
+            &[d_in, d_out]
+        );
+        assert_eq!(mha_with_lora.w_key.lora.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(mha_with_lora.w_key.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.w_key.linear.weight().t()?.dims(),
+            &[d_in, d_out]
+        );
+        assert_eq!(mha_with_lora.w_value.lora.A.t()?.dims(), &[d_in, rank]);
+        assert_eq!(mha_with_lora.w_value.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.w_value.linear.weight().t()?.dims(),
+            &[d_in, d_out]
+        );
+        assert_eq!(mha_with_lora.out_proj.lora.A.t()?.dims(), &[d_out, rank]);
+        assert_eq!(mha_with_lora.out_proj.lora.B.t()?.dims(), &[rank, d_out]);
+        assert_eq!(
+            mha_with_lora.out_proj.linear.weight().t()?.dims(),
+            &[d_out, d_out]
+        );
         assert_eq!(mha_with_lora.head_dim, d_out / num_heads);
         assert_eq!(mha_with_lora.drop_p, 0.5_f32);
         Ok(())
@@ -485,8 +501,8 @@ mod tests {
         let batch = Tensor::stack(&[&xs, &xs], 0)?;
 
         // since this is only init these should be the same
-        let context_vectors = mha_with_lora.forward(&batch)?;
-        let context_vectors_from_mha = mha.forward(&batch)?;
+        let context_vectors = mha_with_lora.forward_t(&batch, false)?;
+        let context_vectors_from_mha = mha.forward_t(&batch, false)?;
 
         assert_eq!(
             context_vectors.to_vec3::<f32>()?,
