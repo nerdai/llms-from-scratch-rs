@@ -1,7 +1,6 @@
 //! Listings from Chapter 4
 
 use super::ch03::MultiHeadAttention;
-use crate::candle_addons::{seqt, SequentialT};
 use candle_core::{IndexOp, Module, ModuleT, Result, Tensor, TensorId, D};
 use candle_nn::{
     embedding, linear_b, ops::softmax, seq, Dropout, Embedding, Linear, Sequential, VarBuilder,
@@ -177,6 +176,7 @@ impl Module for DummyTransformerBlock {
 }
 
 /// [Listing 4.2] A layer normalization struct
+#[derive(Clone, Debug)]
 pub struct LayerNorm {
     eps: f32,
     scale: Tensor,
@@ -226,6 +226,7 @@ impl Module for LayerNorm {
 /// [Listing 4.3] An implementation of the GELU activation function
 ///
 /// A unit struct in order to implement `candle_core::Module` trait
+#[derive(Clone, Debug)]
 pub struct GELU;
 
 impl Module for GELU {
@@ -238,6 +239,7 @@ impl Module for GELU {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum FFLayers {
     Linear(Linear),
     GELU(GELU),
@@ -253,6 +255,7 @@ impl Module for FFLayers {
 }
 
 /// [Listing 4.4] A feed forward neural network module
+#[derive(Clone, Debug)]
 pub struct FeedForward {
     layers: Vec<FFLayers>,
 }
@@ -357,6 +360,7 @@ impl Module for ExampleDeepNeuralNetwork {
 }
 
 /// [Listing 4.6] The transformer block component of GPT
+#[derive(Clone, Debug)]
 pub struct TransformerBlock {
     att: MultiHeadAttention,
     ff: FeedForward,
@@ -446,12 +450,50 @@ impl ModuleT for TransformerBlock {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct SequentialTransformers {
+    layers: Vec<TransformerBlock>,
+}
+
+/// Creates a new empty sequential layer.
+pub fn seqtransformers() -> SequentialTransformers {
+    SequentialTransformers { layers: vec![] }
+}
+
+impl SequentialTransformers {
+    #[allow(clippy::should_implement_trait)]
+    pub fn add(mut self, layer: TransformerBlock) -> Self {
+        self.layers.push(layer);
+        self
+    }
+
+    /// The number of sub-layers embedded in this layer.
+    pub fn len(&self) -> i64 {
+        self.layers.len() as i64
+    }
+
+    /// Returns true if this layer does not have any sub-layer.
+    pub fn is_empty(&self) -> bool {
+        self.layers.is_empty()
+    }
+}
+
+impl ModuleT for SequentialTransformers {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let mut xs = xs.clone();
+        for layer in self.layers.iter() {
+            xs = layer.forward_t(&xs, train)?
+        }
+        Ok(xs)
+    }
+}
+
 /// [Listing 4.7] The GPT model architecture implementation
 pub struct GPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
     drop_emb: Dropout,
-    trf_blocks: SequentialT, // of transformer blocks
+    trf_blocks: SequentialTransformers, // of transformer blocks
     final_norm: LayerNorm,
     out_head: Linear,
 }
@@ -475,7 +517,7 @@ impl GPTModel {
         let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
         let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
         let drop_emb = Dropout::new(cfg.drop_rate);
-        let mut trf_blocks = seqt();
+        let mut trf_blocks = seqtransformers();
         for ix in 0..cfg.n_layers {
             trf_blocks =
                 trf_blocks.add(TransformerBlock::new(cfg, vb.pp(format!("trf.{}", ix))).unwrap());
@@ -496,7 +538,7 @@ impl GPTModel {
         tok_emb: Embedding,
         pos_emb: Embedding,
         drop_emb: Dropout,
-        trf_blocks: SequentialT,
+        trf_blocks: SequentialTransformers,
         final_norm: LayerNorm,
         out_head: Linear,
     ) -> Result<Self> {

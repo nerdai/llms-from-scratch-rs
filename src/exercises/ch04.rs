@@ -214,11 +214,10 @@ impl Exercise for X3 {
 
 pub mod addons {
     //! Auxiliary module for exercises::ch04
-    use crate::{
-        candle_addons::seqt,
-        listings::{
-            ch03::MultiHeadAttention,
-            ch04::{FFLayers, FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU},
+    use crate::listings::{
+        ch03::MultiHeadAttention,
+        ch04::{
+            seqtransformers, FFLayers, FeedForward, GPTModel, LayerNorm, TransformerBlock, GELU,
         },
     };
     use candle_core::Result;
@@ -302,7 +301,7 @@ pub mod addons {
             let tok_emb = embedding(cfg.vocab_size, cfg.emb_dim, vb.pp("tok_emb"))?;
             let pos_emb = embedding(cfg.context_length, cfg.emb_dim, vb.pp("pos_emb"))?;
             let drop_emb = Dropout::new(cfg.drop_rate_emb);
-            let mut trf_blocks = seqt();
+            let mut trf_blocks = seqtransformers();
             for ix in 0..cfg.n_layers {
                 trf_blocks =
                     trf_blocks.add(TransformerBlock::new_v2(cfg, vb.pp(format!("trf-{}", ix)))?);
