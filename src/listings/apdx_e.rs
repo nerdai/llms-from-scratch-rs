@@ -9,8 +9,8 @@ use crate::listings::{
     },
 };
 use anyhow::anyhow;
-use candle_core::{Module, Result, Tensor};
-use candle_nn::{init, Dropout, Linear, VarBuilder, VarMap};
+use candle_core::{Module, ModuleT, Result, Tensor, D};
+use candle_nn::{init, ops::softmax, Dropout, Linear, VarBuilder, VarMap};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -204,6 +204,9 @@ pub fn replace_linear_with_lora(
     Ok(())
 }
 
+#[doc(inline)]
+pub use crate::listings::ch03::{get_mask, masked_fill};
+
 pub struct MultiHeadAttentionWithLoRA {
     num_heads: usize,
     d_out: usize,
@@ -244,6 +247,102 @@ impl MultiHeadAttentionWithLoRA {
             dropout: mha.dropout().clone(),
             drop_p: mha.drop_p(),
         })
+    }
+
+    pub fn w_query(&self) -> &LinearWithLoRA {
+        &self.w_query
+    }
+
+    pub fn w_key(&self) -> &LinearWithLoRA {
+        &self.w_key
+    }
+
+    pub fn w_value(&self) -> &LinearWithLoRA {
+        &self.w_value
+    }
+
+    pub fn out_proj(&self) -> &LinearWithLoRA {
+        &self.out_proj
+    }
+
+    pub fn d_out(&self) -> usize {
+        self.d_out
+    }
+
+    pub fn scaling(&self) -> f64 {
+        self.scaling
+    }
+
+    pub fn dropout(&self) -> &Dropout {
+        &self.dropout
+    }
+
+    pub fn drop_p(&self) -> f32 {
+        self.drop_p
+    }
+
+    pub fn head_dim(&self) -> usize {
+        self.head_dim
+    }
+
+    pub fn num_heads(&self) -> usize {
+        self.num_heads
+    }
+
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
+}
+
+impl ModuleT for MultiHeadAttentionWithLoRA {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let (b, num_tokens, _d_in) = xs.dims3()?;
+        let queries = self.w_query.forward_t(xs, train)?;
+        let keys = self.w_key.forward_t(xs, train)?;
+        let values = self.w_value.forward_t(xs, train)?;
+
+        // reshapes to facilitate getting attn scores each of the individual heads
+        // with one matrix multiplication
+        let queries = queries
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+        let keys = keys
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+        let values = values
+            .reshape((b, num_tokens, self.num_heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()?;
+
+        let attn_scores = queries.matmul(&keys.transpose(D::Minus2, D::Minus1)?)?;
+
+        let mask = get_mask(num_tokens, xs.device())?;
+        let masked = masked_fill(
+            &attn_scores,
+            &mask.broadcast_left((b, self.num_heads)).unwrap(),
+            f32::NEG_INFINITY,
+        )?;
+
+        // scale
+        let mut attn_weights = softmax(&(masked * self.scaling)?, D::Minus1)?;
+        // dropout
+        attn_weights = self.dropout.forward(&attn_weights, train)?;
+
+        // context vectors
+        let context_vec = attn_weights.matmul(&values)?.transpose(1, 2)?;
+        let context_vec = context_vec
+            .reshape((b, num_tokens, self.d_out))?
+            .contiguous()?;
+
+        // projection
+        self.out_proj.forward_t(&context_vec, train)
     }
 }
 pub struct FeedForwardWithLoRA {}
