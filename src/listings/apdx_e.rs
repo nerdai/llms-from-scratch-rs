@@ -688,4 +688,51 @@ mod tests {
 
         Ok(())
     }
+
+    #[rstest]
+    fn test_transformer_block_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let transformer_block_with_lora = TransformerBlockWithLoRA::from_trf_block(
+            transformer_block,
+            rank,
+            alpha,
+            vb.pp("transformer_with_lora"),
+        )?;
+
+        assert_eq!(transformer_block_with_lora.att.num_heads(), cfg.n_heads);
+        assert_eq!(transformer_block_with_lora.att.drop_p(), cfg.drop_rate);
+        assert_eq!(
+            transformer_block_with_lora.att.w_key.lora.A.t()?.dims(),
+            &[cfg.emb_dim, rank]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_key.lora.B.t()?.dims(),
+            &[rank, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_query.lora.A.t()?.dims(),
+            &[cfg.emb_dim, rank]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_query.lora.B.t()?.dims(),
+            &[rank, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_value.lora.A.t()?.dims(),
+            &[cfg.emb_dim, rank]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_value.lora.B.t()?.dims(),
+            &[rank, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.head_dim(),
+            cfg.emb_dim / cfg.n_heads
+        );
+        assert_eq!(transformer_block_with_lora.ff.layers.len(), 3_usize);
+        Ok(())
+    }
 }
