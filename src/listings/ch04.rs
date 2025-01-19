@@ -440,6 +440,27 @@ impl TransformerBlock {
     pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.forward_t(xs, true)
     }
+
+    // accessors
+    pub fn att(&self) -> &MultiHeadAttention {
+        &self.att
+    }
+
+    pub fn ff(&self) -> &FeedForward {
+        &self.ff
+    }
+
+    pub fn norm1(&self) -> &LayerNorm {
+        &self.norm1
+    }
+
+    pub fn norm2(&self) -> &LayerNorm {
+        &self.norm2
+    }
+
+    pub fn drop_shortcut(&self) -> &Dropout {
+        &self.drop_shortcut
+    }
 }
 
 impl ModuleT for TransformerBlock {

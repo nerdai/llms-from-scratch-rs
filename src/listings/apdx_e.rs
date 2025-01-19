@@ -2,7 +2,7 @@
 
 use crate::examples::ch06::addons::write_parquet;
 use crate::listings::{
-    ch04::Config,
+    ch04::{Config, LayerNorm},
     ch06::{
         create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader,
         SpamDataset, SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
@@ -115,7 +115,7 @@ pub fn create_candle_dataloaders(
 pub use crate::listings::ch06::download_and_load_gpt2;
 
 use super::ch03::MultiHeadAttention;
-use super::ch04::{FeedForward, GPTModel, GELU};
+use super::ch04::{FeedForward, GPTModel, TransformerBlock, GELU};
 
 /// [Listing E.5] Implementing a LoRA layer
 #[derive(Debug, Clone)]
@@ -431,7 +431,67 @@ impl Module for FeedForwardWithLoRA {
     }
 }
 
-pub struct TransformerBlockWithLoRA {}
+/// FeedForward with LoRA type
+#[derive(Clone, Debug)]
+pub struct TransformerBlockWithLoRA {
+    att: MultiHeadAttentionWithLoRA,
+    ff: FeedForwardWithLoRA,
+    norm1: LayerNorm,
+    norm2: LayerNorm,
+    drop_shortcut: Dropout,
+}
+
+impl TransformerBlockWithLoRA {
+    pub fn from_trf_block(
+        trf_block: TransformerBlock,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let att = MultiHeadAttentionWithLoRA::from_mha(
+            trf_block.att().clone(),
+            rank,
+            alpha,
+            vb.pp("mha"),
+        )?;
+        let ff = FeedForwardWithLoRA::from_ff(trf_block.ff().clone(), rank, alpha, vb.pp("ff"))?;
+
+        Ok(Self {
+            att,
+            ff,
+            norm1: trf_block.norm1().clone(),
+            norm2: trf_block.norm2().clone(),
+            drop_shortcut: trf_block.drop_shortcut().clone(),
+        })
+    }
+
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technicall not `Module`.
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
+}
+
+impl ModuleT for TransformerBlockWithLoRA {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let shortcut = xs.to_owned();
+        let mut x = xs.to_owned();
+        x = self.norm1.forward(&x)?;
+        x = self.att.forward_t(&x, train)?;
+        x = self.drop_shortcut.forward(&x, train)?;
+        x = (x + shortcut)?;
+
+        let shortcut = x.clone();
+        x = self.norm2.forward(&x)?;
+        x = self.ff.forward(&x)?;
+        x = self.drop_shortcut.forward(&x, train)?;
+        x = (x + shortcut)?;
+        Ok(x)
+    }
+}
 pub struct GPTModelWithLoRA {}
 
 #[cfg(test)]
@@ -625,6 +685,84 @@ mod tests {
         let out_from_ff_only = ff.forward(&batch_example)?;
 
         assert_eq!(out.to_vec3::<f32>()?, out_from_ff_only.to_vec3::<f32>()?);
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_transformer_block_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let transformer_block_with_lora = TransformerBlockWithLoRA::from_trf_block(
+            transformer_block,
+            rank,
+            alpha,
+            vb.pp("transformer_with_lora"),
+        )?;
+
+        assert_eq!(transformer_block_with_lora.att.num_heads(), cfg.n_heads);
+        assert_eq!(transformer_block_with_lora.att.drop_p(), cfg.drop_rate);
+        assert_eq!(
+            transformer_block_with_lora.att.w_key.lora.A.t()?.dims(),
+            &[cfg.emb_dim, rank]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_key.lora.B.t()?.dims(),
+            &[rank, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_query.lora.A.t()?.dims(),
+            &[cfg.emb_dim, rank]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_query.lora.B.t()?.dims(),
+            &[rank, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_value.lora.A.t()?.dims(),
+            &[cfg.emb_dim, rank]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.w_value.lora.B.t()?.dims(),
+            &[rank, cfg.emb_dim]
+        );
+        assert_eq!(
+            transformer_block_with_lora.att.head_dim(),
+            cfg.emb_dim / cfg.n_heads
+        );
+        assert_eq!(transformer_block_with_lora.ff.layers.len(), 3_usize);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_transformer_block_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let transformer_block_with_lora = TransformerBlockWithLoRA::from_trf_block(
+            transformer_block.clone(),
+            rank,
+            alpha,
+            vb.pp("transformer_with_lora"),
+        )?;
+
+        let batch_size = 2_usize;
+        let num_tokens = 4_usize;
+        let batch_example = Tensor::rand(
+            0f32,
+            1f32,
+            (batch_size, num_tokens, cfg.emb_dim),
+            vb.device(),
+        )?;
+
+        // since this is only init these should be the same
+        let out = transformer_block_with_lora.forward_t(&batch_example, false)?;
+        let out_from_trf_only = transformer_block.forward_t(&batch_example, false)?;
+
+        assert_eq!(out.to_vec3::<f32>()?, out_from_trf_only.to_vec3::<f32>()?);
 
         Ok(())
     }
