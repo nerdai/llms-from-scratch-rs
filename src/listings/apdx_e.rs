@@ -735,4 +735,35 @@ mod tests {
         assert_eq!(transformer_block_with_lora.ff.layers.len(), 3_usize);
         Ok(())
     }
+
+    #[rstest]
+    fn test_transformer_block_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let transformer_block_with_lora = TransformerBlockWithLoRA::from_trf_block(
+            transformer_block.clone(),
+            rank,
+            alpha,
+            vb.pp("transformer_with_lora"),
+        )?;
+
+        let batch_size = 2_usize;
+        let num_tokens = 4_usize;
+        let batch_example = Tensor::rand(
+            0f32,
+            1f32,
+            (batch_size, num_tokens, cfg.emb_dim),
+            vb.device(),
+        )?;
+
+        // since this is only init these should be the same
+        let out = transformer_block_with_lora.forward_t(&batch_example, false)?;
+        let out_from_trf_only = transformer_block.forward_t(&batch_example, false)?;
+
+        assert_eq!(out.to_vec3::<f32>()?, out_from_trf_only.to_vec3::<f32>()?);
+
+        Ok(())
+    }
 }
