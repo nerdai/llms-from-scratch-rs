@@ -10,7 +10,7 @@ use crate::listings::{
 };
 use anyhow::anyhow;
 use candle_core::{Module, ModuleT, Result, Tensor, D};
-use candle_nn::{init, ops::softmax, Dropout, Linear, VarBuilder, VarMap};
+use candle_nn::{init, ops::softmax, Dropout, Embedding, Linear, VarBuilder, VarMap};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -492,7 +492,102 @@ impl ModuleT for TransformerBlockWithLoRA {
         Ok(x)
     }
 }
-pub struct GPTModelWithLoRA {}
+
+/// Explicit sequential like type for TransformerBlockWithLoRA
+///
+/// TODO: use enum to consildate this type with the non-LoRA variant
+#[derive(Clone, Debug)]
+pub struct SequentialTransformersWithLoRA {
+    layers: Vec<TransformerBlockWithLoRA>,
+}
+
+/// Creates a new empty sequential layer.
+pub fn seqtransformers() -> SequentialTransformersWithLoRA {
+    SequentialTransformersWithLoRA { layers: vec![] }
+}
+
+impl SequentialTransformersWithLoRA {
+    #[allow(clippy::should_implement_trait)]
+    pub fn add(mut self, layer: TransformerBlockWithLoRA) -> Self {
+        self.layers.push(layer);
+        self
+    }
+
+    /// The number of sub-layers embedded in this layer.
+    pub fn len(&self) -> i64 {
+        self.layers.len() as i64
+    }
+
+    /// Returns true if this layer does not have any sub-layer.
+    pub fn is_empty(&self) -> bool {
+        self.layers.is_empty()
+    }
+
+    /// Accessor
+    pub fn layers(&self) -> &Vec<TransformerBlockWithLoRA> {
+        &self.layers
+    }
+}
+
+impl ModuleT for SequentialTransformersWithLoRA {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let mut xs = xs.clone();
+        for layer in self.layers.iter() {
+            xs = layer.forward_t(&xs, train)?
+        }
+        Ok(xs)
+    }
+}
+
+/// GPTModel with LoRA
+#[derive(Clone, Debug)]
+pub struct GPTModelWithLoRA {
+    tok_emb: Embedding,
+    pos_emb: Embedding,
+    drop_emb: Dropout,
+    trf_blocks: SequentialTransformersWithLoRA, // of transformer blocks
+    final_norm: LayerNorm,
+    out_head: LinearWithLoRA,
+}
+
+impl GPTModelWithLoRA {
+    pub fn from_gpt_model(
+        gpt: GPTModel,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let seq_trf_with_lora = gpt
+            .trf_blocks()
+            .layers()
+            .iter()
+            .enumerate()
+            .map(|(ix, trf)| {
+                TransformerBlockWithLoRA::from_trf_block(
+                    trf.clone(),
+                    rank,
+                    alpha,
+                    vb.pp(format!("trf.{}", ix)),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let trf_blocks = SequentialTransformersWithLoRA {
+            layers: seq_trf_with_lora,
+        };
+
+        let out_head =
+            LinearWithLoRA::from_linear(gpt.out_head().clone(), rank, alpha, vb.pp("out_head"))?;
+
+        Ok(Self {
+            tok_emb: gpt.tok_emb().clone(),
+            pos_emb: gpt.pos_emb().clone(),
+            drop_emb: gpt.drop_emb().clone(),
+            trf_blocks,
+            final_norm: gpt.final_norm().clone(),
+            out_head,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

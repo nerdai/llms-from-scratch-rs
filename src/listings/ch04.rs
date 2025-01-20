@@ -513,6 +513,11 @@ impl SequentialTransformers {
     pub fn is_empty(&self) -> bool {
         self.layers.is_empty()
     }
+
+    /// Accessor
+    pub fn layers(&self) -> &Vec<TransformerBlock> {
+        &self.layers
+    }
 }
 
 impl ModuleT for SequentialTransformers {
@@ -589,8 +594,24 @@ impl GPTModel {
         })
     }
 
+    pub fn drop_emb(&self) -> &Dropout {
+        &self.drop_emb
+    }
+
+    pub fn tok_emb(&self) -> &Embedding {
+        &self.tok_emb
+    }
+
     pub fn pos_emb(&self) -> &Embedding {
         &self.pos_emb
+    }
+
+    pub fn trf_blocks(&self) -> &SequentialTransformers {
+        &self.trf_blocks
+    }
+
+    pub fn final_norm(&self) -> &LayerNorm {
+        &self.final_norm
     }
 
     pub fn out_head(&self) -> &Linear {
@@ -716,7 +737,7 @@ mod tests {
     fn test_layer_norm_forward(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
         let batch_size = 2_usize;
-        let batch_example = Tensor::rand(0f32, 1f32, (batch_size, cfg.emb_dim), vb.device())?;
+        let batch_example = Tensor::rand(0f32, tolerance, (batch_size, cfg.emb_dim), vb.device())?;
         let layer_norm = LayerNorm::new(cfg.emb_dim, vb.pp("layer_norm"))?;
 
         let out_norm = layer_norm.forward(&batch_example)?;
