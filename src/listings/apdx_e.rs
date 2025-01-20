@@ -10,7 +10,7 @@ use crate::listings::{
 };
 use anyhow::anyhow;
 use candle_core::{Module, ModuleT, Result, Tensor, D};
-use candle_nn::{init, ops::softmax, Dropout, Linear, VarBuilder, VarMap};
+use candle_nn::{init, ops::softmax, Dropout, Embedding, Linear, VarBuilder, VarMap};
 use polars::prelude::*;
 use std::{
     ops::Not,
@@ -492,7 +492,128 @@ impl ModuleT for TransformerBlockWithLoRA {
         Ok(x)
     }
 }
-pub struct GPTModelWithLoRA {}
+
+/// Explicit sequential like type for TransformerBlockWithLoRA
+///
+/// TODO: use enum to consildate this type with the non-LoRA variant
+#[derive(Clone, Debug)]
+pub struct SequentialTransformersWithLoRA {
+    layers: Vec<TransformerBlockWithLoRA>,
+}
+
+/// Creates a new empty sequential layer.
+pub fn seqtransformers() -> SequentialTransformersWithLoRA {
+    SequentialTransformersWithLoRA { layers: vec![] }
+}
+
+impl SequentialTransformersWithLoRA {
+    #[allow(clippy::should_implement_trait)]
+    pub fn add(mut self, layer: TransformerBlockWithLoRA) -> Self {
+        self.layers.push(layer);
+        self
+    }
+
+    /// The number of sub-layers embedded in this layer.
+    pub fn len(&self) -> i64 {
+        self.layers.len() as i64
+    }
+
+    /// Returns true if this layer does not have any sub-layer.
+    pub fn is_empty(&self) -> bool {
+        self.layers.is_empty()
+    }
+
+    /// Accessor
+    pub fn layers(&self) -> &Vec<TransformerBlockWithLoRA> {
+        &self.layers
+    }
+}
+
+impl ModuleT for SequentialTransformersWithLoRA {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let mut xs = xs.clone();
+        for layer in self.layers.iter() {
+            xs = layer.forward_t(&xs, train)?
+        }
+        Ok(xs)
+    }
+}
+
+/// GPTModel with LoRA
+#[derive(Clone, Debug)]
+pub struct GPTModelWithLoRA {
+    tok_emb: Embedding,
+    pos_emb: Embedding,
+    drop_emb: Dropout,
+    trf_blocks: SequentialTransformersWithLoRA, // of transformer blocks
+    final_norm: LayerNorm,
+    out_head: LinearWithLoRA,
+}
+
+impl GPTModelWithLoRA {
+    pub fn from_gpt_model(
+        gpt: GPTModel,
+        rank: usize,
+        alpha: f64,
+        vb: VarBuilder<'_>,
+    ) -> Result<Self> {
+        let seq_trf_with_lora = gpt
+            .trf_blocks()
+            .layers()
+            .iter()
+            .enumerate()
+            .map(|(ix, trf)| {
+                TransformerBlockWithLoRA::from_trf_block(
+                    trf.clone(),
+                    rank,
+                    alpha,
+                    vb.pp(format!("trf.{}", ix)),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let trf_blocks = SequentialTransformersWithLoRA {
+            layers: seq_trf_with_lora,
+        };
+
+        let out_head =
+            LinearWithLoRA::from_linear(gpt.out_head().clone(), rank, alpha, vb.pp("out_head"))?;
+
+        Ok(Self {
+            tok_emb: gpt.tok_emb().clone(),
+            pos_emb: gpt.pos_emb().clone(),
+            drop_emb: gpt.drop_emb().clone(),
+            trf_blocks,
+            final_norm: gpt.final_norm().clone(),
+            out_head,
+        })
+    }
+
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technically not `Module`.
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
+}
+
+impl ModuleT for GPTModelWithLoRA {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let (_batch_size, seq_len) = xs.dims2()?;
+        let tok_embeds = self.tok_emb.forward(xs)?;
+        let pos_ids = Tensor::arange(0u32, seq_len as u32, xs.device())?;
+        let pos_embeds = self.pos_emb.embeddings().index_select(&pos_ids, 0)?;
+
+        let mut x = tok_embeds.broadcast_add(&pos_embeds)?;
+        x = self.drop_emb.forward(&x, train)?;
+        x = self.trf_blocks.forward_t(&x, train)?;
+        x = self.final_norm.forward(&x)?;
+
+        let logits = self.out_head.forward(&x)?;
+        Ok(logits)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -764,6 +885,48 @@ mod tests {
 
         assert_eq!(out.to_vec3::<f32>()?, out_from_trf_only.to_vec3::<f32>()?);
 
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_gpt_model_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let model_with_lora = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model"))?;
+
+        assert_eq!(model_with_lora.pos_emb.hidden_size(), cfg.emb_dim);
+        assert_eq!(model_with_lora.tok_emb.hidden_size(), cfg.emb_dim);
+        assert_eq!(model_with_lora.trf_blocks.len() as usize, cfg.n_layers);
+        assert_eq!(
+            model_with_lora.out_head.linear.weight().dims(),
+            &[cfg.vocab_size, cfg.emb_dim]
+        );
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_gpt_model_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let model_with_lora =
+            GPTModelWithLoRA::from_gpt_model(model.clone(), rank, alpha, vb.pp("model"))?;
+
+        // create batch
+        let dev = Device::cuda_if_available(0).unwrap();
+        let batch_token_ids = Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev)?;
+
+        // since this is only init these should be the same
+        let logits = model_with_lora.forward_t(&batch_token_ids, false)?;
+        let logits_with_out_lora = model.forward_t(&batch_token_ids, false)?;
+
+        assert_eq!(
+            logits.to_vec3::<f32>()?,
+            logits_with_out_lora.to_vec3::<f32>()?
+        );
         Ok(())
     }
 }

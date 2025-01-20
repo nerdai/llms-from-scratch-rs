@@ -513,6 +513,11 @@ impl SequentialTransformers {
     pub fn is_empty(&self) -> bool {
         self.layers.is_empty()
     }
+
+    /// Accessor
+    pub fn layers(&self) -> &Vec<TransformerBlock> {
+        &self.layers
+    }
 }
 
 impl ModuleT for SequentialTransformers {
@@ -526,6 +531,7 @@ impl ModuleT for SequentialTransformers {
 }
 
 /// [Listing 4.7] The GPT model architecture implementation
+#[derive(Debug, Clone)]
 pub struct GPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,
@@ -589,8 +595,24 @@ impl GPTModel {
         })
     }
 
+    pub fn drop_emb(&self) -> &Dropout {
+        &self.drop_emb
+    }
+
+    pub fn tok_emb(&self) -> &Embedding {
+        &self.tok_emb
+    }
+
     pub fn pos_emb(&self) -> &Embedding {
         &self.pos_emb
+    }
+
+    pub fn trf_blocks(&self) -> &SequentialTransformers {
+        &self.trf_blocks
+    }
+
+    pub fn final_norm(&self) -> &LayerNorm {
+        &self.final_norm
     }
 
     pub fn out_head(&self) -> &Linear {
