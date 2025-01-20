@@ -737,7 +737,7 @@ mod tests {
     fn test_layer_norm_forward(vb: VarBuilder<'_>) -> Result<()> {
         let cfg = Config::gpt_sm_test();
         let batch_size = 2_usize;
-        let batch_example = Tensor::rand(0f32, tolerance, (batch_size, cfg.emb_dim), vb.device())?;
+        let batch_example = Tensor::rand(0f32, 1f32, (batch_size, cfg.emb_dim), vb.device())?;
         let layer_norm = LayerNorm::new(cfg.emb_dim, vb.pp("layer_norm"))?;
 
         let out_norm = layer_norm.forward(&batch_example)?;
