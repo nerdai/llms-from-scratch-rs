@@ -531,6 +531,7 @@ impl ModuleT for SequentialTransformers {
 }
 
 /// [Listing 4.7] The GPT model architecture implementation
+#[derive(Debug, Clone)]
 pub struct GPTModel {
     tok_emb: Embedding,
     pos_emb: Embedding,

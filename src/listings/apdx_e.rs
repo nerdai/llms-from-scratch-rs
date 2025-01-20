@@ -905,4 +905,28 @@ mod tests {
         );
         Ok(())
     }
+
+    #[rstest]
+    fn test_gpt_model_with_lora_forward(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let model_with_lora =
+            GPTModelWithLoRA::from_gpt_model(model.clone(), rank, alpha, vb.pp("model"))?;
+
+        // create batch
+        let dev = Device::cuda_if_available(0).unwrap();
+        let batch_token_ids = Tensor::new(&[[101_u32, 366, 100, 345], [101, 110, 322, 57]], &dev)?;
+
+        // since this is only init these should be the same
+        let logits = model_with_lora.forward_t(&batch_token_ids, false)?;
+        let logits_with_out_lora = model.forward_t(&batch_token_ids, false)?;
+
+        assert_eq!(
+            logits.to_vec3::<f32>()?,
+            logits_with_out_lora.to_vec3::<f32>()?
+        );
+        Ok(())
+    }
 }
