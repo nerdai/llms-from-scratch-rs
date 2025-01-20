@@ -887,4 +887,22 @@ mod tests {
 
         Ok(())
     }
+
+    #[rstest]
+    fn test_gpt_model_with_lora_init(vb: VarBuilder<'_>) -> Result<()> {
+        let cfg = Config::gpt_sm_test();
+        let model = GPTModel::new(cfg, vb.pp("model"))?;
+        let alpha = 0.5_f64;
+        let rank = 2_usize;
+        let model_with_lora = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model"))?;
+
+        assert_eq!(model_with_lora.pos_emb.hidden_size(), cfg.emb_dim);
+        assert_eq!(model_with_lora.tok_emb.hidden_size(), cfg.emb_dim);
+        assert_eq!(model_with_lora.trf_blocks.len() as usize, cfg.n_layers);
+        assert_eq!(
+            model_with_lora.out_head.linear.weight().dims(),
+            &[cfg.vocab_size, cfg.emb_dim]
+        );
+        Ok(())
+    }
 }
