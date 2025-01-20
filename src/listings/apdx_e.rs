@@ -587,6 +587,32 @@ impl GPTModelWithLoRA {
             out_head,
         })
     }
+
+    /// Manual implementation of forward
+    ///
+    /// Note: that blanket implementation of `ModuleT` when a type implements
+    /// `Module` prevents having `forward` being overrided. Thus, this type
+    /// is `ModuleT` but technically not `Module`.
+    pub fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        self.forward_t(xs, true)
+    }
+}
+
+impl ModuleT for GPTModelWithLoRA {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Result<Tensor> {
+        let (_batch_size, seq_len) = xs.dims2()?;
+        let tok_embeds = self.tok_emb.forward(xs)?;
+        let pos_ids = Tensor::arange(0u32, seq_len as u32, xs.device())?;
+        let pos_embeds = self.pos_emb.embeddings().index_select(&pos_ids, 0)?;
+
+        let mut x = tok_embeds.broadcast_add(&pos_embeds)?;
+        x = self.drop_emb.forward(&x, train)?;
+        x = self.trf_blocks.forward_t(&x, train)?;
+        x = self.final_norm.forward(&x)?;
+
+        let logits = self.out_head.forward(&x)?;
+        Ok(logits)
+    }
 }
 
 #[cfg(test)]
