@@ -138,3 +138,85 @@ impl Example for EG02 {
         Ok(())
     }
 }
+
+/// # Example usage of `GPTModelWithLoRA::from_gpt()` and extracting the LoRA trainable vars
+///
+/// #### Id
+/// E.03
+///
+/// #### Page
+/// This example starts on page 331
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example E.03
+///
+/// # with cuda
+/// cargo run --features cuda example E.03
+/// ```
+pub struct EG03;
+
+impl Example for EG03 {
+    fn description(&self) -> String {
+        let desc = "Example usage of `GPTModelWithLoRA::from_gpt()` and \
+        extracting the LoRA trainable vars";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        331_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            apdx_e::{download_and_load_gpt2, GPTModelWithLoRA},
+            ch04::Config,
+            ch06::{modify_out_head_for_classification, HF_GPT2_MODEL_ID},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+
+        // modify to use classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+
+        // get total number of params from the VarMap (todo: turn this into a util)
+        let mut total_params_without_lora_weights = 0_usize;
+        for t in varmap.all_vars().iter() {
+            total_params_without_lora_weights += t.elem_count();
+        }
+        println!(
+            "Total number of parameters of original model: {}",
+            total_params_without_lora_weights
+        );
+
+        // convert to LoRA model
+        let rank = 16_usize;
+        let alpha = 16_f64;
+        let _model = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model"))?;
+
+        // extract only LoRA weights
+        let mut total_training_params = 0_usize; // i.e., LoRA weights
+        let tensor_data = varmap.data().lock().unwrap();
+        let var_names: Vec<&String> = tensor_data
+            .keys()
+            .filter(|k| k.contains("A") || k.contains("B"))
+            .collect();
+        for var_name in var_names.into_iter() {
+            let var = tensor_data.get(var_name).unwrap();
+            total_training_params += var.elem_count();
+        }
+        drop(tensor_data);
+
+        println!("Total trainable LoRA parameters: {}", total_training_params);
+
+        Ok(())
+    }
+}

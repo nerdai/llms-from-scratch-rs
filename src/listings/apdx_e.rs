@@ -179,6 +179,8 @@ impl LinearWithLoRA {
         // NOTE: candle_nn::Linear's weights are transposed at init
         let out_dim = linear.weight().dims()[0];
         let in_dim = linear.weight().dims()[1];
+
+        // Remove linear from VarMap
         let lora = LoRALayer::new(in_dim, out_dim, rank, alpha, vb)?;
 
         Ok(Self { linear, lora })
