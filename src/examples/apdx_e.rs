@@ -198,7 +198,7 @@ impl Example for EG03 {
         );
 
         // convert to LoRA model
-        let rank = 186_usize;
+        let rank = 16_usize;
         let alpha = 16_f64;
         let _model = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model"))?;
 
