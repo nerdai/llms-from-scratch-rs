@@ -186,6 +186,25 @@ pub struct LinearWithLoRA {
 }
 
 impl LinearWithLoRA {
+    /// Creates a new `LinearWithLoRA` from `Linear`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{Linear, VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::Config;
+    /// use llms_from_scratch_rs::listings::apdx_e::LinearWithLoRA;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let linear = candle_nn::linear(cfg.emb_dim, cfg.emb_dim, vb.pp("linear")).unwrap();
+    ///
+    /// let alpha = 0.5_f64;
+    /// let rank = 3_usize;
+    /// let lora_with_linear = LinearWithLoRA::from_linear(linear, rank, alpha, vb.pp("linear")).unwrap();
+    /// ```
     pub fn from_linear(
         linear: Linear,
         rank: usize,
