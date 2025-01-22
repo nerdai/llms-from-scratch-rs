@@ -1,7 +1,7 @@
 //! Examples from Appendix E
 
 use crate::Example;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 /// # Example usage of `create_candle_dataloaders`
 ///
@@ -488,6 +488,89 @@ impl Example for EG06 {
             label,
             save_path,
         )?;
+
+        Ok(())
+    }
+}
+
+/// # Evaluating trained LoRA model on train, validation, and test sets
+///
+/// #### Id
+/// E.07
+///
+/// #### Page
+/// This example starts on page 335
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example E.07
+///
+/// # with cuda
+/// cargo run --features cuda example E.07
+/// ```
+pub struct EG07;
+
+impl Example for EG07 {
+    fn description(&self) -> String {
+        "Evaluating trained LoRA model on train, validation, and test sets.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        335_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            apdx_e::{create_candle_dataloaders, GPTModelWithLoRA},
+            ch04::Config,
+            ch06::{
+                calc_accuracy_loader, download_and_load_gpt2, modify_out_head_for_classification,
+                HF_GPT2_MODEL_ID,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        // get gpt model with classification head
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+
+        // modify to use classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+
+        // convert to LoRA model
+        let rank = 16_usize;
+        let alpha = 16_f64;
+        let model = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model"))?;
+
+        // load safetensors
+        varmap
+            .load("clf.gptwithlora.checkpoint.safetensors")
+            .with_context(|| {
+                "Missing 'clf.gptwithlora.checkpoint.safetensors' file. Please run EG E.06."
+            })?;
+
+        // data loaders
+        let batch_size = 2_usize; // Get OOM on my Tesla P100 (12GB) with 8_usize
+        let (train_loader, val_loader, test_loader) = create_candle_dataloaders(batch_size)?;
+
+        // compute accuracies
+        let num_batches = None;
+        let train_accuracy =
+            calc_accuracy_loader(&train_loader, &model, vb.device(), num_batches, None)?;
+        let val_accuracy =
+            calc_accuracy_loader(&val_loader, &model, vb.device(), num_batches, None)?;
+        let test_accuracy =
+            calc_accuracy_loader(&test_loader, &model, vb.device(), num_batches, None)?;
+
+        println!("Training accuracy: {}", train_accuracy);
+        println!("Validation accuracy: {}", val_accuracy);
+        println!("Test accuracy: {}", test_accuracy);
 
         Ok(())
     }
