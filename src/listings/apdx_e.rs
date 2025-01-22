@@ -132,7 +132,7 @@ impl LoRALayer {
     /// ```rust
     /// use candle_core::{Device, DType};
     /// use candle_nn::{VarBuilder, VarMap};
-    /// use llms_from_scratch_rs::listings::apdx_e::LoraLayer;
+    /// use llms_from_scratch_rs::listings::apdx_e::LoRALayer;
     ///
     /// let dev = Device::cuda_if_available(0).unwrap();
     /// let varmap = VarMap::new();
