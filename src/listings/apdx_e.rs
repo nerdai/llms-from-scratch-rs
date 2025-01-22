@@ -229,7 +229,7 @@ impl Module for LinearWithLoRA {
 }
 
 /// Function to replace all `Linear` layers with `LinearWithLoRA` in a given model
-/// NOTE: this won't work for Candle
+/// NOTE: this won't work for Candle and is thus a no-op.
 /// Need to impl all the modules `XXXWithLoRA` and probably impl the `From` trait
 #[allow(unused_variables)]
 pub fn replace_linear_with_lora(
@@ -240,6 +240,7 @@ pub fn replace_linear_with_lora(
     varmap: &VarMap,
     vb: VarBuilder<'_>,
 ) -> Result<()> {
+    // no-op
     Ok(())
 }
 
