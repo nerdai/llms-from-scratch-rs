@@ -1,7 +1,7 @@
 //! Listings from Chapter 6
 
 use super::{
-    ch04::{Config, GPTModel},
+    ch04::{Config, GPTModel, GPT},
     ch05::load_weights_into_gpt,
 };
 use ::zip::ZipArchive;
@@ -649,10 +649,10 @@ pub fn modify_out_head_for_classification(
 }
 
 /// Calculate the number of correct predictions of a given batch
-pub fn calc_num_correct_batch(
+pub fn calc_num_correct_batch<M: GPT + ModuleT>(
     input_batch: &Tensor,
     target_batch: &Tensor,
-    model: &GPTModel,
+    model: &M,
     device: &Device,
     custom_pred_token_index: Option<usize>, // introduced for Exercise 6.3
 ) -> Result<Tensor> {
@@ -673,9 +673,9 @@ pub fn calc_num_correct_batch(
 
 /// [Listing 6.8] Calculating the classification accuracy
 #[allow(unused_variables)]
-pub fn calc_accuracy_loader(
+pub fn calc_accuracy_loader<M: GPT + ModuleT>(
     data_loader: &SpamDataLoader,
-    model: &GPTModel,
+    model: &M,
     device: &Device,
     num_batches: Option<usize>,
     custom_pred_token_index: Option<usize>, // introduced for Exercise 6.3
@@ -706,10 +706,10 @@ pub fn calc_accuracy_loader(
 }
 
 /// Calculate the cross entropy loss of a given batch
-pub fn calc_loss_batch(
+pub fn calc_loss_batch<M: GPT + ModuleT>(
     input_batch: &Tensor,
     target_batch: &Tensor,
-    model: &GPTModel,
+    model: &M,
     device: &Device,
     custom_pred_token_index: Option<usize>, // introduced for Exercise 6.3
 ) -> Result<Tensor> {

@@ -2,7 +2,7 @@
 
 use crate::examples::ch06::addons::write_parquet;
 use crate::listings::{
-    ch04::{Config, LayerNorm},
+    ch04::{Config, LayerNorm, GPT},
     ch06::{
         create_balanced_dataset, download_smsspam_parquet, random_split, SpamDataLoader,
         SpamDataset, SpamDatasetBuilder, PARQUET_FILENAME, PARQUET_URL,
@@ -616,6 +616,8 @@ impl ModuleT for GPTModelWithLoRA {
         Ok(logits)
     }
 }
+
+impl GPT for GPTModelWithLoRA {}
 
 #[cfg(test)]
 mod tests {
