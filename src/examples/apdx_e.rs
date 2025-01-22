@@ -220,3 +220,61 @@ impl Example for EG03 {
         Ok(())
     }
 }
+
+/// # Printing GPTModelWithLoRA architecture
+///
+/// #### Id
+/// E.04
+///
+/// #### Page
+/// This example starts on page 332
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example E.04
+///
+/// # with cuda
+/// cargo run --features cuda example E.04
+/// ```
+pub struct EG04;
+
+impl Example for EG04 {
+    fn description(&self) -> String {
+        "Printing GPTModelWithLoRA architecture.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        332_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            apdx_e::{download_and_load_gpt2, GPTModelWithLoRA},
+            ch04::Config,
+            ch06::{modify_out_head_for_classification, HF_GPT2_MODEL_ID},
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+
+        let mut cfg = Config::gpt2_124m();
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
+
+        // modify to use classification head
+        let num_classes = 2_usize;
+        modify_out_head_for_classification(&mut model, cfg, num_classes, &varmap, vb.pp("model"))?;
+
+        // convert to LoRA model
+        let rank = 16_usize;
+        let alpha = 16_f64;
+        let model = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model"))?;
+
+        // pretty debug print
+        println!("{:#?}", model);
+
+        Ok(())
+    }
+}
