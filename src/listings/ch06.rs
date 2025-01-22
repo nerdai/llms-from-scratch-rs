@@ -734,9 +734,9 @@ pub fn calc_loss_batch<M: GPT + ModuleT>(
 }
 
 /// [Listing 6.9] Function to compute the training and validation cross-entropy loss
-pub fn calc_loss_loader(
+pub fn calc_loss_loader<M: GPT + ModuleT>(
     data_loader: &SpamDataLoader,
-    model: &GPTModel,
+    model: &M,
     device: &Device,
     num_batches: Option<usize>,
     custom_pred_token_index: Option<usize>,
@@ -768,8 +768,8 @@ type ClassifierTrainingResult = (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, usize);
 
 /// [Listing 6.10] Fine-tuning the model to classify spam
 #[allow(clippy::too_many_arguments)]
-pub fn train_classifier_simple<T: Optimizer>(
-    model: &GPTModel,
+pub fn train_classifier_simple<T: Optimizer, M: GPT + ModuleT>(
+    model: &M,
     train_loader: &SpamDataLoader,
     val_loader: &SpamDataLoader,
     mut optimizer: T,
@@ -855,8 +855,8 @@ pub fn train_classifier_simple<T: Optimizer>(
 }
 
 /// Returns train and validation loss of a `GPTModel` for spam classification
-pub fn evaluate_model(
-    model: &GPTModel,
+pub fn evaluate_model<M: GPT + ModuleT>(
+    model: &M,
     train_loader: &SpamDataLoader,
     val_loader: &SpamDataLoader,
     device: &Device,
