@@ -127,6 +127,22 @@ pub struct LoRALayer {
 }
 
 impl LoRALayer {
+    /// Creates a new `LoRALayer`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::apdx_e::LoraLayer;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let alpha = 0.5_f64;
+    /// let rank = 3_usize;
+    /// let (d_in, d_out) = (20_usize, 30_usize);
+    /// let lora_layer = LoRALayer::new(d_in, d_out, rank, alpha, vb).unwrap();
+    /// ```
     #[allow(non_snake_case)]
     pub fn new(
         in_dim: usize,
