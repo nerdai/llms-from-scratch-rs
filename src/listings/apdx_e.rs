@@ -96,11 +96,11 @@ pub fn create_candle_datasets() -> anyhow::Result<(SpamDataset, SpamDataset, Spa
 ///
 /// NOTE: This is merely EG 06.06
 pub fn create_candle_dataloaders(
+    batch_size: usize,
 ) -> anyhow::Result<(SpamDataLoader, SpamDataLoader, SpamDataLoader)> {
     let (train_dataset, val_dataset, test_dataset) = create_candle_datasets()?;
 
     // create loaders
-    let batch_size = 8_usize;
     let train_loader = SpamDataLoader::new(train_dataset, batch_size, true, true);
     let val_loader = SpamDataLoader::new(val_dataset, batch_size, false, false);
     let test_loader = SpamDataLoader::new(test_dataset, batch_size, false, false);
