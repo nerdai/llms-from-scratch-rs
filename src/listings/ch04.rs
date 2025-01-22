@@ -530,6 +530,9 @@ impl ModuleT for SequentialTransformers {
     }
 }
 
+/// Marker trait to consolidate GPTModel and LoRA variant introduced later in the book
+pub trait GPT {}
+
 /// [Listing 4.7] The GPT model architecture implementation
 #[derive(Debug, Clone)]
 pub struct GPTModel {
@@ -649,6 +652,8 @@ impl ModuleT for GPTModel {
         Ok(logits)
     }
 }
+
+impl GPT for GPTModel {}
 
 /// [Listing 4.8] A function for the GPT model to generate text
 pub fn generate_text_simple(
