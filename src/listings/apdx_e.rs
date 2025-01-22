@@ -619,6 +619,12 @@ impl ModuleT for GPTModelWithLoRA {
 
 impl GPT for GPTModelWithLoRA {}
 
+/// [Listing E.7] Fine-tuning a model with LoRA layers
+///
+/// NOTE: This is merely a re-export of `train_classifier_simple` from `listings::ch06`
+#[doc(inline)]
+pub use crate::listings::ch06::train_classifier_simple;
+
 #[cfg(test)]
 mod tests {
     use super::*;
