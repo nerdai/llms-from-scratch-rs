@@ -262,6 +262,26 @@ pub struct MultiHeadAttentionWithLoRA {
 }
 
 impl MultiHeadAttentionWithLoRA {
+    /// Creates a new `MultiHeadAttentionWithLoRA` from `MultiHeadAttention`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch03::MultiHeadAttention;
+    /// use llms_from_scratch_rs::listings::ch04::Config;
+    /// use llms_from_scratch_rs::listings::apdx_e::MultiHeadAttentionWithLoRA;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let (d_in, d_out, num_heads) = (3_usize, 6_usize, 2_usize);
+    /// let mha = MultiHeadAttention::new(d_in, d_out, 0.5_f32, num_heads, false, vb.pp("attn")).unwrap();
+    ///
+    /// let alpha = 0.5_f64;
+    /// let rank = 3_usize;
+    /// let mha_with_lora = MultiHeadAttentionWithLoRA::from_mha(mha, rank, alpha, vb.pp("attn")).unwrap();
+    /// ```
     pub fn from_mha(
         mha: MultiHeadAttention,
         rank: usize,
