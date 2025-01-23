@@ -50,6 +50,12 @@ wget 'https://raw.githubusercontent.com/rabst/LLMs-from-scratch/main/ch02/01_mai
 Users have the option of reading the code via their chosen IDE and the cloned
 repo, or by using the project's [docs](https://docs.rs/llms-from-scratch-rs/latest/llms_from_scratch_rs/).
 
+NOTE: The import style used in all of the `examples` and `exercises` modules are
+not by convention. Specifically, relevant imports are made under the `main()` method
+of every `Example` and `Exercise` implementation. This is done for educational
+purposes to assist the reader of the book in knowing precisely what imports are
+needed for the example/exercise at hand.
+
 ### Running `Examples` and `Exercises`
 
 After cloning the repo, you can cd to the project's root directory and execute
