@@ -268,7 +268,6 @@ impl MultiHeadAttentionWithLoRA {
     /// use candle_core::{Device, DType};
     /// use candle_nn::{VarBuilder, VarMap};
     /// use llms_from_scratch_rs::listings::ch03::MultiHeadAttention;
-    /// use llms_from_scratch_rs::listings::ch04::Config;
     /// use llms_from_scratch_rs::listings::apdx_e::MultiHeadAttentionWithLoRA;
     ///
     /// let dev = Device::cuda_if_available(0).unwrap();
@@ -430,6 +429,24 @@ pub struct FeedForwardWithLoRA {
 }
 
 impl FeedForwardWithLoRA {
+    /// Creates a new `FeedForwardWithLoRA` from `FeedForward`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, FeedForward};
+    /// use llms_from_scratch_rs::listings::apdx_e::FeedForwardWithLoRA;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let ff = FeedForward::new(Config::gpt_sm_test(), vb.pp("ff")).unwrap();
+    ///
+    /// let alpha = 0.5_f64;
+    /// let rank = 3_usize;
+    /// let ff_with_lora = FeedForwardWithLoRA::from_ff(ff, rank, alpha, vb.pp("ff")).unwrap();
+    /// ```
     pub fn from_ff(ff: FeedForward, rank: usize, alpha: f64, vb: VarBuilder<'_>) -> Result<Self> {
         let mut iter = ff.layers().iter();
 
