@@ -517,6 +517,30 @@ pub struct TransformerBlockWithLoRA {
 }
 
 impl TransformerBlockWithLoRA {
+    /// Creates a new `TransformerBlockWithLoRA` from `TransformerBlock`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, TransformerBlock};
+    /// use llms_from_scratch_rs::listings::apdx_e::TransformerBlockWithLoRA;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let transformer_block = TransformerBlock::new(cfg, vb.pp("transformer")).unwrap();
+    ///
+    /// let alpha = 0.5_f64;
+    /// let rank = 3_usize;
+    /// let transformer_block_with_lora = TransformerBlockWithLoRA::from_trf_block(
+    ///     transformer_block,
+    ///     rank,
+    ///     alpha,
+    ///     vb.pp("transformer"),
+    /// ).unwrap();
+    /// ```
     pub fn from_trf_block(
         trf_block: TransformerBlock,
         rank: usize,
