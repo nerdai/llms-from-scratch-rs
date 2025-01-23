@@ -650,6 +650,25 @@ pub struct GPTModelWithLoRA {
 }
 
 impl GPTModelWithLoRA {
+    /// Creates a new `GPTModelWithLoRA` from `GPTModel`
+    ///
+    /// ```rust
+    /// use candle_core::{Device, DType};
+    /// use candle_nn::{VarBuilder, VarMap};
+    /// use llms_from_scratch_rs::listings::ch04::{Config, GPTModel};
+    /// use llms_from_scratch_rs::listings::apdx_e::GPTModelWithLoRA;
+    ///
+    /// let dev = Device::cuda_if_available(0).unwrap();
+    /// let varmap = VarMap::new();
+    /// let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+    ///
+    /// let cfg = Config::gpt_sm_test();
+    /// let model = GPTModel::new(cfg, vb.pp("model")).unwrap();
+    ///
+    /// let alpha = 0.5_f64;
+    /// let rank = 3_usize;
+    /// let model_with_lora = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model")).unwrap();
+    /// ```
     pub fn from_gpt_model(
         gpt: GPTModel,
         rank: usize,
