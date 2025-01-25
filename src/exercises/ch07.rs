@@ -520,6 +520,43 @@ impl Exercise for X3 {
     }
 }
 
+/// # Parameter-efficient fine-tuning with LoRA
+///
+/// #### Id
+/// 7.4
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run exercise 7.4
+///
+/// # with cuda
+/// cargo run --features cuda exercise 7.4
+/// ```
+pub struct X4;
+
+impl Exercise for X4 {
+    fn name(&self) -> String {
+        "7.4".to_string()
+    }
+
+    fn title(&self) -> String {
+        "Parameter-efficient fine-tuning with LoRA".to_string()
+    }
+
+    fn statement(&self) -> String {
+        let stmt = "To instruction fine-tune an LLM more efficiently, \
+        modify the code in this chapter to use the low-rank adaptation method \
+        (LoRA) from appendix E. Compare the training run time and model \
+        performance before and after the modification.";
+        stmt.to_string()
+    }
+
+    fn main(&self) -> Result<()> {
+        todo!()
+    }
+}
+
 pub mod addons {
     //! Auxiliary module for exercises::ch07
     use crate::listings::ch07::{
