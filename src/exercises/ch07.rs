@@ -553,7 +553,87 @@ impl Exercise for X4 {
     }
 
     fn main(&self) -> Result<()> {
-        todo!()
+        use crate::examples::ch07::EG07;
+        use crate::listings::{
+            apdx_e::GPTModelWithLoRA,
+            ch04::Config,
+            ch05::plot_losses,
+            ch07::{
+                download_and_load_gpt2, train_model_simple, AlpacaPromptFormatter, PromptFormatter,
+                DEFAULT_IGNORE_INDEX,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use ndarray::linspace;
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        // use `download_and_load_gpt2`
+        let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
+        let mut cfg = Config::gpt2_124m(); // use `gpt2_medium()` for med instead
+        cfg.qkv_bias = true;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, model_id)?;
+
+        // convert to LoRA model
+        let rank = 16_usize;
+        let alpha = 16_f64;
+        let model = GPTModelWithLoRA::from_gpt_model(model, rank, alpha, vb.pp("model"))?;
+
+        // get data loaders that is built on a dataset that used phi3 prompt format style
+        let eg07 = EG07;
+        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
+
+        // invoke training
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.00005,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
+        let (train_losses, val_losses, tokens_seen) = train_model_simple(
+            &model,
+            &train_loader,
+            &val_loader,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context.as_str(),
+            &tokenizer,
+            Some(DEFAULT_IGNORE_INDEX),
+        )?;
+
+        // save model
+        println!("Saving weights to `./ift.lora.checkpoint.safetensors`");
+        varmap.save("ift.lora.checkpoint.safetensors")?;
+
+        // plot loss curves
+        println!("Saving plot to `./plot_ift_phi3_loss.html`");
+        let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
+        let tokens_seen = tokens_seen
+            .into_iter()
+            .map(|el| el as f32)
+            .collect::<Vec<_>>();
+        let save_path = Path::new("plot_ift_lora_loss.html").to_path_buf();
+        plot_losses(
+            epochs_seen,
+            tokens_seen,
+            train_losses,
+            val_losses,
+            save_path,
+        )?;
+
+        Ok(())
     }
 }
 

@@ -733,7 +733,11 @@ impl ModuleT for GPTModelWithLoRA {
     }
 }
 
-impl GPT for GPTModelWithLoRA {}
+impl GPT for GPTModelWithLoRA {
+    fn context_size(&self) -> usize {
+        self.pos_emb.embeddings().dims()[0]
+    }
+}
 
 /// [Listing E.7] Fine-tuning a model with LoRA layers
 ///
