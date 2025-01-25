@@ -1,11 +1,9 @@
 //! Listings from Chapter 5
 
-use crate::{
-    candle_addons::TopK,
-    listings::{
-        ch02::DataLoader,
-        ch04::{generate_text_simple, GPTModel},
-    },
+use crate::candle_addons::TopK;
+use crate::listings::{
+    ch02::DataLoader,
+    ch04::{generate_text_simple, GPT},
 };
 use candle_core::{Device, Error, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::{ops::softmax, Optimizer, VarMap};
@@ -44,10 +42,10 @@ pub fn token_ids_to_text(token_ids: Tensor, tokenizer: &CoreBPE) -> anyhow::Resu
 pub const DEFAULT_IGNORE_INDEX: i64 = -100;
 
 /// Calculate the cross entropy loss of a given batch
-pub fn calc_loss_batch(
+pub fn calc_loss_batch<M: GPT + ModuleT>(
     input_batch: &Tensor,
     target_batch: &Tensor,
-    model: &GPTModel,
+    model: &M,
     device: &Device,
     train: bool,               // added to compute loss for train or otherwise
     ignore_index: Option<i64>, // introduced for ch07 instruction finetuning
@@ -91,9 +89,12 @@ pub fn calc_loss_batch(
 /// `calc_loss_batch`. Also, introduced trait bounds on DataLoader so that we
 /// can re-use for ch07 (instruction-finetuning), for which we have a different
 /// DataLoader type.
-pub fn calc_loss_loader<L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>>(
+pub fn calc_loss_loader<
+    M: GPT + ModuleT,
+    L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>,
+>(
     data_loader: &L,
-    model: &GPTModel,
+    model: &M,
     device: &Device,
     num_batches: Option<usize>,
     ignore_index: Option<i64>, // introduced for ch07 instruction finetuning
@@ -187,8 +188,9 @@ pub fn plot_losses<P: AsRef<Path>>(
 pub fn train_model_simple<
     T,
     L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>,
+    M: GPT + ModuleT,
 >(
-    model: &GPTModel,
+    model: &M,
     train_loader: &L,
     val_loader: &L,
     mut optimizer: T,
@@ -255,8 +257,11 @@ where
 }
 
 /// Returns train and validation loss of a `GPTModel`
-pub fn evaluate_model<L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>>(
-    model: &GPTModel,
+pub fn evaluate_model<
+    M: GPT + ModuleT,
+    L: DataLoader<Batcher = impl Iterator<Item = Result<(Tensor, Tensor)>>>,
+>(
+    model: &M,
     train_loader: &L,
     val_loader: &L,
     device: &Device,
@@ -272,13 +277,13 @@ pub fn evaluate_model<L: DataLoader<Batcher = impl Iterator<Item = Result<(Tenso
 ///
 /// This is a convenience function used for qualitative assessment of a model
 /// during training.
-pub fn generate_and_print_sample(
-    model: &GPTModel,
+pub fn generate_and_print_sample<M: GPT + ModuleT>(
+    model: &M,
     tokenizer: &CoreBPE,
     device: &Device,
     start_context: &str,
 ) -> Result<()> {
-    let context_size = model.pos_emb().embeddings().dims()[0];
+    let context_size = model.context_size();
     let encoded = text_to_token_ids(start_context, tokenizer, device)?;
     let token_ids = generate_text_simple(model, encoded, 50, context_size)?;
     let decoded_text = token_ids_to_text(token_ids, tokenizer).unwrap();
@@ -329,8 +334,8 @@ pub fn print_sampled_tokens(
 
 /// [Listing 5.4] A modified text generation function with more diversity
 #[allow(clippy::too_many_arguments)]
-pub fn generate(
-    model: &GPTModel,
+pub fn generate<M: GPT + ModuleT>(
+    model: &M,
     idx: Tensor,
     max_new_tokens: usize,
     context_size: usize,
@@ -715,7 +720,7 @@ pub fn load_weights_into_gpt(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::listings::ch04::Config;
+    use crate::listings::ch04::{Config, GPTModel};
     use anyhow::Result;
     use candle_core::{DType, Device};
     use candle_nn::{VarBuilder, VarMap};

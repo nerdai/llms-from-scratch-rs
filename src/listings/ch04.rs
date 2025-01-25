@@ -531,7 +531,9 @@ impl ModuleT for SequentialTransformers {
 }
 
 /// Marker trait to consolidate GPTModel and LoRA variant introduced later in the book
-pub trait GPT {}
+pub trait GPT {
+    fn context_size(&self) -> usize;
+}
 
 /// [Listing 4.7] The GPT model architecture implementation
 #[derive(Debug, Clone)]
@@ -653,11 +655,15 @@ impl ModuleT for GPTModel {
     }
 }
 
-impl GPT for GPTModel {}
+impl GPT for GPTModel {
+    fn context_size(&self) -> usize {
+        self.pos_emb.embeddings().dims()[0]
+    }
+}
 
 /// [Listing 4.8] A function for the GPT model to generate text
-pub fn generate_text_simple(
-    model: &GPTModel,
+pub fn generate_text_simple<M: GPT + ModuleT>(
+    model: &M,
     idx: Tensor,
     max_new_tokens: usize,
     context_size: usize,
