@@ -584,7 +584,8 @@ impl Exercise for X4 {
 
         // get data loaders that is built on a dataset that used phi3 prompt format style
         let eg07 = EG07;
-        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
+        let batch_size = 2_usize;
+        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(batch_size, false)?;
 
         // extract only LoRA weights as trainable params
         let mut training_vars: Vec<Var> = vec![];
@@ -603,7 +604,7 @@ impl Exercise for X4 {
         drop(tensor_data);
 
         // invoke training
-        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
         let optimizer = AdamW::new(
             training_vars,
             ParamsAdamW {
@@ -634,7 +635,7 @@ impl Exercise for X4 {
         varmap.save("ift.lora.checkpoint.safetensors")?;
 
         // plot loss curves
-        println!("Saving plot to `./plot_ift_phi3_loss.html`");
+        println!("Saving plot to `./plot_ift_lora_loss.html`");
         let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
         let tokens_seen = tokens_seen
             .into_iter()

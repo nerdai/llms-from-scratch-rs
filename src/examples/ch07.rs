@@ -350,6 +350,7 @@ pub struct EG07;
 impl EG07 {
     pub fn main_with_return(
         &self,
+        batch_size: usize,
         verbose: bool,
     ) -> Result<(
         crate::listings::ch07::InstructionDataLoader<
@@ -385,7 +386,6 @@ impl EG07 {
         let test_dataset = InstructionDataset::new(test_data, &tokenizer, &prompt_formatter);
 
         // create loaders
-        let batch_size = 8_usize;
         let collator = InstructionDataCollator::new()
             .device(Device::cuda_if_available(0)?)
             .allowed_max_length(Some(1024_usize));
@@ -420,7 +420,7 @@ impl Example for EG07 {
     }
 
     fn main(&self) -> Result<()> {
-        let _ = self.main_with_return(true);
+        let _ = self.main_with_return(8_usize, true);
         Ok(())
     }
 }
@@ -555,7 +555,7 @@ impl Example for EG09 {
 
         // re-use eg 07.07
         let eg07 = EG07;
-        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
+        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(8_usize, false)?;
 
         // // compute losses
         let num_batches = Some(5_usize);
@@ -638,7 +638,7 @@ impl Example for EG10 {
 
         // re-use eg 07.07
         let eg07 = EG07;
-        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
+        let (train_loader, val_loader, _test_loader) = eg07.main_with_return(8_usize, false)?;
 
         // invoke training
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
@@ -745,7 +745,7 @@ impl Example for EG11 {
 
         // extract responses
         let eg07 = EG07;
-        let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(false)?;
+        let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(8_usize, false)?;
         let tokenizer = get_bpe_from_model("gpt2")?;
         let mut rng = StdRng::seed_from_u64(42_u64);
         let prompt_formatter = AlpacaPromptFormatter;
@@ -826,7 +826,7 @@ impl Example for EG12 {
 
         // get data loaders
         let eg07 = EG07;
-        let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(false)?;
+        let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(8_usize, false)?;
 
         // generate test set responses
         let save_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
