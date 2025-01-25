@@ -563,7 +563,7 @@ impl Exercise for X4 {
                 DEFAULT_IGNORE_INDEX,
             },
         };
-        use candle_core::{DType, Device};
+        use candle_core::{DType, Device, Var};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use ndarray::linspace;
         use std::path::Path;
@@ -586,10 +586,26 @@ impl Exercise for X4 {
         let eg07 = EG07;
         let (train_loader, val_loader, _test_loader) = eg07.main_with_return(false)?;
 
+        // extract only LoRA weights as trainable params
+        let mut training_vars: Vec<Var> = vec![];
+        let tensor_data = varmap.data().lock().unwrap();
+        let var_names: Vec<&String> = tensor_data
+            .keys()
+            .filter(|k| k.contains("A") || k.contains("B"))
+            .collect();
+
+        println!("Training variables: {:?}\n", var_names);
+
+        for var_name in var_names.into_iter() {
+            let var = tensor_data.get(var_name).unwrap();
+            training_vars.push(var.clone());
+        }
+        drop(tensor_data);
+
         // invoke training
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
         let optimizer = AdamW::new(
-            varmap.all_vars(),
+            training_vars,
             ParamsAdamW {
                 lr: 0.00005,
                 weight_decay: 0.1,
