@@ -1,11 +1,9 @@
 //! Listings from Chapter 5
 
-use crate::{
-    candle_addons::TopK,
-    listings::{
-        ch02::DataLoader,
-        ch04::{generate_text_simple, GPTModel},
-    },
+use crate::candle_addons::TopK;
+use crate::listings::{
+    ch02::DataLoader,
+    ch04::{generate_text_simple, GPTModel, GPT},
 };
 use candle_core::{Device, Error, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::{ops::softmax, Optimizer, VarMap};
@@ -329,8 +327,8 @@ pub fn print_sampled_tokens(
 
 /// [Listing 5.4] A modified text generation function with more diversity
 #[allow(clippy::too_many_arguments)]
-pub fn generate(
-    model: &GPTModel,
+pub fn generate<M: GPT + ModuleT>(
+    model: &M,
     idx: Tensor,
     max_new_tokens: usize,
     context_size: usize,

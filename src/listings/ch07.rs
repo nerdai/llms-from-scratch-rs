@@ -1,12 +1,13 @@
 //! Listings from Chapter 7
 
 use super::{
-    ch04::GPTModel,
+    ch04::GPT,
     ch05::{generate, text_to_token_ids, token_ids_to_text},
 };
 use anyhow::Context;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
+use candle_nn::ModuleT;
 use hf_hub::api::sync::Api;
 use rand::{rngs::StdRng, SeedableRng};
 use rand::{seq::SliceRandom, thread_rng};
@@ -692,9 +693,9 @@ pub fn write_instruction_data_to_json<P: AsRef<Path>>(
 }
 
 /// [Listing 7.9] Generating test set responses
-pub fn generate_test_set_responses<T: AsRef<Path>, P: PromptFormatter>(
+pub fn generate_test_set_responses<T: AsRef<Path>, P: PromptFormatter, M: GPT + ModuleT>(
     test_data: &mut Vec<InstructionResponseExample>,
-    model: &GPTModel,
+    model: &M,
     context_size: usize,
     device: &Device,
     save_path: T,
