@@ -23,6 +23,16 @@ impl From<InstructionResponseExample> for PreferenceExample {
     }
 }
 
+impl PreferenceExample {
+    pub fn set_rejected(&mut self, rejected: &str) {
+        self.rejected = rejected.to_string();
+    }
+
+    pub fn set_chosen(&mut self, chosen: &str) {
+        self.chosen = chosen.to_string()
+    }
+}
+
 /// Using Ollama to generate a `chosen` and `rejected` responses for an instruction entry
 #[allow(unused_variables)]
 pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
