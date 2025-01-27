@@ -1054,3 +1054,60 @@ impl Example for EG16 {
         Ok(())
     }
 }
+
+/// # [Bonus] Usage of `generate_chosen_and_rejected_response` to create preference example
+///
+/// #### Id
+/// 07.17
+///
+/// #### Page
+/// This example is from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.17
+///
+/// # with cuda
+/// cargo run --features cuda example 07.17
+/// ```
+pub struct EG17;
+
+impl Example for EG17 {
+    fn description(&self) -> String {
+        let desc = "[Bonus from DPO notebook] Usage of \
+        `generate_chosen_and_rejected_response` to create preference example.";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::ch07::{
+            bonus::generate_chosen_and_rejected_response, download_and_load_file,
+            AlpacaPromptFormatter, DATA_DIR, DEFAULT_OLLAMA_API_URL, INSTRUCTION_DATA_FILENAME,
+            INSTRUCTION_DATA_URL,
+        };
+        use std::path::Path;
+
+        // load instruction examples
+        let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+
+        // invoke generate_chose_and_rejected_response
+        let model = "llama3";
+        let prompt_formatter = AlpacaPromptFormatter;
+        let preference_example = generate_chosen_and_rejected_response(
+            &data[42],
+            DEFAULT_OLLAMA_API_URL,
+            model,
+            &prompt_formatter,
+        )?;
+
+        println!("{:#?}", preference_example);
+
+        Ok(())
+    }
+}

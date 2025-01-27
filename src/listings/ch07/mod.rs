@@ -24,6 +24,9 @@ use std::{
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tqdm::tqdm;
 
+/// Bonus material
+pub mod bonus;
+
 pub const INSTRUCTION_DATA_FILENAME: &str = "instruction_data.json";
 pub const DATA_DIR: &str = "data";
 pub const INSTRUCTION_DATA_URL: &str = "https://raw.githubusercontent.com/rasbt/LLMs-from-scratch\
