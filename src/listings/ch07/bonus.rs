@@ -69,3 +69,55 @@ pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
 
     Ok(preference_example)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::listings::ch07::AlpacaPromptFormatter;
+
+    use super::*;
+    use anyhow::Result;
+    use rstest::*;
+
+    #[fixture]
+    fn instruction_example() -> InstructionResponseExample {
+        let instruction = "Here is a fake instruction.".to_string();
+        let input = Some("Here is a fake input.".to_string());
+        let output = "here is a fake output.".to_string();
+        InstructionResponseExample {
+            instruction,
+            input,
+            output,
+            model_response: None,
+        }
+    }
+
+    #[rstest]
+    fn test_prompt_for_rejection_chosen(
+        instruction_example: InstructionResponseExample,
+    ) -> Result<()> {
+        let politeness = "polite";
+        let prompt_formatter = AlpacaPromptFormatter;
+        let prompt = format!(
+            "Given the input `{}` and correct output `{}`, \
+            slightly rewrite the output to be more {}. \
+            Keep the modification minimal. \
+            Only return return the generated response and nothing else.",
+            prompt_formatter.format_input(&instruction_example),
+            instruction_example.output(),
+            politeness
+        );
+
+        let expected = "Given the input `Below is an instruction that \
+        describes a task. Write a response that appropriately completes the \
+        request.\n\n\
+        ### Instruction:\n\
+        Here is a fake instruction.\n\n\
+        ### Input:\n\
+        Here is a fake input.` and correct output `here is a fake output.`, \
+        slightly rewrite the output to be more polite. Keep the modification \
+        minimal. Only return return the generated response and nothing else.";
+
+        assert_eq!(prompt, expected);
+        Ok(())
+    }
+}
