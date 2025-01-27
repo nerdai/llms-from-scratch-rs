@@ -28,7 +28,7 @@ lexical-core = "1.0.5"
 ndarray = "0.16.1"
 phf = { version = "0.11.3", features = ["macros"] }
 plotly = "0.12.1"
-polars = { version = "0.45.1", features = ["csv", "dtype-struct", "lazy", "parquet", "rows"] }
+polars = { version = "0.46.0", features = ["csv", "dtype-struct", "lazy", "parquet", "rows"] }
 rand = "0.8.5"
 reqwest = { version = "0.12.12", features = ["blocking", "json"] }
 rstest = "0.24.0"
