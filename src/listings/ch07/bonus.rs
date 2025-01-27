@@ -55,7 +55,6 @@ pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
         entry.output(),
         politeness
     );
-    println!("{}", prompt);
 
     let response = query_model(prompt.as_str(), model, url)?;
     let mut preference_example = PreferenceExample::from(entry.clone());
