@@ -76,6 +76,7 @@ pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
     Ok(preference_example)
 }
 
+/// Create a preference dataset from an instruction dataset and Ollama
 pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
     instruction_data: &[InstructionResponseExample],
     url: &str,
