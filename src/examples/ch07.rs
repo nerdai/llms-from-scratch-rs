@@ -958,16 +958,17 @@ impl Example for EG15 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
-            load_instruction_data_from_json, query_model, AlpacaPromptFormatter, PromptFormatter,
-            DATA_DIR, DEFAULT_OLLAMA_API_URL,
+            load_instruction_data_from_json, query_model, AlpacaPromptFormatter,
+            InstructionResponseExample, PromptFormatter, DATA_DIR, DEFAULT_OLLAMA_API_URL,
         };
         use std::path::Path;
 
         // load test instruction data with response
         let file_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
-        let test_data = load_instruction_data_from_json(file_path).with_context(|| {
-            "Missing 'instruction_data_with_response.json' file. Please run EG 07.12."
-        })?;
+        let test_data: Vec<InstructionResponseExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_response.json' file. Please run EG 07.12."
+            })?;
 
         let model = "llama3";
         let prompt_formatter = AlpacaPromptFormatter;

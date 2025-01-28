@@ -674,18 +674,18 @@ pub use crate::listings::ch02::DataLoader;
 pub use crate::listings::ch05::calc_loss_loader;
 
 /// Helper function to write instruction data to a json
-pub fn load_instruction_data_from_json<P: AsRef<Path>>(
+pub fn load_instruction_data_from_json<P: AsRef<Path>, S: Serialize + for<'a> Deserialize<'a>>(
     file_path: P,
-) -> anyhow::Result<Vec<InstructionResponseExample>> {
+) -> anyhow::Result<Vec<S>> {
     let json_str = read_to_string(file_path.as_ref())
         .with_context(|| format!("Unable to read {}", file_path.as_ref().display()))?;
-    let data: Vec<InstructionResponseExample> = serde_json::from_str(&json_str[..])?;
+    let data: Vec<S> = serde_json::from_str(&json_str[..])?;
     Ok(data)
 }
 
 /// Helper function to write instruction data to a json
-pub fn write_instruction_data_to_json<P: AsRef<Path>>(
-    instruction_data: &Vec<InstructionResponseExample>,
+pub fn write_instruction_data_to_json<P: AsRef<Path>, S: Serialize + for<'a> Deserialize<'a>>(
+    instruction_data: &Vec<S>,
     save_path: P,
 ) -> anyhow::Result<()> {
     let file = File::create(save_path)?;

@@ -1,16 +1,12 @@
 //! Bonus material module for Chapter 7
 
-use super::{query_model, InstructionResponseExample, PromptFormatter};
-use anyhow::Context;
+use super::{
+    query_model, write_instruction_data_to_json, InstructionResponseExample, PromptFormatter,
+};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
-use std::{
-    fs::{read_to_string, File},
-    io,
-    io::Write,
-    path::Path,
-};
+use std::path::Path;
 use tqdm::tqdm;
 
 #[serde_as]
@@ -80,28 +76,6 @@ pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
     Ok(preference_example)
 }
 
-/// Helper function to write instruction data to a json
-pub fn load_preference_data_from_json<P: AsRef<Path>, T: Serialize + for<'a> Deserialize<'a>>(
-    file_path: P,
-) -> anyhow::Result<Vec<T>> {
-    let json_str = read_to_string(file_path.as_ref())
-        .with_context(|| format!("Unable to read {}", file_path.as_ref().display()))?;
-    let data: Vec<T> = serde_json::from_str(&json_str[..])?;
-    Ok(data)
-}
-
-/// Helper function to write instruction data to a json
-pub fn write_preference_data_to_json<P: AsRef<Path>, S: Serialize + for<'a> Deserialize<'a>>(
-    instruction_data: &Vec<S>,
-    save_path: P,
-) -> anyhow::Result<()> {
-    let file = File::create(save_path)?;
-    let mut writer = io::BufWriter::new(file);
-    serde_json::to_writer(&mut writer, instruction_data)?;
-    writer.flush()?;
-    Ok(())
-}
-
 pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
     instruction_data: &[InstructionResponseExample],
     url: &str,
@@ -121,7 +95,7 @@ pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
         "Saving preference data to {:?}",
         save_path.as_ref().to_str()
     );
-    write_preference_data_to_json(&dataset, save_path)?;
+    write_instruction_data_to_json(&dataset, save_path)?;
 
     Ok(())
 }
