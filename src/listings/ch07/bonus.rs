@@ -1,12 +1,19 @@
 //! Bonus material module for Chapter 7
 
-use super::{query_model, InstructionResponseExample, PromptFormatter};
+use super::{
+    query_model, write_instruction_data_to_json, InstructionResponseExample, PromptFormatter,
+};
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, NoneAsEmptyString};
+use std::path::Path;
+use tqdm::tqdm;
 
-#[allow(dead_code)]
-#[derive(Clone, Debug, Default)]
+#[serde_as]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreferenceExample {
     instruction: String,
+    #[serde_as(as = "NoneAsEmptyString")]
     input: Option<String>,
     output: String,
     rejected: String,
@@ -35,7 +42,6 @@ impl PreferenceExample {
 }
 
 /// Using Ollama to generate a `chosen` and `rejected` responses for an instruction entry
-#[allow(unused_variables)]
 pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
     entry: &InstructionResponseExample,
     url: &str,
@@ -68,6 +74,31 @@ pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
     }
 
     Ok(preference_example)
+}
+
+/// Create a preference dataset from an instruction dataset and Ollama
+pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
+    instruction_data: &[InstructionResponseExample],
+    url: &str,
+    model: &str,
+    prompt_formatter: &P,
+    save_path: T,
+) -> anyhow::Result<()> {
+    let mut dataset = vec![];
+    for entry in tqdm(instruction_data.iter()) {
+        let preference_example =
+            generate_chosen_and_rejected_response(entry, url, model, prompt_formatter)?;
+        dataset.push(preference_example);
+    }
+
+    // write to json
+    println!(
+        "Saving preference data to {:?}",
+        save_path.as_ref().to_str()
+    );
+    write_instruction_data_to_json(&dataset, save_path)?;
+
+    Ok(())
 }
 
 #[cfg(test)]

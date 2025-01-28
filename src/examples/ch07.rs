@@ -958,16 +958,17 @@ impl Example for EG15 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
-            load_instruction_data_from_json, query_model, AlpacaPromptFormatter, PromptFormatter,
-            DATA_DIR, DEFAULT_OLLAMA_API_URL,
+            load_instruction_data_from_json, query_model, AlpacaPromptFormatter,
+            InstructionResponseExample, PromptFormatter, DATA_DIR, DEFAULT_OLLAMA_API_URL,
         };
         use std::path::Path;
 
         // load test instruction data with response
         let file_path = Path::new(DATA_DIR).join("instruction_data_with_response.json");
-        let test_data = load_instruction_data_from_json(file_path).with_context(|| {
-            "Missing 'instruction_data_with_response.json' file. Please run EG 07.12."
-        })?;
+        let test_data: Vec<InstructionResponseExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_response.json' file. Please run EG 07.12."
+            })?;
 
         let model = "llama3";
         let prompt_formatter = AlpacaPromptFormatter;
@@ -1107,6 +1108,63 @@ impl Example for EG17 {
         )?;
 
         println!("{:#?}", preference_example);
+
+        Ok(())
+    }
+}
+
+/// # Example usage of `generate_preference_dataset`
+///
+/// #### Id
+/// 07.18
+///
+/// #### Page
+/// This example is adapted from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.18
+///
+/// # with cuda
+/// cargo run --features cuda example 07.18
+/// ```
+pub struct EG18;
+
+impl Example for EG18 {
+    fn description(&self) -> String {
+        "Example usage of `generate_preference_dataset`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch07::bonus::generate_preference_dataset,
+            ch07::{
+                download_and_load_file, AlpacaPromptFormatter, DATA_DIR, DEFAULT_OLLAMA_API_URL,
+                INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
+            },
+        };
+        use std::path::Path;
+
+        // load instruction examples
+        let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
+        let data = download_and_load_file(file_path, INSTRUCTION_DATA_URL, false)?;
+
+        // invoke generate_chose_and_rejected_response
+        let model = "llama3";
+        let prompt_formatter = AlpacaPromptFormatter;
+        let save_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
+        generate_preference_dataset(
+            &data,
+            DEFAULT_OLLAMA_API_URL,
+            model,
+            &prompt_formatter,
+            save_path,
+        )?;
 
         Ok(())
     }
