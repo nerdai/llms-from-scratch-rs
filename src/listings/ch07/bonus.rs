@@ -47,8 +47,8 @@ pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
     url: &str,
     model: &str,
     prompt_formatter: &P,
+    rng: &mut StdRng,
 ) -> anyhow::Result<PreferenceExample> {
-    let mut rng = StdRng::seed_from_u64(69420);
     let u: f32 = rng.gen_range(0.0..1.0);
     let politeness = if u < 0.5 { "polite" } else { "impolite" };
 
@@ -85,9 +85,10 @@ pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
     save_path: T,
 ) -> anyhow::Result<()> {
     let mut dataset = vec![];
+    let mut rng = StdRng::seed_from_u64(42_u64);
     for entry in tqdm(instruction_data.iter()) {
         let preference_example =
-            generate_chosen_and_rejected_response(entry, url, model, prompt_formatter)?;
+            generate_chosen_and_rejected_response(entry, url, model, prompt_formatter, &mut rng)?;
         dataset.push(preference_example);
     }
 

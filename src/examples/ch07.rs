@@ -1091,6 +1091,7 @@ impl Example for EG17 {
             AlpacaPromptFormatter, DATA_DIR, DEFAULT_OLLAMA_API_URL, INSTRUCTION_DATA_FILENAME,
             INSTRUCTION_DATA_URL,
         };
+        use rand::{rngs::StdRng, SeedableRng};
         use std::path::Path;
 
         // load instruction examples
@@ -1100,11 +1101,13 @@ impl Example for EG17 {
         // invoke generate_chose_and_rejected_response
         let model = "llama3";
         let prompt_formatter = AlpacaPromptFormatter;
+        let mut rng = StdRng::seed_from_u64(42_u64);
         let preference_example = generate_chosen_and_rejected_response(
             &data[42],
             DEFAULT_OLLAMA_API_URL,
             model,
             &prompt_formatter,
+            &mut rng,
         )?;
 
         println!("{:#?}", preference_example);
