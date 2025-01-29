@@ -248,9 +248,17 @@ mod tests {
         );
 
         let prompt = prompt_formatter.format_input(&preference_example);
+        let formatted_rejection =
+            format!("{prompt}\n\n### Response:\n{}", preference_example.rejected);
+        let formatted_chosen = format!("{prompt}\n\n### Response:\n{}", preference_example.chosen);
+
         let expected_encoded_prompt = tokenizer.encode_with_special_tokens(&prompt);
+        let expected_encoded_rejected = tokenizer.encode_with_special_tokens(&formatted_rejection);
+        let expected_encoded_chosen = tokenizer.encode_with_special_tokens(&formatted_chosen);
 
         assert_eq!(encoded.prompt, expected_encoded_prompt);
+        assert_eq!(encoded.rejected, expected_encoded_rejected);
+        assert_eq!(encoded.chosen, expected_encoded_chosen);
 
         Ok(())
     }
