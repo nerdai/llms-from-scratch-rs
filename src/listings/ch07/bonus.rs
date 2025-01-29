@@ -1,12 +1,14 @@
 //! Bonus material module for Chapter 7
 
 use super::{
-    query_model, write_instruction_data_to_json, InstructionResponseExample, PromptFormatter,
+    query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
+    PromptFormatter,
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::path::Path;
+use tiktoken_rs::CoreBPE;
 use tqdm::tqdm;
 
 #[serde_as]
@@ -32,12 +34,34 @@ impl From<InstructionResponseExample> for PreferenceExample {
 }
 
 impl PreferenceExample {
+    fn rejected(&self) -> &String {
+        &self.rejected
+    }
+
+    fn chosen(&self) -> &String {
+        &self.chosen
+    }
+
     pub fn set_rejected(&mut self, rejected: &str) {
         self.rejected = rejected.to_string();
     }
 
     pub fn set_chosen(&mut self, chosen: &str) {
         self.chosen = chosen.to_string()
+    }
+}
+
+impl InstructionExample for PreferenceExample {
+    fn instruction(&self) -> &String {
+        &self.instruction
+    }
+
+    fn input(&self) -> &Option<String> {
+        &self.input
+    }
+
+    fn output(&self) -> &String {
+        &self.output
     }
 }
 
@@ -101,6 +125,48 @@ pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
 
     Ok(())
 }
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct EncodedPreferenceExample {
+    prompt: Vec<u32>,
+    chosen: Vec<u32>,
+    rejected: Vec<u32>,
+}
+
+impl EncodedPreferenceExample {
+    #[allow(unused_variables)]
+    pub fn from_example<P: PromptFormatter>(
+        example: &PreferenceExample,
+        prompt_formatter: &P,
+        tokenizer: &CoreBPE,
+    ) -> Self {
+        let prompt = prompt_formatter.format_input(example);
+        let rejected_response = example.rejected();
+        let chosen_response = example.chosen();
+
+        let prompt_tokens = tokenizer.encode_with_special_tokens(&prompt);
+        let chosen_full_text = format!("{prompt}\n\n### Response:\n{chosen_response}");
+        let rejected_full_text = format!("{prompt}\n\n### Response:\n{rejected_response}");
+        let chosen_full_tokens = tokenizer.encode_with_special_tokens(&chosen_full_text);
+        let rejected_full_tokens = tokenizer.encode_with_special_tokens(&rejected_full_text);
+
+        Self {
+            prompt: prompt_tokens,
+            chosen: chosen_full_tokens,
+            rejected: rejected_full_tokens,
+        }
+    }
+}
+
+#[allow(dead_code)]
+pub struct PreferenceDataset_ {
+    data: Vec<PreferenceExample>,
+    encoded_texts: Vec<Vec<u32>>,
+}
+
+/// Implementing a `PreferenceDataset`
+#[derive(Clone)]
+pub struct PreferenceDataset;
 
 #[cfg(test)]
 mod tests {
@@ -109,6 +175,7 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use rstest::*;
+    use tiktoken_rs::get_bpe_from_model;
 
     #[fixture]
     fn instruction_example() -> InstructionResponseExample {
@@ -120,6 +187,22 @@ mod tests {
             input,
             output,
             model_response: None,
+        }
+    }
+
+    #[fixture]
+    fn preference_example() -> PreferenceExample {
+        let instruction = "Here is a fake instruction.".to_string();
+        let input = Some("Here is a fake input.".to_string());
+        let output = "here is a fake output.".to_string();
+        let chosen = "Here is a fake chosen.".to_string();
+        let rejected = "Here is a fake rejected.".to_string();
+        PreferenceExample {
+            instruction,
+            input,
+            output,
+            chosen,
+            rejected,
         }
     }
 
@@ -150,6 +233,34 @@ mod tests {
         minimal. Only return return the generated response and nothing else.";
 
         assert_eq!(prompt, expected);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_encoded_preference_example_from_preference_example(
+        preference_example: PreferenceExample,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let encoded = EncodedPreferenceExample::from_example(
+            &preference_example,
+            &prompt_formatter,
+            &tokenizer,
+        );
+
+        let prompt = prompt_formatter.format_input(&preference_example);
+        let formatted_rejection =
+            format!("{prompt}\n\n### Response:\n{}", preference_example.rejected);
+        let formatted_chosen = format!("{prompt}\n\n### Response:\n{}", preference_example.chosen);
+
+        let expected_encoded_prompt = tokenizer.encode_with_special_tokens(&prompt);
+        let expected_encoded_rejected = tokenizer.encode_with_special_tokens(&formatted_rejection);
+        let expected_encoded_chosen = tokenizer.encode_with_special_tokens(&formatted_chosen);
+
+        assert_eq!(encoded.prompt, expected_encoded_prompt);
+        assert_eq!(encoded.rejected, expected_encoded_rejected);
+        assert_eq!(encoded.chosen, expected_encoded_chosen);
+
         Ok(())
     }
 }
