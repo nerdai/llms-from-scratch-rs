@@ -53,24 +53,33 @@ impl InstructionResponseExample {
         }
     }
 
-    pub fn instruction(&self) -> &String {
-        &self.instruction
-    }
-
-    pub fn input(&self) -> &Option<String> {
-        &self.input
-    }
-
-    pub fn output(&self) -> &String {
-        &self.output
-    }
-
     pub fn model_response(&self) -> &Option<String> {
         &self.model_response
     }
 
     pub fn set_model_response(&mut self, model_response: &str) {
         self.model_response = Some(model_response.to_string());
+    }
+}
+
+// Marker trait for instruction example
+pub trait InstructionExample {
+    fn instruction(&self) -> &String;
+    fn input(&self) -> &Option<String>;
+    fn output(&self) -> &String;
+}
+
+impl InstructionExample for InstructionResponseExample {
+    fn instruction(&self) -> &String {
+        &self.instruction
+    }
+
+    fn input(&self) -> &Option<String> {
+        &self.input
+    }
+
+    fn output(&self) -> &String {
+        &self.output
     }
 }
 
@@ -105,7 +114,7 @@ pub fn download_and_load_file<P: AsRef<Path>>(
 
 /// Prompt trait introduced for Excercise 7.1 to extend `format_input` to other prompt styles
 pub trait PromptFormatter {
-    fn format_input(&self, entry: &InstructionResponseExample) -> String;
+    fn format_input<T: InstructionExample>(&self, entry: &T) -> String;
 }
 
 /// Alpaca prompt formatter type [used in Listing 7.2]
@@ -113,13 +122,13 @@ pub struct AlpacaPromptFormatter;
 
 impl PromptFormatter for AlpacaPromptFormatter {
     /// [Listing 7.2] Implementing the prompt formatting function
-    fn format_input(&self, entry: &InstructionResponseExample) -> String {
+    fn format_input<T: InstructionExample>(&self, entry: &T) -> String {
         let instruction_text = format!(
             "Below is an instruction that describes a task. Write a response that \
             appropriately completes the request.\n\n### Instruction:\n{}",
-            entry.instruction
+            entry.instruction()
         );
-        let input_text = if let Some(inp) = &entry.input {
+        let input_text = if let Some(inp) = &entry.input() {
             format!("\n\n### Input:\n{}", inp)
         } else {
             String::default()
@@ -131,7 +140,7 @@ impl PromptFormatter for AlpacaPromptFormatter {
 pub struct Phi3PromptFormatter;
 
 impl PromptFormatter for Phi3PromptFormatter {
-    fn format_input(&self, entry: &InstructionResponseExample) -> String {
+    fn format_input<T: InstructionExample>(&self, entry: &T) -> String {
         match entry.input() {
             Some(input_str) => format!(
                 "<|user|>\n{}\n{}\n\n<|assistant|>\n{}",

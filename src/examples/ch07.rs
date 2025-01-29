@@ -79,8 +79,8 @@ impl Example for EG02 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
-            download_and_load_file, AlpacaPromptFormatter, PromptFormatter, DATA_DIR,
-            INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
+            download_and_load_file, AlpacaPromptFormatter, InstructionExample, PromptFormatter,
+            DATA_DIR, INSTRUCTION_DATA_FILENAME, INSTRUCTION_DATA_URL,
         };
         use std::path::Path;
 
@@ -724,7 +724,7 @@ impl Example for EG11 {
         use crate::listings::{
             ch04::{Config, GPTModel},
             ch05::{generate, text_to_token_ids, token_ids_to_text},
-            ch07::{AlpacaPromptFormatter, PromptFormatter},
+            ch07::{AlpacaPromptFormatter, InstructionExample, PromptFormatter},
         };
         use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
@@ -959,7 +959,8 @@ impl Example for EG15 {
     fn main(&self) -> Result<()> {
         use crate::listings::ch07::{
             load_instruction_data_from_json, query_model, AlpacaPromptFormatter,
-            InstructionResponseExample, PromptFormatter, DATA_DIR, DEFAULT_OLLAMA_API_URL,
+            InstructionExample, InstructionResponseExample, PromptFormatter, DATA_DIR,
+            DEFAULT_OLLAMA_API_URL,
         };
         use std::path::Path;
 

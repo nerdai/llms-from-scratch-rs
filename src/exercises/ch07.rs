@@ -657,8 +657,9 @@ impl Exercise for X4 {
 pub mod addons {
     //! Auxiliary module for exercises::ch07
     use crate::listings::ch07::{
-        CustomCollator, DataLoader, InstructionDataBatcher, InstructionResponseExample,
-        IterResult2, PromptFormatter, DEFAULT_IGNORE_INDEX, DEFAULT_PAD_TOKEN_ID,
+        CustomCollator, DataLoader, InstructionDataBatcher, InstructionExample,
+        InstructionResponseExample, IterResult2, PromptFormatter, DEFAULT_IGNORE_INDEX,
+        DEFAULT_PAD_TOKEN_ID,
     };
     use candle_core::{Device, Result, Tensor};
     use rand::{seq::SliceRandom, thread_rng};

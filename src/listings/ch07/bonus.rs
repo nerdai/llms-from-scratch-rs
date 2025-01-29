@@ -1,12 +1,14 @@
 //! Bonus material module for Chapter 7
 
 use super::{
-    query_model, write_instruction_data_to_json, InstructionResponseExample, PromptFormatter,
+    query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
+    PromptFormatter,
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::path::Path;
+use tiktoken_rs::CoreBPE;
 use tqdm::tqdm;
 
 #[serde_as]
@@ -100,6 +102,43 @@ pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
 
     Ok(())
 }
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct EncodedPreferenceExample {
+    prompt: Vec<u32>,
+    chosen: Vec<u32>,
+    rejected: Vec<u32>,
+}
+
+impl EncodedPreferenceExample {
+    #[allow(unused_variables)]
+    pub fn from_example<P: PromptFormatter>(
+        example: &PreferenceExample,
+        prompt_formatter: &P,
+        tokenizer: &CoreBPE,
+    ) -> Self {
+        todo!()
+        // let prompt = prompt_formatter.format_input(example);
+        // rejected_response = entry["rejected"]
+        // chosen_response = entry["chosen"]
+
+        // prompt_tokens = tokenizer.encode(prompt)
+        // chosen_full_text = f"{prompt}\n\n### Response:\n{chosen_response}"
+        // rejected_full_text = f"{prompt}\n\n### Response:\n{rejected_response}"
+        // chosen_full_tokens = tokenizer.encode(chosen_full_text)
+        // rejected_full_tokens = tokenizer.encode(rejected_full_text)
+    }
+}
+
+#[allow(dead_code)]
+pub struct PreferenceDataset_ {
+    data: Vec<PreferenceExample>,
+    encoded_texts: Vec<Vec<u32>>,
+}
+
+/// Implementing a `PreferenceDataset`
+#[derive(Clone)]
+pub struct PreferenceDataset;
 
 #[cfg(test)]
 mod tests {
