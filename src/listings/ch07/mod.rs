@@ -150,15 +150,11 @@ impl PromptFormatter for Phi3PromptFormatter {
 
 /// [Listing 7.3] Partitioning the dataset
 #[allow(unused_variables)]
-pub fn partition_data(
-    data: Vec<InstructionResponseExample>,
+pub fn partition_data<T: Clone>(
+    data: Vec<T>,
     train_frac: f32,
     validation_frac: f32,
-) -> anyhow::Result<(
-    Vec<InstructionResponseExample>,
-    Vec<InstructionResponseExample>,
-    Vec<InstructionResponseExample>,
-)> {
+) -> anyhow::Result<(Vec<T>, Vec<T>, Vec<T>)> {
     let train_portion = (data.len() as f32 * train_frac) as usize;
     let val_portion = (data.len() as f32 * validation_frac) as usize;
 
