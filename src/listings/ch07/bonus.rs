@@ -125,8 +125,7 @@ pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
 
     Ok(())
 }
-#[derive(Clone, Debug)]
-#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EncodedPreferenceExample {
     prompt: Vec<u32>,
     chosen: Vec<u32>,
@@ -261,6 +260,36 @@ mod tests {
         }
     }
 
+    #[fixture]
+    fn another_preference_example() -> PreferenceExample {
+        let instruction = "Here is yet another fake instruction.".to_string();
+        let output = "here is yet another fake output.".to_string();
+        let chosen = "Here is yet another fake chosen.".to_string();
+        let rejected = "Here is yet another fake rejected.".to_string();
+        PreferenceExample {
+            instruction,
+            input: None,
+            output,
+            chosen,
+            rejected,
+        }
+    }
+
+    #[fixture]
+    fn preference_data(
+        preference_example: PreferenceExample,
+        another_preference_example: PreferenceExample,
+    ) -> Vec<PreferenceExample> {
+        let data = vec![
+            preference_example.clone(),
+            another_preference_example.clone(),
+            preference_example.clone(),
+            another_preference_example.clone(),
+            preference_example,
+        ];
+        data
+    }
+
     #[rstest]
     fn test_prompt_for_rejection_chosen(
         instruction_example: InstructionResponseExample,
@@ -315,6 +344,32 @@ mod tests {
         assert_eq!(encoded.prompt, expected_encoded_prompt);
         assert_eq!(encoded.rejected, expected_encoded_rejected);
         assert_eq!(encoded.chosen, expected_encoded_chosen);
+
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_instruction_dataset_init(
+        preference_data: Vec<PreferenceExample>,
+        preference_example: PreferenceExample,
+    ) -> Result<()> {
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let preference_dataset =
+            PreferenceDataset::new(preference_data, &tokenizer, &prompt_formatter);
+
+        // test encoded example
+        let encoded_example = EncodedPreferenceExample::from_example(
+            &preference_example,
+            &prompt_formatter,
+            &tokenizer,
+        );
+
+        assert_eq!(preference_dataset.len(), 5);
+        assert_eq!(
+            *preference_dataset.get_item_at_index(0_usize)?,
+            encoded_example
+        );
 
         Ok(())
     }
