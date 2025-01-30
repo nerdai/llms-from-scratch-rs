@@ -7,7 +7,7 @@ use super::{
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
-use std::path::Path;
+use std::{path::Path, rc::Rc};
 use tiktoken_rs::CoreBPE;
 use tqdm::tqdm;
 
@@ -125,7 +125,7 @@ pub fn generate_preference_dataset<P: PromptFormatter, T: AsRef<Path>>(
 
     Ok(())
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct EncodedPreferenceExample {
     prompt: Vec<u32>,
@@ -161,12 +161,67 @@ impl EncodedPreferenceExample {
 #[allow(dead_code)]
 pub struct PreferenceDataset_ {
     data: Vec<PreferenceExample>,
-    encoded_texts: Vec<Vec<u32>>,
+    encoded_texts: Vec<EncodedPreferenceExample>,
 }
 
 /// Implementing a `PreferenceDataset`
 #[derive(Clone)]
-pub struct PreferenceDataset;
+pub struct PreferenceDataset(Rc<PreferenceDataset_>);
+
+impl AsRef<PreferenceDataset> for PreferenceDataset {
+    fn as_ref(&self) -> &PreferenceDataset {
+        self
+    }
+}
+
+impl std::ops::Deref for PreferenceDataset {
+    type Target = PreferenceDataset_;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+impl PreferenceDataset {
+    pub fn new<P: PromptFormatter>(
+        data: Vec<PreferenceExample>,
+        tokenizer: &CoreBPE,
+        prompt_formatter: &P,
+    ) -> Self {
+        let mut encoded_examples = vec![];
+        for example in data.iter() {
+            let encoded_example =
+                EncodedPreferenceExample::from_example(example, prompt_formatter, tokenizer);
+            encoded_examples.push(encoded_example);
+        }
+
+        let dataset_ = PreferenceDataset_ {
+            data,
+            encoded_texts: encoded_examples,
+        };
+        Self(Rc::new(dataset_))
+    }
+
+    /// Gets the number of finetuning examples.
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Checks whether the dataset is empty or has no finetuning examples.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// Returns the tokenized and formatted instruction entry at specified index
+    pub fn get_item_at_index(&self, idx: usize) -> anyhow::Result<&EncodedPreferenceExample> {
+        let encoded = &self.encoded_texts[idx];
+        Ok(encoded)
+    }
+
+    pub fn data(&self) -> &Vec<PreferenceExample> {
+        &self.data
+    }
+}
 
 #[cfg(test)]
 mod tests {
