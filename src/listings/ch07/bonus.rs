@@ -4,7 +4,8 @@ use super::{
     query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
     PromptFormatter,
 };
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use candle_core::{Device, Result, Tensor};
+use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::{path::Path, rc::Rc};
@@ -219,6 +220,58 @@ impl PreferenceDataset {
 
     pub fn data(&self) -> &Vec<PreferenceExample> {
         &self.data
+    }
+}
+
+pub struct PreferenceDatasetIter {
+    dataset: PreferenceDataset,
+    remaining_indices: Vec<usize>,
+}
+
+impl PreferenceDatasetIter {
+    pub fn new(dataset: PreferenceDataset, shuffle: bool) -> Self {
+        let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
+        if shuffle {
+            remaining_indices.shuffle(&mut thread_rng());
+        }
+        Self {
+            dataset,
+            remaining_indices,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct PreferenceDatasetIterItem {
+    prompt: Tensor,
+    chosen: Tensor,
+    rejected: Tensor,
+    rejected_mask: Tensor,
+    chosen_mask: Tensor,
+}
+
+impl Iterator for PreferenceDatasetIter {
+    type Item = Result<PreferenceDatasetIterItem>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.remaining_indices.pop() {
+            let encoded = self.dataset.get_item_at_index(idx).unwrap();
+
+            // turn into Tensors and return
+            let dev = Device::cuda_if_available(0).unwrap();
+            let prompts_tensor = Tensor::new(&encoded.prompt[..], &dev).unwrap();
+
+            Some(Ok(PreferenceDatasetIterItem {
+                prompt: prompts_tensor.clone(),
+                chosen: prompts_tensor.clone(),
+                rejected: prompts_tensor.clone(),
+                rejected_mask: prompts_tensor.clone(),
+                chosen_mask: prompts_tensor,
+            }))
+        } else {
+            None
+        }
     }
 }
 
