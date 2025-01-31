@@ -1,8 +1,8 @@
 //! Bonus material module for Chapter 7
 
 use super::{
-    query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
-    PromptFormatter,
+    query_model, write_instruction_data_to_json, CustomCollator, InstructionExample,
+    InstructionResponseExample, PromptFormatter,
 };
 use candle_core::{Device, Result, Tensor};
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
@@ -272,6 +272,51 @@ impl Iterator for PreferenceDatasetIter {
         } else {
             None
         }
+    }
+}
+
+#[allow(dead_code)]
+pub struct IterResult1<I: Iterator<Item = Result<PreferenceDatasetIterItem>>> {
+    inner: I,
+}
+
+#[allow(dead_code)]
+pub struct PreferenceDataBatcher<C: CustomCollator, I> {
+    inner: I,
+    batch_size: usize,
+    return_last_incomplete_batch: bool,
+    collator: C,
+}
+
+impl<C, I> PreferenceDataBatcher<C, IterResult1<I>>
+where
+    C: CustomCollator<BatchItem = Tensor>,
+    I: Iterator<Item = Result<PreferenceDatasetIterItem>>,
+{
+    pub fn new(inner: I, collator: C) -> Self {
+        Self {
+            inner: IterResult1 { inner },
+            collator,
+            batch_size: 16,
+            return_last_incomplete_batch: false,
+        }
+    }
+}
+
+impl<C: CustomCollator, I> PreferenceDataBatcher<C, I> {
+    pub fn batch_size(mut self, batch_size: usize) -> Self {
+        self.batch_size = batch_size;
+        self
+    }
+
+    pub fn return_last_incomplete_batch(mut self, r: bool) -> Self {
+        self.return_last_incomplete_batch = r;
+        self
+    }
+
+    pub fn collator(mut self, collator: C) -> Self {
+        self.collator = collator;
+        self
     }
 }
 
