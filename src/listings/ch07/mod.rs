@@ -421,7 +421,7 @@ where
                 Some(Ok(item)) => items.push(item),
                 Some(Err(err)) => errs.push(err),
                 None => {
-                    if self.return_last_incomplete_batch {
+                    if self.return_last_incomplete_batch && !items.is_empty() {
                         break;
                     }
                     return None;
