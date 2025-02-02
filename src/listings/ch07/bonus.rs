@@ -1,10 +1,11 @@
 //! Bonus material module for Chapter 7
 
 use super::{
-    query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
-    PromptFormatter,
+    query_model, write_instruction_data_to_json, CustomCollator, InstructionExample,
+    InstructionResponseExample, PromptFormatter,
 };
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use candle_core::{Device, Result, Tensor};
+use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::{path::Path, rc::Rc};
@@ -221,6 +222,133 @@ impl PreferenceDataset {
         &self.data
     }
 }
+
+pub struct PreferenceDatasetIter {
+    dataset: PreferenceDataset,
+    remaining_indices: Vec<usize>,
+}
+
+impl PreferenceDatasetIter {
+    pub fn new(dataset: PreferenceDataset, shuffle: bool) -> Self {
+        let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
+        if shuffle {
+            remaining_indices.shuffle(&mut thread_rng());
+        }
+        Self {
+            dataset,
+            remaining_indices,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct PreferenceDatasetIterItem {
+    prompt: Tensor,
+    chosen: Tensor,
+    rejected: Tensor,
+    rejected_mask: Tensor,
+    chosen_mask: Tensor,
+}
+
+impl Iterator for PreferenceDatasetIter {
+    type Item = Result<PreferenceDatasetIterItem>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.remaining_indices.pop() {
+            let encoded = self.dataset.get_item_at_index(idx).unwrap();
+
+            // turn into Tensors and return
+            let dev = Device::cuda_if_available(0).unwrap();
+            let prompts_tensor = Tensor::new(&encoded.prompt[..], &dev).unwrap();
+
+            Some(Ok(PreferenceDatasetIterItem {
+                prompt: prompts_tensor.clone(),
+                chosen: prompts_tensor.clone(),
+                rejected: prompts_tensor.clone(),
+                rejected_mask: prompts_tensor.clone(),
+                chosen_mask: prompts_tensor,
+            }))
+        } else {
+            None
+        }
+    }
+}
+
+#[allow(dead_code)]
+pub struct IterResult1<I: Iterator<Item = Result<PreferenceDatasetIterItem>>> {
+    inner: I,
+}
+
+#[allow(dead_code)]
+pub struct PreferenceDataBatcher<C: CustomCollator, I> {
+    inner: I,
+    batch_size: usize,
+    return_last_incomplete_batch: bool,
+    collator: C,
+}
+
+impl<C, I> PreferenceDataBatcher<C, IterResult1<I>>
+where
+    C: CustomCollator<BatchItem = PreferenceDatasetIterItem>,
+    I: Iterator<Item = Result<PreferenceDatasetIterItem>>,
+{
+    pub fn new(inner: I, collator: C) -> Self {
+        Self {
+            inner: IterResult1 { inner },
+            collator,
+            batch_size: 16,
+            return_last_incomplete_batch: false,
+        }
+    }
+}
+
+impl<C: CustomCollator, I> PreferenceDataBatcher<C, I> {
+    pub fn batch_size(mut self, batch_size: usize) -> Self {
+        self.batch_size = batch_size;
+        self
+    }
+
+    pub fn return_last_incomplete_batch(mut self, r: bool) -> Self {
+        self.return_last_incomplete_batch = r;
+        self
+    }
+
+    pub fn collator(mut self, collator: C) -> Self {
+        self.collator = collator;
+        self
+    }
+}
+
+impl<C, I> Iterator for PreferenceDataBatcher<C, IterResult1<I>>
+where
+    // These items need to match
+    C: CustomCollator<BatchItem = PreferenceDatasetIterItem>,
+    I: Iterator<Item = Result<PreferenceDatasetIterItem>>,
+{
+    type Item = Result<(Tensor, Tensor)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut items = Vec::with_capacity(self.batch_size);
+        let mut errs = vec![];
+        for _i in 0..self.batch_size {
+            match self.inner.inner.next() {
+                Some(Ok(item)) => items.push(item),
+                Some(Err(err)) => errs.push(err),
+                None => {
+                    if self.return_last_incomplete_batch && !items.is_empty() {
+                        break;
+                    }
+                    return None;
+                }
+            }
+        }
+        Some(self.collator.collate(items))
+    }
+}
+
+#[derive(Clone)]
+pub struct PreferenceDataCollator;
 
 #[cfg(test)]
 mod tests {
