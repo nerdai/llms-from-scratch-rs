@@ -290,7 +290,7 @@ pub struct PreferenceDataBatcher<C: CustomCollator, I> {
 
 impl<C, I> PreferenceDataBatcher<C, IterResult1<I>>
 where
-    C: CustomCollator<BatchItem = Tensor>,
+    C: CustomCollator<BatchItem = PreferenceDatasetIterItem>,
     I: Iterator<Item = Result<PreferenceDatasetIterItem>>,
 {
     pub fn new(inner: I, collator: C) -> Self {
@@ -319,6 +319,22 @@ impl<C: CustomCollator, I> PreferenceDataBatcher<C, I> {
         self
     }
 }
+
+impl<C, I> Iterator for PreferenceDataBatcher<C, IterResult1<I>>
+where
+    // These items need to match
+    C: CustomCollator<BatchItem = PreferenceDatasetIterItem>,
+    I: Iterator<Item = Result<PreferenceDatasetIterItem>>,
+{
+    type Item = Result<(Tensor, Tensor)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
+#[derive(Clone)]
+pub struct PreferenceDataCollator;
 
 #[cfg(test)]
 mod tests {
