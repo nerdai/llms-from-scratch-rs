@@ -2,7 +2,7 @@
 
 use super::{
     query_model, write_instruction_data_to_json, CustomCollator, InstructionExample,
-    InstructionResponseExample, PromptFormatter,
+    InstructionResponseExample, PromptFormatter, DEFAULT_PAD_TOKEN_ID,
 };
 use candle_core::{Device, Result, Tensor};
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
@@ -347,8 +347,71 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
-pub struct PreferenceDataCollator;
+pub struct PreferenceDataCollator {
+    pad_token_id: u32,
+    allowed_max_length: Option<usize>,
+    mask_prompt_tokens: bool,
+    device: Device,
+}
+
+impl Default for PreferenceDataCollator {
+    fn default() -> Self {
+        Self {
+            pad_token_id: DEFAULT_PAD_TOKEN_ID,
+            mask_prompt_tokens: true,
+            allowed_max_length: None,
+            device: Device::Cpu,
+        }
+    }
+}
+
+impl PreferenceDataCollator {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn pad_token_id(mut self, pad_token_id: u32) -> Self {
+        self.pad_token_id = pad_token_id;
+        self
+    }
+
+    pub fn allowed_max_length(mut self, allowed_max_length: Option<usize>) -> Self {
+        self.allowed_max_length = allowed_max_length;
+        self
+    }
+
+    pub fn device(mut self, device: Device) -> Self {
+        self.device = device;
+        self
+    }
+
+    pub fn custom_collate_fn(
+        &self,
+        batch: Vec<PreferenceDatasetIterItem>,
+    ) -> Result<(Tensor, Tensor)> {
+        let _batch_max_length = batch
+            .iter()
+            .map(|el| std::cmp::max(el.chosen.elem_count(), el.rejected.elem_count()))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .max()
+            .ok_or_else(|| {
+                candle_core::Error::Msg("Unable to get max length for batch.".to_string())
+            })?;
+
+        todo!()
+    }
+}
+
+impl CustomCollator for PreferenceDataCollator {
+    type BatchItem = PreferenceDatasetIterItem;
+
+    fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<(Tensor, Tensor)> {
+        self.custom_collate_fn(batch)
+    }
+}
 
 #[cfg(test)]
 mod tests {
