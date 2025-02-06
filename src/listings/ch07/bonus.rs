@@ -403,9 +403,10 @@ impl PreferenceDataCollator {
                 candle_core::Error::Msg("Unable to get max length for batch.".to_string())
             })?;
 
-        for mut item in batch.into_iter() {
-            prompt_vec.push(item.prompt);
+        for item in batch.into_iter() {
+            let prompt = item.prompt.clone();
 
+            let mut chosen = item.chosen.clone();
             // apply padding
             let num_pad = std::cmp::max(
                 0isize,
@@ -415,18 +416,86 @@ impl PreferenceDataCollator {
                 let padding_input = std::iter::repeat(self.pad_token_id)
                     .take(num_pad)
                     .collect::<Vec<u32>>();
-                item.chosen.extend(padding_input);
+                chosen.extend(padding_input);
             }
 
-            chosen_vec.push(item.chosen.clone());
-            rejected_vec.push(item.rejected.clone());
+            // mask vec
+            let mut mask = (0..batch_max_length as u32)
+                .map(|j| u32::from(j >= item.chosen.len() as u32))
+                .collect::<Vec<u32>>();
 
-            // mask
-            chosen_mask_vec.push(item.chosen);
-            rejected_mask_vec.push(item.rejected);
+            if self.mask_prompt_tokens {
+                mask[..item.prompt.len() + 2].fill(0_u32);
+            }
+
+            chosen_vec.push(chosen);
+            chosen_mask_vec.push(mask);
+
+            let mut rejected = item.rejected.clone();
+            // apply padding
+            let num_pad = std::cmp::max(
+                0isize,
+                batch_max_length as isize - item.rejected.len() as isize,
+            ) as usize;
+            if num_pad > 0 {
+                let padding_input = std::iter::repeat(self.pad_token_id)
+                    .take(num_pad)
+                    .collect::<Vec<u32>>();
+                rejected.extend(padding_input);
+            }
+
+            // mask vec
+            let mut mask = (0..batch_max_length as u32)
+                .map(|j| u32::from(j >= item.rejected.len() as u32))
+                .collect::<Vec<u32>>();
+
+            if self.mask_prompt_tokens {
+                mask[..item.prompt.len() + 2].fill(0_u32);
+            }
+
+            rejected_vec.push(rejected);
+            rejected_mask_vec.push(mask);
+
+            prompt_vec.push(prompt);
         }
 
-        todo!()
+        let chosen_shape = (chosen_vec.len(), chosen_vec[0].len());
+        let chosen_tensor = Tensor::from_vec(
+            chosen_vec.into_iter().flatten().collect(),
+            chosen_shape,
+            &self.device,
+        )?;
+        let chosen_mask_shape = (chosen_mask_vec.len(), chosen_mask_vec[0].len());
+        let chosen_mask_tensor = Tensor::from_vec(
+            chosen_mask_vec.into_iter().flatten().collect(),
+            chosen_mask_shape,
+            &self.device,
+        )?;
+        let rejected_shape = (rejected_vec.len(), rejected_vec[0].len());
+        let rejected_tensor = Tensor::from_vec(
+            rejected_vec.into_iter().flatten().collect(),
+            rejected_shape,
+            &self.device,
+        )?;
+        let rejected_mask_shape = (rejected_mask_vec.len(), rejected_mask_vec[0].len());
+        let rejected_mask_tensor = Tensor::from_vec(
+            rejected_mask_vec.into_iter().flatten().collect(),
+            rejected_mask_shape,
+            &self.device,
+        )?;
+        let prompt_shape = (prompt_vec.len(), prompt_vec[0].len());
+        let prompt_tensor = Tensor::from_vec(
+            prompt_vec.into_iter().flatten().collect(),
+            prompt_shape,
+            &self.device,
+        )?;
+        Ok(PreferenceDatasetCollatorItem {
+            prompt: prompt_tensor,
+            chosen: chosen_tensor,
+            rejected: rejected_tensor,
+            rejected_mask: rejected_mask_tensor,
+            chosen_mask: chosen_mask_tensor,
+        })
     }
 }
 
