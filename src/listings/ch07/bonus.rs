@@ -649,4 +649,37 @@ mod tests {
 
         Ok(())
     }
+
+    #[rstest]
+    pub fn test_preference_collator(preference_example: PreferenceExample) -> Result<()> {
+        // arrange
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let encoded_example = EncodedPreferenceExample::from_example(
+            &preference_example,
+            &prompt_formatter,
+            &tokenizer,
+        );
+        let batch = vec![encoded_example];
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+
+        // act
+        let collated_item = collator.collate(batch)?;
+
+        // assert
+        assert_eq!(
+            collated_item.chosen.elem_count(),
+            collated_item.chosen_mask.elem_count()
+        );
+        assert_eq!(
+            collated_item.rejected.elem_count(),
+            collated_item.rejected_mask.elem_count()
+        );
+        assert_eq!(
+            collated_item.rejected.elem_count(),
+            collated_item.chosen.elem_count()
+        );
+
+        Ok(())
+    }
 }
