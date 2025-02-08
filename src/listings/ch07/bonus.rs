@@ -412,7 +412,19 @@ impl PreferenceDataCollator {
         mask
     }
 
-    fn _build_stacked_tensor(&self, elements_vec: Vec<Vec<u32>>) -> Result<Tensor> {
+    fn _build_stacked_tensor(
+        &self,
+        mut elements_vec: Vec<Vec<u32>>,
+        batch_max_length: usize,
+    ) -> Result<Tensor> {
+        if let Some(a) = self.allowed_max_length {
+            // Optionally truncate to maximum sequence length
+            elements_vec = elements_vec
+                .into_iter()
+                .map(|el| el[..std::cmp::min(a, batch_max_length)].to_vec())
+                .collect::<Vec<_>>();
+        }
+
         let shape = (elements_vec.len(), elements_vec[0].len());
         Tensor::from_vec(
             elements_vec.into_iter().flatten().collect(),
@@ -461,11 +473,12 @@ impl PreferenceDataCollator {
             prompt_vec.push(prompt);
         }
 
-        let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
-        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec)?;
-        let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
-        let rejected_mask_tensor = self._build_stacked_tensor(rejected_mask_vec)?;
-        let prompt_tensor = self._build_stacked_tensor(prompt_vec)?;
+        let chosen_tensor = self._build_stacked_tensor(chosen_vec, batch_max_length)?;
+        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec, batch_max_length)?;
+        let rejected_tensor = self._build_stacked_tensor(rejected_vec, batch_max_length)?;
+        let rejected_mask_tensor =
+            self._build_stacked_tensor(rejected_mask_vec, batch_max_length)?;
+        let prompt_tensor = self._build_stacked_tensor(prompt_vec, batch_max_length)?;
 
         Ok(PreferenceDatasetCollatorItem {
             prompt: prompt_tensor,
