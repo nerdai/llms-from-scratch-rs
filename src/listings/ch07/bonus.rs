@@ -412,6 +412,15 @@ impl PreferenceDataCollator {
         mask
     }
 
+    fn _build_stacked_tensor(&self, elements_vec: Vec<Vec<u32>>) -> Result<Tensor> {
+        let shape = (elements_vec.len(), elements_vec[0].len());
+        Tensor::from_vec(
+            elements_vec.into_iter().flatten().collect(),
+            shape,
+            &self.device,
+        )
+    }
+
     pub fn custom_collate_fn(
         &self,
         batch: Vec<EncodedPreferenceExample>,
@@ -452,36 +461,12 @@ impl PreferenceDataCollator {
             prompt_vec.push(prompt);
         }
 
-        let chosen_shape = (chosen_vec.len(), chosen_vec[0].len());
-        let chosen_tensor = Tensor::from_vec(
-            chosen_vec.into_iter().flatten().collect(),
-            chosen_shape,
-            &self.device,
-        )?;
-        let chosen_mask_shape = (chosen_mask_vec.len(), chosen_mask_vec[0].len());
-        let chosen_mask_tensor = Tensor::from_vec(
-            chosen_mask_vec.into_iter().flatten().collect(),
-            chosen_mask_shape,
-            &self.device,
-        )?;
-        let rejected_shape = (rejected_vec.len(), rejected_vec[0].len());
-        let rejected_tensor = Tensor::from_vec(
-            rejected_vec.into_iter().flatten().collect(),
-            rejected_shape,
-            &self.device,
-        )?;
-        let rejected_mask_shape = (rejected_mask_vec.len(), rejected_mask_vec[0].len());
-        let rejected_mask_tensor = Tensor::from_vec(
-            rejected_mask_vec.into_iter().flatten().collect(),
-            rejected_mask_shape,
-            &self.device,
-        )?;
-        let prompt_shape = (prompt_vec.len(), prompt_vec[0].len());
-        let prompt_tensor = Tensor::from_vec(
-            prompt_vec.into_iter().flatten().collect(),
-            prompt_shape,
-            &self.device,
-        )?;
+        let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
+        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec)?;
+        let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
+        let rejected_mask_tensor = self._build_stacked_tensor(rejected_mask_vec)?;
+        let prompt_tensor = self._build_stacked_tensor(prompt_vec)?;
+
         Ok(PreferenceDatasetCollatorItem {
             prompt: prompt_tensor,
             chosen: chosen_tensor,
