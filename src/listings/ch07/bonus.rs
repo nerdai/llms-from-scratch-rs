@@ -263,7 +263,7 @@ pub struct IterResult1<I: Iterator<Item = Result<EncodedPreferenceExample>>> {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PreferenceDatasetCollatorItem {
-    prompt: Tensor,
+    prompt: Vec<Tensor>,
     chosen: Tensor,
     rejected: Tensor,
     rejected_mask: Tensor,
@@ -357,7 +357,7 @@ impl Default for PreferenceDataCollator {
         Self {
             pad_token_id: DEFAULT_PAD_TOKEN_ID,
             mask_prompt_tokens: true,
-            allowed_max_length: None,
+            allowed_max_length: Some(1024_usize),
             device: Device::Cpu,
         }
     }
@@ -412,19 +412,7 @@ impl PreferenceDataCollator {
         mask
     }
 
-    fn _build_stacked_tensor(
-        &self,
-        mut elements_vec: Vec<Vec<u32>>,
-        batch_max_length: usize,
-    ) -> Result<Tensor> {
-        if let Some(a) = self.allowed_max_length {
-            // Optionally truncate to maximum sequence length
-            elements_vec = elements_vec
-                .into_iter()
-                .map(|el| el[..std::cmp::min(a, batch_max_length)].to_vec())
-                .collect::<Vec<_>>();
-        }
-
+    fn _build_stacked_tensor(&self, elements_vec: Vec<Vec<u32>>) -> Result<Tensor> {
         let shape = (elements_vec.len(), elements_vec[0].len());
         Tensor::from_vec(
             elements_vec.into_iter().flatten().collect(),
@@ -455,33 +443,41 @@ impl PreferenceDataCollator {
 
         for item in batch.into_iter() {
             let prompt = item.prompt.clone();
+            let prompt_tensor =
+                Tensor::from_vec(prompt, (1_usize, item.prompt.len()), &self.device)?;
 
             let mut chosen = item.chosen.clone();
-            let mask =
-                self._apply_padding_and_get_mask(&mut chosen, batch_max_length, prompt.len());
-
-            chosen_vec.push(chosen);
-            chosen_mask_vec.push(mask);
+            let mut chosen_mask =
+                self._apply_padding_and_get_mask(&mut chosen, batch_max_length, item.prompt.len());
 
             let mut rejected = item.rejected.clone();
-            let mask =
-                self._apply_padding_and_get_mask(&mut rejected, batch_max_length, prompt.len());
+            let mut rejected_mask = self._apply_padding_and_get_mask(
+                &mut rejected,
+                batch_max_length,
+                item.prompt.len(),
+            );
 
+            if let Some(a) = self.allowed_max_length {
+                chosen = chosen[..std::cmp::min(a, batch_max_length)].to_vec();
+                chosen_mask = chosen_mask[..std::cmp::min(a, batch_max_length)].to_vec();
+                rejected = rejected[..std::cmp::min(a, batch_max_length)].to_vec();
+                rejected_mask = rejected_mask[..std::cmp::min(a, batch_max_length)].to_vec();
+            }
+
+            chosen_vec.push(chosen);
+            chosen_mask_vec.push(chosen_mask);
             rejected_vec.push(rejected);
-            rejected_mask_vec.push(mask);
-
-            prompt_vec.push(prompt);
+            rejected_mask_vec.push(rejected_mask);
+            prompt_vec.push(prompt_tensor);
         }
 
-        let chosen_tensor = self._build_stacked_tensor(chosen_vec, batch_max_length)?;
-        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec, batch_max_length)?;
-        let rejected_tensor = self._build_stacked_tensor(rejected_vec, batch_max_length)?;
-        let rejected_mask_tensor =
-            self._build_stacked_tensor(rejected_mask_vec, batch_max_length)?;
-        let prompt_tensor = self._build_stacked_tensor(prompt_vec, batch_max_length)?;
+        let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
+        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec)?;
+        let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
+        let rejected_mask_tensor = self._build_stacked_tensor(rejected_mask_vec)?;
 
         Ok(PreferenceDatasetCollatorItem {
-            prompt: prompt_tensor,
+            prompt: prompt_vec,
             chosen: chosen_tensor,
             rejected: rejected_tensor,
             rejected_mask: rejected_mask_tensor,
@@ -679,6 +675,7 @@ mod tests {
             collated_item.rejected.elem_count(),
             collated_item.chosen.elem_count()
         );
+        assert_eq!(collated_item.prompt.len(), 1);
 
         Ok(())
     }
