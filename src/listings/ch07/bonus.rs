@@ -2,9 +2,10 @@
 
 use super::{
     query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
-    PromptFormatter,
+    PromptFormatter, DEFAULT_PAD_TOKEN_ID,
 };
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use candle_core::{Device, Result, Tensor};
+use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::{path::Path, rc::Rc};
@@ -222,6 +223,277 @@ impl PreferenceDataset {
     }
 }
 
+pub struct PreferenceDatasetIter {
+    dataset: PreferenceDataset,
+    remaining_indices: Vec<usize>,
+}
+
+impl PreferenceDatasetIter {
+    pub fn new(dataset: PreferenceDataset, shuffle: bool) -> Self {
+        let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
+        if shuffle {
+            remaining_indices.shuffle(&mut thread_rng());
+        }
+        Self {
+            dataset,
+            remaining_indices,
+        }
+    }
+}
+
+impl Iterator for PreferenceDatasetIter {
+    type Item = Result<EncodedPreferenceExample>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(idx) = self.remaining_indices.pop() {
+            let encoded = self.dataset.get_item_at_index(idx).unwrap();
+
+            Some(Ok(encoded.clone()))
+        } else {
+            None
+        }
+    }
+}
+
+#[allow(dead_code)]
+pub struct IterResult1<I: Iterator<Item = Result<EncodedPreferenceExample>>> {
+    inner: I,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct PreferenceDatasetCollatorItem {
+    prompt: Vec<Tensor>,
+    chosen: Tensor,
+    rejected: Tensor,
+    rejected_mask: Tensor,
+    chosen_mask: Tensor,
+}
+
+pub trait CustomCollator {
+    type BatchItem;
+
+    fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<PreferenceDatasetCollatorItem>;
+}
+
+#[allow(dead_code)]
+pub struct PreferenceDataBatcher<C: CustomCollator, I> {
+    inner: I,
+    batch_size: usize,
+    return_last_incomplete_batch: bool,
+    collator: C,
+}
+
+impl<C, I> PreferenceDataBatcher<C, IterResult1<I>>
+where
+    C: CustomCollator<BatchItem = EncodedPreferenceExample>,
+    I: Iterator<Item = Result<EncodedPreferenceExample>>,
+{
+    pub fn new(inner: I, collator: C) -> Self {
+        Self {
+            inner: IterResult1 { inner },
+            collator,
+            batch_size: 16,
+            return_last_incomplete_batch: false,
+        }
+    }
+}
+
+impl<C: CustomCollator, I> PreferenceDataBatcher<C, I> {
+    pub fn batch_size(mut self, batch_size: usize) -> Self {
+        self.batch_size = batch_size;
+        self
+    }
+
+    pub fn return_last_incomplete_batch(mut self, r: bool) -> Self {
+        self.return_last_incomplete_batch = r;
+        self
+    }
+
+    pub fn collator(mut self, collator: C) -> Self {
+        self.collator = collator;
+        self
+    }
+}
+
+impl<C, I> Iterator for PreferenceDataBatcher<C, IterResult1<I>>
+where
+    // These items need to match
+    C: CustomCollator<BatchItem = EncodedPreferenceExample>,
+    I: Iterator<Item = Result<EncodedPreferenceExample>>,
+{
+    type Item = Result<PreferenceDatasetCollatorItem>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut items = Vec::with_capacity(self.batch_size);
+        let mut errs = vec![];
+        for _i in 0..self.batch_size {
+            match self.inner.inner.next() {
+                Some(Ok(item)) => items.push(item),
+                Some(Err(err)) => errs.push(err),
+                None => {
+                    if self.return_last_incomplete_batch && !items.is_empty() {
+                        break;
+                    }
+                    return None;
+                }
+            }
+        }
+        Some(self.collator.collate(items))
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone)]
+pub struct PreferenceDataCollator {
+    pad_token_id: u32,
+    allowed_max_length: Option<usize>,
+    mask_prompt_tokens: bool,
+    device: Device,
+}
+
+impl Default for PreferenceDataCollator {
+    fn default() -> Self {
+        Self {
+            pad_token_id: DEFAULT_PAD_TOKEN_ID,
+            mask_prompt_tokens: true,
+            allowed_max_length: Some(1024_usize),
+            device: Device::Cpu,
+        }
+    }
+}
+
+impl PreferenceDataCollator {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn pad_token_id(mut self, pad_token_id: u32) -> Self {
+        self.pad_token_id = pad_token_id;
+        self
+    }
+
+    pub fn allowed_max_length(mut self, allowed_max_length: Option<usize>) -> Self {
+        self.allowed_max_length = allowed_max_length;
+        self
+    }
+
+    pub fn device(mut self, device: Device) -> Self {
+        self.device = device;
+        self
+    }
+
+    fn _apply_padding_and_get_mask(
+        &self,
+        elements: &mut Vec<u32>,
+        batch_max_length: usize,
+        prompt_length: usize,
+    ) -> Vec<u32> {
+        let elements_length = elements.len();
+        // apply padding
+        let num_pad =
+            std::cmp::max(0isize, batch_max_length as isize - elements_length as isize) as usize;
+        if num_pad > 0 {
+            let padding_input = std::iter::repeat(self.pad_token_id)
+                .take(num_pad)
+                .collect::<Vec<u32>>();
+            elements.extend(padding_input);
+        }
+
+        // mask vec
+        let mut mask = (0..batch_max_length as u32)
+            .map(|j| u32::from(j >= elements_length as u32))
+            .collect::<Vec<u32>>();
+
+        if self.mask_prompt_tokens {
+            mask[..prompt_length + 2].fill(0_u32);
+        }
+
+        mask
+    }
+
+    fn _build_stacked_tensor(&self, elements_vec: Vec<Vec<u32>>) -> Result<Tensor> {
+        let shape = (elements_vec.len(), elements_vec[0].len());
+        Tensor::from_vec(
+            elements_vec.into_iter().flatten().collect(),
+            shape,
+            &self.device,
+        )
+    }
+
+    pub fn custom_collate_fn(
+        &self,
+        batch: Vec<EncodedPreferenceExample>,
+    ) -> Result<PreferenceDatasetCollatorItem> {
+        let mut prompt_vec = vec![];
+        let mut chosen_vec = vec![];
+        let mut rejected_vec = vec![];
+        let mut rejected_mask_vec = vec![];
+        let mut chosen_mask_vec = vec![];
+
+        let batch_max_length = batch
+            .iter()
+            .map(|el| std::cmp::max(el.chosen.len(), el.rejected.len()))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .max()
+            .ok_or_else(|| {
+                candle_core::Error::Msg("Unable to get max length for batch.".to_string())
+            })?;
+
+        for item in batch.into_iter() {
+            let prompt = item.prompt.clone();
+            let prompt_tensor =
+                Tensor::from_vec(prompt, (1_usize, item.prompt.len()), &self.device)?;
+
+            let mut chosen = item.chosen.clone();
+            let mut chosen_mask =
+                self._apply_padding_and_get_mask(&mut chosen, batch_max_length, item.prompt.len());
+
+            let mut rejected = item.rejected.clone();
+            let mut rejected_mask = self._apply_padding_and_get_mask(
+                &mut rejected,
+                batch_max_length,
+                item.prompt.len(),
+            );
+
+            if let Some(a) = self.allowed_max_length {
+                chosen = chosen[..std::cmp::min(a, batch_max_length)].to_vec();
+                chosen_mask = chosen_mask[..std::cmp::min(a, batch_max_length)].to_vec();
+                rejected = rejected[..std::cmp::min(a, batch_max_length)].to_vec();
+                rejected_mask = rejected_mask[..std::cmp::min(a, batch_max_length)].to_vec();
+            }
+
+            chosen_vec.push(chosen);
+            chosen_mask_vec.push(chosen_mask);
+            rejected_vec.push(rejected);
+            rejected_mask_vec.push(rejected_mask);
+            prompt_vec.push(prompt_tensor);
+        }
+
+        let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
+        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec)?;
+        let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
+        let rejected_mask_tensor = self._build_stacked_tensor(rejected_mask_vec)?;
+
+        Ok(PreferenceDatasetCollatorItem {
+            prompt: prompt_vec,
+            chosen: chosen_tensor,
+            rejected: rejected_tensor,
+            rejected_mask: rejected_mask_tensor,
+            chosen_mask: chosen_mask_tensor,
+        })
+    }
+}
+
+impl CustomCollator for PreferenceDataCollator {
+    type BatchItem = EncodedPreferenceExample;
+
+    fn collate(&self, batch: Vec<Self::BatchItem>) -> Result<PreferenceDatasetCollatorItem> {
+        self.custom_collate_fn(batch)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::listings::ch07::AlpacaPromptFormatter;
@@ -370,6 +642,40 @@ mod tests {
             *preference_dataset.get_item_at_index(0_usize)?,
             encoded_example
         );
+
+        Ok(())
+    }
+
+    #[rstest]
+    pub fn test_preference_collator(preference_example: PreferenceExample) -> Result<()> {
+        // arrange
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let encoded_example = EncodedPreferenceExample::from_example(
+            &preference_example,
+            &prompt_formatter,
+            &tokenizer,
+        );
+        let batch = vec![encoded_example];
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+
+        // act
+        let collated_item = collator.collate(batch)?;
+
+        // assert
+        assert_eq!(
+            collated_item.chosen.elem_count(),
+            collated_item.chosen_mask.elem_count()
+        );
+        assert_eq!(
+            collated_item.rejected.elem_count(),
+            collated_item.rejected_mask.elem_count()
+        );
+        assert_eq!(
+            collated_item.rejected.elem_count(),
+            collated_item.chosen.elem_count()
+        );
+        assert_eq!(collated_item.prompt.len(), 1);
 
         Ok(())
     }
