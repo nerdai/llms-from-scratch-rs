@@ -383,6 +383,35 @@ impl PreferenceDataCollator {
         self
     }
 
+    fn _apply_padding_and_get_mask(
+        &self,
+        elements: &mut Vec<u32>,
+        batch_max_length: usize,
+        prompt_length: usize,
+    ) -> Vec<u32> {
+        let elements_length = elements.len();
+        // apply padding
+        let num_pad =
+            std::cmp::max(0isize, batch_max_length as isize - elements_length as isize) as usize;
+        if num_pad > 0 {
+            let padding_input = std::iter::repeat(self.pad_token_id)
+                .take(num_pad)
+                .collect::<Vec<u32>>();
+            elements.extend(padding_input);
+        }
+
+        // mask vec
+        let mut mask = (0..batch_max_length as u32)
+            .map(|j| u32::from(j >= elements_length as u32))
+            .collect::<Vec<u32>>();
+
+        if self.mask_prompt_tokens {
+            mask[..prompt_length + 2].fill(0_u32);
+        }
+
+        mask
+    }
+
     pub fn custom_collate_fn(
         &self,
         batch: Vec<EncodedPreferenceExample>,
@@ -407,51 +436,15 @@ impl PreferenceDataCollator {
             let prompt = item.prompt.clone();
 
             let mut chosen = item.chosen.clone();
-            // apply padding
-            let num_pad = std::cmp::max(
-                0isize,
-                batch_max_length as isize - item.chosen.len() as isize,
-            ) as usize;
-            if num_pad > 0 {
-                let padding_input = std::iter::repeat(self.pad_token_id)
-                    .take(num_pad)
-                    .collect::<Vec<u32>>();
-                chosen.extend(padding_input);
-            }
-
-            // mask vec
-            let mut mask = (0..batch_max_length as u32)
-                .map(|j| u32::from(j >= item.chosen.len() as u32))
-                .collect::<Vec<u32>>();
-
-            if self.mask_prompt_tokens {
-                mask[..item.prompt.len() + 2].fill(0_u32);
-            }
+            let mask =
+                self._apply_padding_and_get_mask(&mut chosen, batch_max_length, prompt.len());
 
             chosen_vec.push(chosen);
             chosen_mask_vec.push(mask);
 
             let mut rejected = item.rejected.clone();
-            // apply padding
-            let num_pad = std::cmp::max(
-                0isize,
-                batch_max_length as isize - item.rejected.len() as isize,
-            ) as usize;
-            if num_pad > 0 {
-                let padding_input = std::iter::repeat(self.pad_token_id)
-                    .take(num_pad)
-                    .collect::<Vec<u32>>();
-                rejected.extend(padding_input);
-            }
-
-            // mask vec
-            let mut mask = (0..batch_max_length as u32)
-                .map(|j| u32::from(j >= item.rejected.len() as u32))
-                .collect::<Vec<u32>>();
-
-            if self.mask_prompt_tokens {
-                mask[..item.prompt.len() + 2].fill(0_u32);
-            }
+            let mask =
+                self._apply_padding_and_get_mask(&mut rejected, batch_max_length, prompt.len());
 
             rejected_vec.push(rejected);
             rejected_mask_vec.push(mask);
