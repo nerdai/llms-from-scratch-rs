@@ -1205,12 +1205,13 @@ impl Example for EG19 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::{
+            ch05::token_ids_to_text,
             ch07::bonus::{
                 CustomCollator, EncodedPreferenceExample, PreferenceDataCollator, PreferenceExample,
             },
             ch07::{load_instruction_data_from_json, AlpacaPromptFormatter, DATA_DIR},
         };
-        use candle_core::Device;
+        use candle_core::{Device, IndexOp};
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
@@ -1240,8 +1241,9 @@ impl Example for EG19 {
         let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
         let collated_item = collator.collate(batch)?;
 
+        // print prompts
         println!(
-            "\nCollated Batch: Prompts\n\n{:?}\n",
+            "\nCollated Batch: Prompt Tokens\n\n{:?}\n",
             collated_item
                 .prompt()
                 .iter()
@@ -1249,7 +1251,20 @@ impl Example for EG19 {
                 .collect::<Vec<_>>()
         );
 
-        println!("{:?}", collated_item.chosen().shape());
+        // print chosen
+        println!(
+            "\nCollated Batch: Chosen Tokens\n\n{:?}\n",
+            collated_item.chosen().to_vec2::<u32>()?
+        );
+
+        // Decode prompt and print
+        let prompt_text = token_ids_to_text(collated_item.prompt()[1].clone(), &tokenizer)?;
+        println!("\nCollated Batch Item 1: Prompt Text\n\n{}\n", prompt_text);
+
+        // Decode chosen and print
+        let chosen = collated_item.chosen().i((1, ..))?;
+        let chosen_text = token_ids_to_text(chosen, &tokenizer)?;
+        println!("\nCollated Batch Item 1: Chosen Text\n\n{}\n", chosen_text);
 
         Ok(())
     }
