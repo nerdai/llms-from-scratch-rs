@@ -1266,6 +1266,14 @@ impl Example for EG19 {
         let chosen_text = token_ids_to_text(chosen, &tokenizer)?;
         println!("\nCollated Batch Item 1: Chosen Text\n\n{}\n", chosen_text);
 
+        // Decode chosen and print
+        let rejected = collated_item.rejected().i((1, ..))?;
+        let rejected_text = token_ids_to_text(rejected, &tokenizer)?;
+        println!(
+            "\nCollated Batch Item 1: Rejected Text\n\n{}\n",
+            rejected_text
+        );
+
         Ok(())
     }
 }
