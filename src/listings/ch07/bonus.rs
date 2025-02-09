@@ -255,12 +255,10 @@ impl Iterator for PreferenceDatasetIter {
     }
 }
 
-#[allow(dead_code)]
 pub struct IterResult1<I: Iterator<Item = Result<EncodedPreferenceExample>>> {
     inner: I,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PreferenceDatasetCollatorItem {
     prompt: Vec<Tensor>,
@@ -268,6 +266,28 @@ pub struct PreferenceDatasetCollatorItem {
     rejected: Tensor,
     rejected_mask: Tensor,
     chosen_mask: Tensor,
+}
+
+impl PreferenceDatasetCollatorItem {
+    pub fn prompt(&self) -> &Vec<Tensor> {
+        &self.prompt
+    }
+
+    pub fn chosen(&self) -> &Tensor {
+        &self.chosen
+    }
+
+    pub fn chosen_mask(&self) -> &Tensor {
+        &self.chosen_mask
+    }
+
+    pub fn rejected(&self) -> &Tensor {
+        &self.rejected
+    }
+
+    pub fn rejected_mask(&self) -> &Tensor {
+        &self.rejected_mask
+    }
 }
 
 pub trait CustomCollator {
@@ -443,8 +463,7 @@ impl PreferenceDataCollator {
 
         for item in batch.into_iter() {
             let prompt = item.prompt.clone();
-            let prompt_tensor =
-                Tensor::from_vec(prompt, (1_usize, item.prompt.len()), &self.device)?;
+            let prompt_tensor = Tensor::from_vec(prompt, item.prompt.len(), &self.device)?;
 
             let mut chosen = item.chosen.clone();
             let mut chosen_mask =

@@ -1117,7 +1117,7 @@ impl Example for EG17 {
     }
 }
 
-/// # Example usage of `generate_preference_dataset`
+/// # [BONUS] Example usage of `generate_preference_dataset`
 ///
 /// #### Id
 /// 07.18
@@ -1137,7 +1137,7 @@ pub struct EG18;
 
 impl Example for EG18 {
     fn description(&self) -> String {
-        "Example usage of `generate_preference_dataset`.".to_string()
+        "[Bonus from DPO notebook] Example usage of `generate_preference_dataset`.".to_string()
     }
 
     fn page_source(&self) -> usize {
@@ -1169,6 +1169,121 @@ impl Example for EG18 {
             &prompt_formatter,
             save_path,
         )?;
+
+        Ok(())
+    }
+}
+
+/// # [BONUS] Example usage of `PreferenceDataCollator.custom_collate_fn`
+///
+/// #### Id
+/// 07.19
+///
+/// #### Page
+/// This example is adapted from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.19
+///
+/// # with cuda
+/// cargo run --features cuda example 07.19
+/// ```
+pub struct EG19;
+
+impl Example for EG19 {
+    fn description(&self) -> String {
+        let desc = "[Bonus from DPO notebook] Example usage of \
+        `PreferenceDataCollator.custom_collate_fn`.";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch05::token_ids_to_text,
+            ch07::bonus::{
+                CustomCollator, EncodedPreferenceExample, PreferenceDataCollator, PreferenceExample,
+            },
+            ch07::{load_instruction_data_from_json, AlpacaPromptFormatter, DATA_DIR},
+        };
+        use candle_core::{Device, IndexOp};
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+
+        // load preference examples
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
+        let preference_data: Vec<PreferenceExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_preference.json' file. Please run EG 07.18."
+            })?;
+
+        // take a small sample and encode
+        let sample = preference_data
+            .into_iter()
+            .take(2_usize)
+            .collect::<Vec<_>>();
+
+        println!("Sample Preference Examples:\n{:#?}", sample);
+
+        let batch = sample
+            .into_iter()
+            .map(|el| EncodedPreferenceExample::from_example(&el, &prompt_formatter, &tokenizer))
+            .collect::<Vec<_>>();
+
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+        let collated_item = collator.collate(batch)?;
+
+        // print prompts
+        println!(
+            "\nCollated Batch: Prompt Tokens\n\n{:?}\n",
+            collated_item
+                .prompt()
+                .iter()
+                .map(|el| el.to_vec1::<u32>())
+                .collect::<Vec<_>>()
+        );
+
+        // print chosen
+        println!(
+            "\nCollated Batch: Chosen Tokens\n\n{:?}\n",
+            collated_item.chosen().to_vec2::<u32>()?
+        );
+
+        // Decode prompt and print
+        let prompt_text = token_ids_to_text(collated_item.prompt()[1].clone(), &tokenizer)?;
+        println!("\nCollated Batch Item 1: Prompt Text\n\n{}\n", prompt_text);
+
+        // Decode chosen and print
+        let chosen = collated_item.chosen().i((1, ..))?;
+        let chosen_text = token_ids_to_text(chosen.clone(), &tokenizer)?;
+        println!("\nCollated Batch Item 1: Chosen Text\n\n{}\n", chosen_text);
+
+        // Decode chosen and print
+        let rejected = collated_item.rejected().i((1, ..))?;
+        let rejected_text = token_ids_to_text(rejected, &tokenizer)?;
+        println!(
+            "\nCollated Batch Item 1: Rejected Text\n\n{}\n",
+            rejected_text
+        );
+
+        // Print masks and their shapes
+        let chosen_mask = collated_item.chosen_mask().i((1, ..))?;
+        println!("\nCollated Batch: Masks\n");
+        println!("Chosen inputs: {:?}", chosen);
+        println!("Chosen mask: {:?}", chosen_mask);
+
+        println!(
+            "\nCollated Batch Item 1: Chosen Mask\n\n{:?}\n",
+            chosen_mask.to_vec1::<u32>()?
+        );
 
         Ok(())
     }
