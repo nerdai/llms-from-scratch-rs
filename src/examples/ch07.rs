@@ -1263,7 +1263,7 @@ impl Example for EG19 {
 
         // Decode chosen and print
         let chosen = collated_item.chosen().i((1, ..))?;
-        let chosen_text = token_ids_to_text(chosen, &tokenizer)?;
+        let chosen_text = token_ids_to_text(chosen.clone(), &tokenizer)?;
         println!("\nCollated Batch Item 1: Chosen Text\n\n{}\n", chosen_text);
 
         // Decode chosen and print
@@ -1272,6 +1272,17 @@ impl Example for EG19 {
         println!(
             "\nCollated Batch Item 1: Rejected Text\n\n{}\n",
             rejected_text
+        );
+
+        // Print masks and their shapes
+        let chosen_mask = collated_item.chosen_mask().i((1, ..))?;
+        println!("\nCollated Batch: Masks\n");
+        println!("Chosen inputs: {:?}", chosen);
+        println!("Chosen mask: {:?}", chosen_mask);
+
+        println!(
+            "\nCollated Batch Item 1: Chosen Mask\n\n{:?}\n",
+            chosen_mask.to_vec1::<u32>()?
         );
 
         Ok(())
