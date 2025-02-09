@@ -1205,10 +1205,17 @@ impl Example for EG19 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::{
-            ch07::bonus::PreferenceExample,
-            ch07::{load_instruction_data_from_json, DATA_DIR},
+            ch07::bonus::{
+                CustomCollator, EncodedPreferenceExample, PreferenceDataCollator, PreferenceExample,
+            },
+            ch07::{load_instruction_data_from_json, AlpacaPromptFormatter, DATA_DIR},
         };
+        use candle_core::Device;
         use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
 
         // load preference examples
         let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
@@ -1217,7 +1224,32 @@ impl Example for EG19 {
                 "Missing 'instruction_data_with_preference.json' file. Please run EG 07.18."
             })?;
 
-        println!("{:#?}", preference_data);
+        // take a small sample and encode
+        let sample = preference_data
+            .into_iter()
+            .take(2_usize)
+            .collect::<Vec<_>>();
+
+        println!("Sample Preference Examples:\n{:#?}", sample);
+
+        let batch = sample
+            .into_iter()
+            .map(|el| EncodedPreferenceExample::from_example(&el, &prompt_formatter, &tokenizer))
+            .collect::<Vec<_>>();
+
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+        let collated_item = collator.collate(batch)?;
+
+        println!(
+            "\nCollated Batch: Prompts\n\n{:?}\n",
+            collated_item
+                .prompt()
+                .iter()
+                .map(|el| el.to_vec1::<u32>())
+                .collect::<Vec<_>>()
+        );
+
+        println!("{:?}", collated_item.chosen().shape());
 
         Ok(())
     }
