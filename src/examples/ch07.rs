@@ -1117,7 +1117,7 @@ impl Example for EG17 {
     }
 }
 
-/// # Example usage of `generate_preference_dataset`
+/// # [BONUS] Example usage of `generate_preference_dataset`
 ///
 /// #### Id
 /// 07.18
@@ -1137,7 +1137,7 @@ pub struct EG18;
 
 impl Example for EG18 {
     fn description(&self) -> String {
-        "Example usage of `generate_preference_dataset`.".to_string()
+        "[Bonus from DPO notebook] Example usage of `generate_preference_dataset`.".to_string()
     }
 
     fn page_source(&self) -> usize {
@@ -1169,6 +1169,55 @@ impl Example for EG18 {
             &prompt_formatter,
             save_path,
         )?;
+
+        Ok(())
+    }
+}
+
+/// # [BONUS] Example usage of `PreferenceDataCollator.custom_collate_fn`
+///
+/// #### Id
+/// 07.19
+///
+/// #### Page
+/// This example is adapted from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.19
+///
+/// # with cuda
+/// cargo run --features cuda example 07.19
+/// ```
+pub struct EG19;
+
+impl Example for EG19 {
+    fn description(&self) -> String {
+        let desc = "[Bonus from DPO notebook] Example usage of \
+        `PreferenceDataCollator.custom_collate_fn`.";
+        desc.to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch07::bonus::PreferenceExample,
+            ch07::{load_instruction_data_from_json, DATA_DIR},
+        };
+        use std::path::Path;
+
+        // load preference examples
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
+        let preference_data: Vec<PreferenceExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_preference.json' file. Please run EG 07.18."
+            })?;
+
+        println!("{:#?}", preference_data);
 
         Ok(())
     }
