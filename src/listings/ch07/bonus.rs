@@ -422,7 +422,7 @@ impl PreferenceDataCollator {
 
         // mask vec
         let mut mask = (0..batch_max_length as u32)
-            .map(|j| u32::from(j >= elements_length as u32))
+            .map(|j| u32::from(j < elements_length as u32))
             .collect::<Vec<u32>>();
 
         if self.mask_prompt_tokens {
