@@ -265,7 +265,7 @@ pub struct PreferenceDatasetCollatorItem {
     chosen: Tensor,
     rejected: Tensor,
     rejected_mask: Tensor,
-    chosen_mask: Tensor,
+    chosen_mask: Vec<Tensor>,
 }
 
 impl PreferenceDatasetCollatorItem {
@@ -277,7 +277,7 @@ impl PreferenceDatasetCollatorItem {
         &self.chosen
     }
 
-    pub fn chosen_mask(&self) -> &Tensor {
+    pub fn chosen_mask(&self) -> &Vec<Tensor> {
         &self.chosen_mask
     }
 
@@ -483,15 +483,23 @@ impl PreferenceDataCollator {
                 rejected_mask = rejected_mask[..std::cmp::min(a, batch_max_length)].to_vec();
             }
 
+            // get only the indexes of mask that are to keep
+            chosen_mask = chosen_mask
+                .iter()
+                .enumerate()
+                .filter_map(|(ix, el)| (*el > 0).then_some(ix as u32))
+                .collect::<Vec<_>>();
+            let shape = chosen_mask.len();
+            let chosen_mask_tensor = Tensor::from_vec(chosen_mask, shape, &self.device)?;
+
             chosen_vec.push(chosen);
-            chosen_mask_vec.push(chosen_mask);
+            chosen_mask_vec.push(chosen_mask_tensor);
             rejected_vec.push(rejected);
             rejected_mask_vec.push(rejected_mask);
             prompt_vec.push(prompt_tensor);
         }
 
         let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
-        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec)?;
         let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
         let rejected_mask_tensor = self._build_stacked_tensor(rejected_mask_vec)?;
 
@@ -500,7 +508,7 @@ impl PreferenceDataCollator {
             chosen: chosen_tensor,
             rejected: rejected_tensor,
             rejected_mask: rejected_mask_tensor,
-            chosen_mask: chosen_mask_tensor,
+            chosen_mask: chosen_mask_vec,
         })
     }
 }
@@ -681,10 +689,12 @@ mod tests {
         // act
         let collated_item = collator.collate(batch)?;
 
+        println!("{:#?}", collated_item.chosen_mask()[0].to_vec1::<u32>());
+
         // assert
         assert_eq!(
-            collated_item.chosen.elem_count(),
-            collated_item.chosen_mask.elem_count()
+            collated_item.chosen_mask()[0].to_vec1::<u32>()?,
+            &[44, 45, 46, 47, 48, 49, 50, 51, 52, 53,]
         );
         assert_eq!(
             collated_item.rejected.elem_count(),

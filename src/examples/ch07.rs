@@ -1275,7 +1275,7 @@ impl Example for EG19 {
         );
 
         // Print masks and their shapes
-        let chosen_mask = collated_item.chosen_mask().i((1, ..))?;
+        let chosen_mask = &collated_item.chosen_mask()[1];
         println!("\nCollated Batch: Masks\n");
         println!("Chosen inputs: {:?}", chosen);
         println!("Chosen mask: {:?}", chosen_mask);
