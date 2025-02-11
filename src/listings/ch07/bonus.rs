@@ -264,7 +264,7 @@ pub struct PreferenceDatasetCollatorItem {
     prompt: Vec<Tensor>,
     chosen: Tensor,
     rejected: Tensor,
-    rejected_mask: Tensor,
+    rejected_mask: Vec<Tensor>,
     chosen_mask: Vec<Tensor>,
 }
 
@@ -285,7 +285,7 @@ impl PreferenceDatasetCollatorItem {
         &self.rejected
     }
 
-    pub fn rejected_mask(&self) -> &Tensor {
+    pub fn rejected_mask(&self) -> &Vec<Tensor> {
         &self.rejected_mask
     }
 }
@@ -441,6 +441,16 @@ impl PreferenceDataCollator {
         )
     }
 
+    fn _build_tensor_from_only_true_values(&self, mask: Vec<u32>) -> Result<Tensor> {
+        let reduced_mask = mask
+            .iter()
+            .enumerate()
+            .filter_map(|(ix, el)| (*el > 0).then_some(ix as u32))
+            .collect::<Vec<_>>();
+        let shape = reduced_mask.len();
+        Tensor::from_vec(reduced_mask, shape, &self.device)
+    }
+
     pub fn custom_collate_fn(
         &self,
         batch: Vec<EncodedPreferenceExample>,
@@ -484,30 +494,24 @@ impl PreferenceDataCollator {
             }
 
             // get only the indexes of mask that are to keep
-            chosen_mask = chosen_mask
-                .iter()
-                .enumerate()
-                .filter_map(|(ix, el)| (*el > 0).then_some(ix as u32))
-                .collect::<Vec<_>>();
-            let shape = chosen_mask.len();
-            let chosen_mask_tensor = Tensor::from_vec(chosen_mask, shape, &self.device)?;
+            let chosen_mask_tensor = self._build_tensor_from_only_true_values(chosen_mask)?;
+            let rejected_mask_tensor = self._build_tensor_from_only_true_values(rejected_mask)?;
 
             chosen_vec.push(chosen);
-            chosen_mask_vec.push(chosen_mask_tensor);
             rejected_vec.push(rejected);
-            rejected_mask_vec.push(rejected_mask);
+            rejected_mask_vec.push(rejected_mask_tensor);
+            chosen_mask_vec.push(chosen_mask_tensor);
             prompt_vec.push(prompt_tensor);
         }
 
         let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
         let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
-        let rejected_mask_tensor = self._build_stacked_tensor(rejected_mask_vec)?;
 
         Ok(PreferenceDatasetCollatorItem {
             prompt: prompt_vec,
             chosen: chosen_tensor,
             rejected: rejected_tensor,
-            rejected_mask: rejected_mask_tensor,
+            rejected_mask: rejected_mask_vec,
             chosen_mask: chosen_mask_vec,
         })
     }
@@ -689,16 +693,14 @@ mod tests {
         // act
         let collated_item = collator.collate(batch)?;
 
-        println!("{:#?}", collated_item.chosen_mask()[0].to_vec1::<u32>());
-
         // assert
         assert_eq!(
             collated_item.chosen_mask()[0].to_vec1::<u32>()?,
             &[44, 45, 46, 47, 48, 49, 50, 51, 52, 53,]
         );
         assert_eq!(
-            collated_item.rejected.elem_count(),
-            collated_item.rejected_mask.elem_count()
+            collated_item.rejected_mask()[0].to_vec1::<u32>()?,
+            &[44, 45, 46, 47, 48, 49, 50, 51, 52, 53,]
         );
         assert_eq!(
             collated_item.rejected.elem_count(),
