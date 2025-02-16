@@ -720,7 +720,7 @@ mod tests {
     }
 
     #[rstest]
-    pub fn test_instruction_dataset_init(
+    pub fn test_preference_dataset_init(
         preference_data: Vec<PreferenceExample>,
         preference_example: PreferenceExample,
     ) -> Result<()> {

@@ -1308,3 +1308,93 @@ impl Example for EG19 {
         Ok(())
     }
 }
+
+/// # [BONUS] Creating a `PreferenceDataLoader`
+///
+/// #### Id
+/// 07.20
+///
+/// #### Page
+/// This example is adapted from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.20
+///
+/// # with cuda
+/// cargo run --features cuda example 07.20
+/// ```
+pub struct EG20;
+
+impl Example for EG20 {
+    fn description(&self) -> String {
+        "[BONUS] Creating a `PreferenceDataLoader`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch07::bonus::{
+                PreferenceDataCollator, PreferenceDataLoader, PreferenceDataset, PreferenceExample,
+            },
+            ch07::{
+                load_instruction_data_from_json, partition_data, AlpacaPromptFormatter, DataLoader,
+                DATA_DIR,
+            },
+        };
+        use candle_core::Device;
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+
+        // load preference examples
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
+        let preference_data: Vec<PreferenceExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_preference.json' file. Please run EG 07.18."
+            })?;
+
+        // partition data and create train, val, test datasets
+        let (train_data, val_data, test_data) =
+            partition_data(preference_data, 0.85_f32, 0.05_f32)?;
+        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
+        let val_dataset = PreferenceDataset::new(val_data, &tokenizer, &prompt_formatter);
+        let test_dataset = PreferenceDataset::new(test_data, &tokenizer, &prompt_formatter);
+
+        // create loaders
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+        let batch_size = 3_usize;
+        let train_loader =
+            PreferenceDataLoader::new(train_dataset, batch_size, true, true, collator.clone());
+        let val_loader =
+            PreferenceDataLoader::new(val_dataset, batch_size, false, false, collator.clone());
+        let test_loader =
+            PreferenceDataLoader::new(test_dataset, batch_size, false, false, collator);
+
+        println!("Train loader:");
+        let mut batcher = train_loader.batcher();
+        while let Some(Ok(batch)) = batcher.next() {
+            println!("batch: {:#?}", batch);
+        }
+
+        println!("Val loader:");
+        let mut batcher = val_loader.batcher();
+        while let Some(Ok(batch)) = batcher.next() {
+            println!("batch: {:#?}", batch);
+        }
+
+        println!("Test loader:");
+        let mut batcher = test_loader.batcher();
+        while let Some(Ok(batch)) = batcher.next() {
+            println!("batch: {:#?}", batch);
+        }
+
+        Ok(())
+    }
+}
