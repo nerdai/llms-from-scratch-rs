@@ -594,6 +594,17 @@ impl<C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone> Preference
     }
 }
 
+#[allow(unused_variables)]
+pub fn compute_dpo_loss(
+    model_chosen_logprobs: &Tensor,
+    model_rejected_logprobs: &Tensor,
+    reference_chosen_logprobs: &Tensor,
+    reference_rejected_logprobs: &Tensor,
+    beta: f64,
+) -> Result<(Tensor, Tensor, Tensor)> {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
