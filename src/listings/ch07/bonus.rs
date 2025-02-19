@@ -594,6 +594,32 @@ impl<C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone> Preference
     }
 }
 
+#[allow(unused_variables)]
+pub fn compute_dpo_loss(
+    model_chosen_logprobs: &Tensor,
+    model_rejected_logprobs: &Tensor,
+    reference_chosen_logprobs: &Tensor,
+    reference_rejected_logprobs: &Tensor,
+    beta: f64,
+) -> Result<(Tensor, Tensor, Tensor)> {
+    let model_logratios = (model_chosen_logprobs - model_rejected_logprobs)?;
+    let reference_logratios = (reference_chosen_logprobs - reference_rejected_logprobs)?;
+    let logits = (model_logratios - reference_logratios)?;
+
+    let mut losses = candle_nn::ops::sigmoid(&logits)?;
+    losses = (-1_f64 * losses.log()?)?;
+
+    // Optional values to track progress during training
+    let chosen_rewards = (model_chosen_logprobs - reference_chosen_logprobs)?.detach();
+    let rejected_rewards = (model_rejected_logprobs - reference_rejected_logprobs)?.detach();
+
+    Ok((
+        losses.mean_all()?,
+        chosen_rewards.mean_all()?,
+        rejected_rewards.mean_all()?,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
