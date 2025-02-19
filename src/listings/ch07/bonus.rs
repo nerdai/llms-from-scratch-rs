@@ -2,9 +2,9 @@
 
 use super::{
     query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
-    PromptFormatter, DEFAULT_PAD_TOKEN_ID,
+    PromptFormatter, DEFAULT_PAD_TOKEN_ID, GPT,
 };
-use candle_core::{Device, IndexOp, Result, Tensor, D};
+use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -649,6 +649,16 @@ pub fn compute_logprobs(
     } else {
         selected_log_probs.mean(D::Minus1)
     }
+}
+
+#[allow(unused_variables)]
+pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
+    batch: &Tensor,
+    policy_model: M,
+    reference_model: M,
+    beta: f64,
+) -> Result<(Tensor, Tensor, Tensor)> {
+    todo!()
 }
 
 #[cfg(test)]
