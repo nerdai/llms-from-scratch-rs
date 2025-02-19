@@ -638,6 +638,7 @@ pub fn compute_logprobs(
         .squeeze(D::Minus1)?;
 
     if let Some(m) = selection_mask {
+        // this is brittle, if there is a value < 0, then this breaks...
         let mask = (m - 1_f64)?;
         let selected_log_probs = selected_log_probs.gather(&mask, D::Minus1)?;
 
