@@ -602,7 +602,18 @@ pub fn compute_dpo_loss(
     reference_rejected_logprobs: &Tensor,
     beta: f64,
 ) -> Result<(Tensor, Tensor, Tensor)> {
-    todo!()
+    let model_logratios = (model_chosen_logprobs - model_rejected_logprobs)?;
+    let reference_logratios = (reference_chosen_logprobs - reference_rejected_logprobs)?;
+    let logits = (model_logratios - reference_logratios)?;
+
+    let mut losses = candle_nn::ops::sigmoid(&logits)?;
+    losses = (-1_f64 * losses.log()?)?;
+
+    // Optional values to track progress during training
+    let chosen_rewards = (model_chosen_logprobs - reference_chosen_logprobs)?.detach();
+    let rejected_rewards = (model_rejected_logprobs - reference_rejected_logprobs)?.detach();
+
+    Ok((losses, chosen_rewards, rejected_rewards))
 }
 
 #[cfg(test)]
