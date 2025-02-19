@@ -4,7 +4,7 @@ use super::{
     query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
     PromptFormatter, DEFAULT_PAD_TOKEN_ID,
 };
-use candle_core::{Device, Result, Tensor};
+use candle_core::{Device, IndexOp, Result, Tensor, D};
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -594,7 +594,6 @@ impl<C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone> Preference
     }
 }
 
-#[allow(unused_variables)]
 pub fn compute_dpo_loss(
     model_chosen_logprobs: &Tensor,
     model_rejected_logprobs: &Tensor,
@@ -606,7 +605,7 @@ pub fn compute_dpo_loss(
     let reference_logratios = (reference_chosen_logprobs - reference_rejected_logprobs)?;
     let logits = (model_logratios - reference_logratios)?;
 
-    let mut losses = candle_nn::ops::sigmoid(&logits)?;
+    let mut losses = candle_nn::ops::sigmoid(&(beta * &logits)?)?;
     losses = (-1_f64 * losses.log()?)?;
 
     // Optional values to track progress during training
@@ -618,6 +617,31 @@ pub fn compute_dpo_loss(
         chosen_rewards.mean_all()?,
         rejected_rewards.mean_all()?,
     ))
+}
+
+pub fn compute_logprobs(
+    logits: &Tensor,
+    labels: &Tensor,
+    selection_mask: Option<&Tensor>,
+) -> Result<Tensor> {
+    // Labels are the inputs shifted by one
+    let labels = labels.i((.., 1..))?;
+    let labels_dims = labels.dims();
+
+    // Truncate logits to match the labels num_tokens
+    let logits = logits.i((.., ..labels_dims[1], ..))?;
+
+    let log_probs = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
+
+    let selected_log_probs = log_probs
+        .gather(&labels.unsqueeze(D::Minus1)?, D::Minus1)?
+        .squeeze(D::Minus1)?;
+
+    if let Some(_m) = selection_mask {
+        todo!()
+    } else {
+        selected_log_probs.mean(D::Minus1)
+    }
 }
 
 #[cfg(test)]
