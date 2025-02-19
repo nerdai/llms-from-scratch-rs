@@ -637,8 +637,14 @@ pub fn compute_logprobs(
         .gather(&labels.unsqueeze(D::Minus1)?, D::Minus1)?
         .squeeze(D::Minus1)?;
 
-    if let Some(_m) = selection_mask {
-        todo!()
+    if let Some(m) = selection_mask {
+        let mask = (m - 1_f64)?;
+        let selected_log_probs = selected_log_probs.gather(&mask, D::Minus1)?;
+
+        let avg_log_prob = selected_log_probs
+            .sum(D::Minus1)?
+            .broadcast_div(&mask.sum(D::Minus1)?)?;
+        Ok(avg_log_prob)
     } else {
         selected_log_probs.mean(D::Minus1)
     }
