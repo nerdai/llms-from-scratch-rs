@@ -613,7 +613,11 @@ pub fn compute_dpo_loss(
     let chosen_rewards = (model_chosen_logprobs - reference_chosen_logprobs)?.detach();
     let rejected_rewards = (model_rejected_logprobs - reference_rejected_logprobs)?.detach();
 
-    Ok((losses, chosen_rewards, rejected_rewards))
+    Ok((
+        losses.mean_all()?,
+        chosen_rewards.mean_all()?,
+        rejected_rewards.mean_all()?,
+    ))
 }
 
 #[cfg(test)]
