@@ -639,13 +639,14 @@ pub fn compute_logprobs(
         .squeeze(D::Minus1)?;
 
     if let Some(m) = selection_mask {
-        // this is brittle, if there is a value < 0, then this breaks...
-        let mask = (m - 1_f64)?;
-        let selected_log_probs = selected_log_probs.gather(&mask, D::Minus1)?;
+        let mask = m.i((.., 1..))?.clone();
+        let mask_sum = mask.sum(D::Minus1)?;
+
+        let selected_log_probs = (selected_log_probs * mask)?;
 
         let avg_log_prob = selected_log_probs
             .sum(D::Minus1)?
-            .broadcast_div(&mask.sum(D::Minus1)?)?;
+            .broadcast_div(&mask_sum)?;
         Ok(avg_log_prob)
     } else {
         selected_log_probs.mean(D::Minus1)
@@ -661,11 +662,11 @@ pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
     train: bool,
 ) -> Result<(Tensor, Tensor, Tensor)> {
     // where policy_model(batch["chosen"]) are the logits
-    // let policy_chosen_log_probas = compute_logprobs(
-    //     &policy_model.forward_t(batch.chosen(), train)?,
-    //     batch.chosen(),
-    //     batch.chosen_mask(),
-    // )?;
+    let policy_chosen_log_probas = compute_logprobs(
+        &policy_model.forward_t(batch.chosen(), train)?,
+        batch.chosen(),
+        Some(batch.chosen_mask()),
+    )?;
 
     // let policy_chosen_log_probas = compute_logprobs(
     //     &policy_model.forward_t(&batch.chosen)?,
