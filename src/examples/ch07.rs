@@ -1275,7 +1275,7 @@ impl Example for EG19 {
         );
 
         // Print masks and their shapes
-        let chosen_mask = &collated_item.chosen_mask()[1];
+        let chosen_mask = &collated_item.chosen_mask().i((1, ..))?;
         println!("\nCollated Batch: Masks\n");
         println!("Chosen inputs: {:?}", chosen);
         println!("Chosen mask: {:?}", chosen_mask);
@@ -1286,24 +1286,24 @@ impl Example for EG19 {
         );
 
         // decode chosen mask
-        let chosen_masked_text = token_ids_to_text(
-            chosen.index_select(&collated_item.chosen_mask()[1], 0)?,
-            &tokenizer,
-        )?;
-        println!(
-            "\nCollated Batch Item 1: Chosen Mask Text\n\n{}\n",
-            chosen_masked_text
-        );
+        // let chosen_masked_text = token_ids_to_text(
+        //     chosen.index_select(chosen_mask.clone(), 0)?,
+        //     &tokenizer,
+        // )?;
+        // println!(
+        //     "\nCollated Batch Item 1: Chosen Mask Text\n\n{}\n",
+        //     chosen_masked_text
+        // );
 
         // decode rejected mask
-        let rejected_masked_text = token_ids_to_text(
-            rejected.index_select(&collated_item.rejected_mask()[1], 0)?,
-            &tokenizer,
-        )?;
-        println!(
-            "\nCollated Batch Item 1: Rejected Mask Text\n\n{}\n",
-            rejected_masked_text
-        );
+        // let rejected_masked_text = token_ids_to_text(
+        //     rejected.index_select(&collated_item.rejected_mask()[1], 0)?,
+        //     &tokenizer,
+        // )?;
+        // println!(
+        //     "\nCollated Batch Item 1: Rejected Mask Text\n\n{}\n",
+        //     rejected_masked_text
+        // );
 
         Ok(())
     }
