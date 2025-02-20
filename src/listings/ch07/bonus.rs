@@ -268,7 +268,7 @@ pub struct PreferenceDatasetCollatorItem {
     prompt: Vec<Tensor>,
     chosen: Tensor,
     rejected: Tensor,
-    rejected_mask: Vec<Tensor>,
+    rejected_mask: Tensor,
     chosen_mask: Tensor,
 }
 
@@ -289,7 +289,7 @@ impl PreferenceDatasetCollatorItem {
         &self.rejected
     }
 
-    pub fn rejected_mask(&self) -> &Vec<Tensor> {
+    pub fn rejected_mask(&self) -> &Tensor {
         &self.rejected_mask
     }
 }
@@ -496,13 +496,9 @@ impl PreferenceDataCollator {
                 rejected_mask = rejected_mask[..std::cmp::min(a, batch_max_length)].to_vec();
             }
 
-            // get only the indexes of mask that are to keep
-            // let chosen_mask_tensor = self._build_tensor_from_only_true_values(chosen_mask)?;
-            let rejected_mask_tensor = self._build_tensor_from_only_true_values(rejected_mask)?;
-
             chosen_vec.push(chosen);
             rejected_vec.push(rejected);
-            rejected_mask_vec.push(rejected_mask_tensor);
+            rejected_mask_vec.push(rejected_mask);
             chosen_mask_vec.push(chosen_mask);
             prompt_vec.push(prompt_tensor);
         }
@@ -510,12 +506,13 @@ impl PreferenceDataCollator {
         let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
         let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec)?;
         let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
+        let rejected_mask_tensor = self._build_stacked_tensor(rejected_mask_vec)?;
 
         Ok(PreferenceDatasetCollatorItem {
             prompt: prompt_vec,
             chosen: chosen_tensor,
             rejected: rejected_tensor,
-            rejected_mask: rejected_mask_vec,
+            rejected_mask: rejected_mask_tensor,
             chosen_mask: chosen_mask_tensor,
         })
     }
@@ -853,8 +850,11 @@ mod tests {
             ]
         );
         assert_eq!(
-            collated_item.rejected_mask()[0].to_vec1::<u32>()?,
-            &[44, 45, 46, 47, 48, 49, 50, 51, 52, 53,]
+            collated_item.rejected_mask().i((0, ..))?.to_vec1::<u32>()?,
+            &[
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+            ]
         );
         assert_eq!(
             collated_item.rejected.elem_count(),
@@ -887,20 +887,10 @@ mod tests {
             assert_eq!(collated_item.chosen.dims()[1], allowed_max_length);
             assert_eq!(collated_item.rejected.dims()[1], allowed_max_length);
             assert_eq!(collated_item.chosen_mask.dims()[1], allowed_max_length);
+            assert_eq!(collated_item.rejected_mask.dims()[1], allowed_max_length);
             assert!(collated_item.chosen.dims()[0] <= batch_size);
             assert!(collated_item.rejected.dims()[0] <= batch_size);
-            assert!(collated_item.rejected_mask.len() <= batch_size);
             assert!(collated_item.prompt.len() <= batch_size);
-
-            let max_length_rejected_mask = collated_item
-                .rejected_mask
-                .iter()
-                .map(|el| el.elem_count())
-                .collect::<Vec<_>>()
-                .into_iter()
-                .max()
-                .unwrap();
-            assert!(max_length_rejected_mask <= allowed_max_length);
 
             count += 1;
         }

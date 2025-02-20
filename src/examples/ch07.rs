@@ -1296,14 +1296,14 @@ impl Example for EG19 {
         // );
 
         // decode rejected mask
-        let rejected_masked_text = token_ids_to_text(
-            rejected.index_select(&collated_item.rejected_mask()[1], 0)?,
-            &tokenizer,
-        )?;
-        println!(
-            "\nCollated Batch Item 1: Rejected Mask Text\n\n{}\n",
-            rejected_masked_text
-        );
+        // let rejected_masked_text = token_ids_to_text(
+        //     rejected.index_select(&collated_item.rejected_mask()[1], 0)?,
+        //     &tokenizer,
+        // )?;
+        // println!(
+        //     "\nCollated Batch Item 1: Rejected Mask Text\n\n{}\n",
+        //     rejected_masked_text
+        // );
 
         Ok(())
     }
