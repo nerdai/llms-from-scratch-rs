@@ -269,7 +269,7 @@ pub struct PreferenceDatasetCollatorItem {
     chosen: Tensor,
     rejected: Tensor,
     rejected_mask: Vec<Tensor>,
-    chosen_mask: Vec<Tensor>,
+    chosen_mask: Tensor,
 }
 
 impl PreferenceDatasetCollatorItem {
@@ -281,7 +281,7 @@ impl PreferenceDatasetCollatorItem {
         &self.chosen
     }
 
-    pub fn chosen_mask(&self) -> &Vec<Tensor> {
+    pub fn chosen_mask(&self) -> &Tensor {
         &self.chosen_mask
     }
 
@@ -497,17 +497,18 @@ impl PreferenceDataCollator {
             }
 
             // get only the indexes of mask that are to keep
-            let chosen_mask_tensor = self._build_tensor_from_only_true_values(chosen_mask)?;
+            // let chosen_mask_tensor = self._build_tensor_from_only_true_values(chosen_mask)?;
             let rejected_mask_tensor = self._build_tensor_from_only_true_values(rejected_mask)?;
 
             chosen_vec.push(chosen);
             rejected_vec.push(rejected);
             rejected_mask_vec.push(rejected_mask_tensor);
-            chosen_mask_vec.push(chosen_mask_tensor);
+            chosen_mask_vec.push(chosen_mask);
             prompt_vec.push(prompt_tensor);
         }
 
         let chosen_tensor = self._build_stacked_tensor(chosen_vec)?;
+        let chosen_mask_tensor = self._build_stacked_tensor(chosen_mask_vec)?;
         let rejected_tensor = self._build_stacked_tensor(rejected_vec)?;
 
         Ok(PreferenceDatasetCollatorItem {
@@ -515,7 +516,7 @@ impl PreferenceDataCollator {
             chosen: chosen_tensor,
             rejected: rejected_tensor,
             rejected_mask: rejected_mask_vec,
-            chosen_mask: chosen_mask_vec,
+            chosen_mask: chosen_mask_tensor,
         })
     }
 }
@@ -653,11 +654,25 @@ pub fn compute_logprobs(
 
 #[allow(unused_variables)]
 pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
-    batch: &Tensor,
+    batch: &PreferenceDatasetCollatorItem,
     policy_model: M,
     reference_model: M,
     beta: f64,
+    train: bool,
 ) -> Result<(Tensor, Tensor, Tensor)> {
+    // where policy_model(batch["chosen"]) are the logits
+    // let policy_chosen_log_probas = compute_logprobs(
+    //     &policy_model.forward_t(batch.chosen(), train)?,
+    //     batch.chosen(),
+    //     batch.chosen_mask(),
+    // )?;
+
+    // let policy_chosen_log_probas = compute_logprobs(
+    //     &policy_model.forward_t(&batch.chosen)?,
+    //     batch.chosen(),
+    //     selection_mask=batch["chosen_mask"]
+    // )?;
+
     todo!()
 }
 
@@ -830,8 +845,11 @@ mod tests {
 
         // assert
         assert_eq!(
-            collated_item.chosen_mask()[0].to_vec1::<u32>()?,
-            &[44, 45, 46, 47, 48, 49, 50, 51, 52, 53,]
+            collated_item.chosen_mask().i((0, ..))?.to_vec1::<u32>()?,
+            &[
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+            ]
         );
         assert_eq!(
             collated_item.rejected_mask()[0].to_vec1::<u32>()?,
@@ -867,21 +885,11 @@ mod tests {
         while let Some(Ok(collated_item)) = batcher.next() {
             assert_eq!(collated_item.chosen.dims()[1], allowed_max_length);
             assert_eq!(collated_item.rejected.dims()[1], allowed_max_length);
+            assert_eq!(collated_item.chosen_mask.dims()[1], allowed_max_length);
             assert!(collated_item.chosen.dims()[0] <= batch_size);
             assert!(collated_item.rejected.dims()[0] <= batch_size);
-            assert!(collated_item.chosen_mask.len() <= batch_size);
             assert!(collated_item.rejected_mask.len() <= batch_size);
             assert!(collated_item.prompt.len() <= batch_size);
-
-            let max_length_chosen_mask = collated_item
-                .chosen_mask
-                .iter()
-                .map(|el| el.elem_count())
-                .collect::<Vec<_>>()
-                .into_iter()
-                .max()
-                .unwrap();
-            assert!(max_length_chosen_mask <= allowed_max_length);
 
             let max_length_rejected_mask = collated_item
                 .rejected_mask
