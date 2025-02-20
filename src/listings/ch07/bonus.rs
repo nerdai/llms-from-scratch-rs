@@ -650,28 +650,45 @@ pub fn compute_logprobs(
     }
 }
 
-#[allow(unused_variables)]
 pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
     batch: &PreferenceDatasetCollatorItem,
     policy_model: M,
     reference_model: M,
     beta: f64,
-    train: bool,
 ) -> Result<(Tensor, Tensor, Tensor)> {
     // where policy_model(batch["chosen"]) are the logits
     let policy_chosen_log_probas = compute_logprobs(
-        &policy_model.forward_t(batch.chosen(), train)?,
+        &policy_model.forward_t(batch.chosen(), true)?,
         batch.chosen(),
         Some(batch.chosen_mask()),
     )?;
 
-    // let policy_chosen_log_probas = compute_logprobs(
-    //     &policy_model.forward_t(&batch.chosen)?,
-    //     batch.chosen(),
-    //     selection_mask=batch["chosen_mask"]
-    // )?;
+    let policy_rejected_log_probas = compute_logprobs(
+        &policy_model.forward_t(batch.rejected(), true)?,
+        batch.rejected(),
+        Some(batch.rejected_mask()),
+    )?;
 
-    todo!()
+    let ref_chosen_log_probas = compute_logprobs(
+        &reference_model.forward_t(batch.chosen(), false)?,
+        batch.chosen(),
+        Some(batch.chosen_mask()),
+    )?;
+    let ref_rejected_log_probas = compute_logprobs(
+        &reference_model.forward_t(batch.rejected(), false)?,
+        batch.rejected(),
+        Some(batch.rejected_mask()),
+    )?;
+
+    let (loss, chosen_rewards, rejected_rewards) = compute_dpo_loss(
+        &policy_chosen_log_probas,
+        &policy_rejected_log_probas,
+        &ref_chosen_log_probas,
+        &ref_rejected_log_probas,
+        beta,
+    )?;
+
+    Ok((loss, chosen_rewards, rejected_rewards))
 }
 
 #[cfg(test)]
