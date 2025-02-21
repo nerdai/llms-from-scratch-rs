@@ -623,20 +623,20 @@ pub fn compute_logprobs(
     selection_mask: Option<&Tensor>,
 ) -> Result<Tensor> {
     // Labels are the inputs shifted by one
-    let labels = labels.i((.., 1..))?;
+    let labels = labels.i((.., 1..))?.contiguous()?;
     let labels_dims = labels.dims();
 
     // Truncate logits to match the labels num_tokens
     let logits = logits.i((.., ..labels_dims[1], ..))?;
 
-    let log_probs = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
+    let log_probs = candle_nn::ops::log_softmax(&logits, D::Minus1)?.contiguous()?;
 
     let selected_log_probs = log_probs
         .gather(&labels.unsqueeze(D::Minus1)?, D::Minus1)?
         .squeeze(D::Minus1)?;
 
     if let Some(m) = selection_mask {
-        let mask = m.i((.., 1..))?.clone();
+        let mask = m.i((.., 1..))?.to_dtype(candle_core::DType::F32)?;
         let mask_sum = mask.sum(D::Minus1)?;
 
         let selected_log_probs = (selected_log_probs * mask)?;
@@ -655,16 +655,17 @@ pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
     policy_model: M,
     reference_model: M,
     beta: f64,
+    train: bool,
 ) -> Result<(Tensor, Tensor, Tensor)> {
     // where policy_model(batch["chosen"]) are the logits
     let policy_chosen_log_probas = compute_logprobs(
-        &policy_model.forward_t(batch.chosen(), true)?,
+        &policy_model.forward_t(batch.chosen(), train)?,
         batch.chosen(),
         Some(batch.chosen_mask()),
     )?;
 
     let policy_rejected_log_probas = compute_logprobs(
-        &policy_model.forward_t(batch.rejected(), true)?,
+        &policy_model.forward_t(batch.rejected(), train)?,
         batch.rejected(),
         Some(batch.rejected_mask()),
     )?;

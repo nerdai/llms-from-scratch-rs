@@ -1428,6 +1428,7 @@ impl Example for EG21 {
 
     fn main(&self) -> Result<()> {
         use crate::listings::{
+            ch04::{Config, GPTModel},
             ch07::bonus::{
                 compute_dpo_loss_batch, PreferenceDataCollator, PreferenceDataLoader,
                 PreferenceDataset, PreferenceExample,
@@ -1437,7 +1438,8 @@ impl Example for EG21 {
                 DATA_DIR,
             },
         };
-        use candle_core::Device;
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
         use std::path::Path;
         use tiktoken_rs::get_bpe_from_model;
 
@@ -1445,8 +1447,19 @@ impl Example for EG21 {
         let prompt_formatter = AlpacaPromptFormatter;
 
         // load reference and policy model
-        let policy_model = todo!();
-        let reference_model = todo!();
+        let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let policy_model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // load instructed-finetuned weights
+        varmap
+            .load("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+
+        let vb2 = vb.clone();
+        let reference_model = GPTModel::new(cfg, vb2.pp("model"))?;
 
         // load preference examples
         let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
@@ -1471,7 +1484,10 @@ impl Example for EG21 {
 
         if let Some(Ok(batch)) = batcher.next() {
             let (loss, chosen_r, rejected_r) =
-                compute_dpo_loss_batch(&batch, policy_model, reference_model, 0.1)?;
+                compute_dpo_loss_batch(&batch, policy_model, reference_model, 0.1, false)?;
+            println!("{:?}", loss);
+            println!("{:?}", chosen_r);
+            println!("{:?}", rejected_r);
         }
 
         Ok(())
