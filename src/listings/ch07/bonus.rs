@@ -701,6 +701,7 @@ pub fn compute_dpo_loss_loader<
     reference_model: &M,
     beta: f64,
     num_batches: Option<usize>,
+    train: bool,
 ) -> Result<(f32, f32, f32)> {
     let mut total_loss: f32 = 0.;
     let mut total_chosen_rewards: f32 = 0.;
@@ -713,7 +714,7 @@ pub fn compute_dpo_loss_loader<
     for _ in 0..num_batches {
         let batch = data_batcher.next().unwrap()?;
         let (loss, chosen_r, rejected_r) =
-            compute_dpo_loss_batch(&batch, policy_model, reference_model, beta, true)?;
+            compute_dpo_loss_batch(&batch, policy_model, reference_model, beta, train)?;
         total_loss += loss.to_scalar::<f32>()?;
         total_chosen_rewards += chosen_r.to_scalar::<f32>()?;
         total_rejected_rewards += rejected_r.to_scalar::<f32>()?;
@@ -726,11 +727,53 @@ pub fn compute_dpo_loss_loader<
     Ok((total_loss, total_chosen_rewards, total_rejected_rewards))
 }
 
+pub fn evaluate_dpo_loss_loader<
+    M: GPT + ModuleT,
+    C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone,
+>(
+    policy_model: &M,
+    reference_model: &M,
+    train_loader: &PreferenceDataLoader<C>,
+    val_loader: &PreferenceDataLoader<C>,
+    beta: f64,
+    eval_iter: usize,
+) -> Result<(f32, f32, f32, f32, f32, f32)> {
+    let (train_loss, train_chosen_rewards, train_rejected_rewards) = compute_dpo_loss_loader(
+        train_loader,
+        policy_model,
+        reference_model,
+        beta,
+        Some(eval_iter),
+        false,
+    )?;
+
+    let (val_loss, val_chosen_rewards, val_rejected_rewards) = compute_dpo_loss_loader(
+        val_loader,
+        policy_model,
+        reference_model,
+        beta,
+        Some(eval_iter),
+        false,
+    )?;
+
+    Ok((
+        train_loss,
+        train_chosen_rewards,
+        train_rejected_rewards,
+        val_loss,
+        val_chosen_rewards,
+        val_rejected_rewards,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::listings::ch04::{Config, GPTModel};
     use crate::listings::ch07::AlpacaPromptFormatter;
     use anyhow::Result;
+    use candle_core::{DType, Device};
+    use candle_nn::{VarBuilder, VarMap};
     use rstest::*;
     use tiktoken_rs::get_bpe_from_model;
 

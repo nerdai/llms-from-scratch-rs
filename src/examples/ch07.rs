@@ -1581,6 +1581,7 @@ impl Example for EG22 {
             &reference_model,
             0.1,
             num_batches,
+            false,
         )?;
 
         println!("Training loss: {}", train_loss);
