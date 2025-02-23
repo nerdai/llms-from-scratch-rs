@@ -652,8 +652,8 @@ pub fn compute_logprobs(
 
 pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
     batch: &PreferenceDatasetCollatorItem,
-    policy_model: M,
-    reference_model: M,
+    policy_model: &M,
+    reference_model: &M,
     beta: f64,
     train: bool,
 ) -> Result<(Tensor, Tensor, Tensor)> {
@@ -690,6 +690,41 @@ pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
     )?;
 
     Ok((loss, chosen_rewards, rejected_rewards))
+}
+
+#[allow(dead_code, unused_variables)]
+fn compute_dpo_loss_loader<
+    M: GPT + ModuleT,
+    C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone,
+>(
+    data_loader: &PreferenceDataLoader<C>,
+    policy_model: &M,
+    reference_model: &M,
+    beta: f64,
+    num_batches: Option<usize>,
+) -> Result<(f32, f32, f32)> {
+    let mut total_loss: f32 = 0.;
+    let mut total_chosen_rewards: f32 = 0.;
+    let mut total_rejected_rewards: f32 = 0.;
+
+    let num_batches =
+        num_batches.map_or(data_loader.len(), |v| std::cmp::min(v, data_loader.len()));
+
+    let mut data_batcher = data_loader.batcher();
+    for _ in 0..num_batches {
+        let batch = data_batcher.next().unwrap()?;
+        let (loss, chosen_r, rejected_r) =
+            compute_dpo_loss_batch(&batch, policy_model, reference_model, beta, true)?;
+        total_loss += loss.to_scalar::<f32>()?;
+        total_chosen_rewards += chosen_r.to_scalar::<f32>()?;
+        total_rejected_rewards += rejected_r.to_scalar::<f32>()?;
+    }
+
+    total_loss /= num_batches as f32;
+    total_chosen_rewards /= num_batches as f32;
+    total_rejected_rewards /= num_batches as f32;
+
+    Ok((total_loss, total_chosen_rewards, total_rejected_rewards))
 }
 
 #[cfg(test)]
