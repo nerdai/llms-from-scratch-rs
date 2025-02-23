@@ -1493,3 +1493,100 @@ impl Example for EG21 {
         Ok(())
     }
 }
+
+/// # [BONUS] Example usage of `compute_dpo_loss_loader`
+///
+/// #### Id
+/// 07.22
+///
+/// #### Page
+/// This example is adapted from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.22
+///
+/// # with cuda
+/// cargo run --features cuda example 07.22
+/// ```
+pub struct EG22;
+
+impl Example for EG22 {
+    fn description(&self) -> String {
+        "[BONUS] Example usage of `compute_dpo_loss_loader`.".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch07::bonus::{
+                compute_dpo_loss_loader, PreferenceDataCollator, PreferenceDataLoader,
+                PreferenceDataset, PreferenceExample,
+            },
+            ch07::{
+                load_instruction_data_from_json, partition_data, AlpacaPromptFormatter, DATA_DIR,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{VarBuilder, VarMap};
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+
+        // load reference and policy model
+        let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let policy_model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // load instructed-finetuned weights
+        varmap
+            .load("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+
+        let vb2 = vb.clone();
+        let reference_model = GPTModel::new(cfg, vb2.pp("model"))?;
+
+        // load preference examples
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
+        let preference_data: Vec<PreferenceExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_preference.json' file. Please run EG 07.18."
+            })?;
+
+        // partition data and create train, val, test datasets
+        let (train_data, _val_data, _test_data) =
+            partition_data(preference_data, 0.85_f32, 0.05_f32)?;
+        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
+
+        // create loaders
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+        let batch_size = 2_usize;
+        let train_loader =
+            PreferenceDataLoader::new(train_dataset, batch_size, true, true, collator.clone());
+
+        // compute dpo loss with loader
+        let num_batches = Some(5_usize);
+        let (train_loss, chosen_rewards, rejected_rewards) = compute_dpo_loss_loader(
+            &train_loader,
+            &policy_model,
+            &reference_model,
+            0.1,
+            num_batches,
+        )?;
+
+        println!("Training loss: {}", train_loss);
+        println!("Chosen rewards: {}", chosen_rewards);
+        println!("Rejected rewards: {}", rejected_rewards);
+
+        Ok(())
+    }
+}

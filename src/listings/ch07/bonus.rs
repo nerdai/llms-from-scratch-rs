@@ -692,8 +692,7 @@ pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
     Ok((loss, chosen_rewards, rejected_rewards))
 }
 
-#[allow(dead_code, unused_variables)]
-fn compute_dpo_loss_loader<
+pub fn compute_dpo_loss_loader<
     M: GPT + ModuleT,
     C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone,
 >(
