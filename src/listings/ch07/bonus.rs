@@ -695,15 +695,27 @@ pub fn compute_dpo_loss_batch<M: GPT + ModuleT>(
 #[allow(dead_code, unused_variables)]
 fn compute_dpo_loss_loader<
     M: GPT + ModuleT,
-    C: CustomCollator<BatchItem = EncodedPreferenceExample>,
+    C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone,
 >(
     data_loader: &PreferenceDataLoader<C>,
     policy_model: &M,
     reference_model: &M,
     beta: f64,
     num_batches: Option<usize>,
-) -> Result<f32> {
-    todo!()
+) -> Result<(f32, f32, f32)> {
+    let mut total_loss: f32 = 0.;
+    let mut total_chosen_rewards: f32 = 0.;
+    let mut total_rejected_rewards: f32 = 0.;
+
+    let num_batches = num_batches.map_or(data_loader.len() as f32, |v| {
+        std::cmp::min(v, data_loader.len()) as f32
+    });
+
+    total_loss /= num_batches;
+    total_chosen_rewards /= num_batches;
+    total_rejected_rewards /= num_batches;
+
+    Ok((total_loss, total_chosen_rewards, total_rejected_rewards))
 }
 
 #[cfg(test)]
