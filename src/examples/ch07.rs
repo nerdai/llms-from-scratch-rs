@@ -1484,7 +1484,7 @@ impl Example for EG21 {
 
         if let Some(Ok(batch)) = batcher.next() {
             let (loss, chosen_r, rejected_r) =
-                compute_dpo_loss_batch(&batch, policy_model, reference_model, 0.1, false)?;
+                compute_dpo_loss_batch(&batch, &policy_model, &reference_model, 0.1, false)?;
             println!("{:?}", loss);
             println!("{:?}", chosen_r);
             println!("{:?}", rejected_r);
