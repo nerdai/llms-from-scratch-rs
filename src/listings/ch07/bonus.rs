@@ -4,6 +4,7 @@ use super::{
     query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
     PromptFormatter, DEFAULT_PAD_TOKEN_ID, GPT,
 };
+use crate::listings::ch05::generate_and_print_sample;
 use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::Optimizer;
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
@@ -839,22 +840,82 @@ impl Tracking {
 #[allow(clippy::too_many_arguments, dead_code, unused_variables)]
 fn train_model_dpo_simple<
     T: Optimizer,
-    L: DataLoader<Batcher = impl Iterator<Item = Result<EncodedPreferenceExample>>>,
+    C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone,
     M: GPT + ModuleT,
 >(
     policy_model: &M,
     reference_model: &M,
-    train_loader: &L,
-    val_loader: &L,
+    train_loader: &PreferenceDataLoader<C>,
+    val_loader: &PreferenceDataLoader<C>,
     beta: f64,
-    optimizer: T,
+    mut optimizer: T,
+    device: &Device,
     num_epochs: usize,
     eval_freq: usize,
     eval_iter: usize,
     start_context: &str,
     tokenizer: &CoreBPE,
 ) -> Result<Tracking> {
-    todo!()
+    let mut tracking = Tracking::default();
+    let mut global_step = 0_usize;
+    let mut curr_tokens_seen = 0_usize;
+
+    for epoch in 0..num_epochs {
+        let mut train_batcher = train_loader.batcher();
+        while let Some(Ok(batch)) = train_batcher.next() {
+            let (loss, chosen_rewards, rejected_rewards) =
+                compute_dpo_loss_batch(&batch, policy_model, reference_model, beta, true)?;
+            optimizer.backward_step(&loss)?;
+            curr_tokens_seen += batch.chosen().elem_count();
+
+            if global_step % eval_freq == 0 {
+                let (
+                    train_loss,
+                    train_chosen_reward,
+                    train_rejected_reward,
+                    val_loss,
+                    val_chosen_reward,
+                    val_rejected_reward,
+                ) = evaluate_dpo_loss_loader(
+                    policy_model,
+                    reference_model,
+                    train_loader,
+                    val_loader,
+                    beta,
+                    eval_iter,
+                )?;
+
+                tracking.push_train_loss(train_loss);
+                tracking.push_train_chosen_reward(train_chosen_reward);
+                tracking.push_train_rejected_reward(train_rejected_reward);
+                tracking.push_val_loss(val_loss);
+                tracking.push_val_chosen_reward(val_chosen_reward);
+                tracking.push_val_rejected_reward(val_rejected_reward);
+                tracking.push_token_seen(curr_tokens_seen);
+
+                let train_reward_margin = train_chosen_reward - train_rejected_reward;
+                let val_reward_margin = val_chosen_reward - val_rejected_reward;
+
+                println!(
+                    "Ep {} (Step {}) \
+                    Train loss: {}, \
+                    Val loss: {}, \
+                    Train reward margins: {}, \
+                    Val reward margins: {}",
+                    epoch + 1,
+                    global_step,
+                    train_loss,
+                    val_loss,
+                    train_reward_margin,
+                    val_reward_margin
+                );
+            }
+            global_step += 1;
+        }
+        generate_and_print_sample(policy_model, tokenizer, device, start_context)?
+    }
+
+    Ok(tracking)
 }
 
 #[cfg(test)]
