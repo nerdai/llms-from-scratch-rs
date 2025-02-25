@@ -1591,3 +1591,142 @@ impl Example for EG22 {
         Ok(())
     }
 }
+
+/// # [BONUS] Example usage of `train_model_dpo_simple` and `plot_losses` functions
+///
+/// #### Id
+/// 07.23
+///
+/// #### Page
+/// This example is adapted from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.23
+///
+/// # with cuda
+/// cargo run --features cuda example 07.23
+/// ```
+pub struct EG23;
+
+impl Example for EG23 {
+    fn description(&self) -> String {
+        "[BONUS] Example usage of `train_model_dpo_simple` and `plot_losses` functions".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    // TODO: This fails silently if run into OOM issues.
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::{Config, GPTModel},
+            ch07::bonus::{
+                train_model_dpo_simple, PreferenceDataCollator, PreferenceDataLoader,
+                PreferenceDataset, PreferenceExample,
+            },
+            ch07::{
+                load_instruction_data_from_json, partition_data, AlpacaPromptFormatter,
+                PromptFormatter, DATA_DIR,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use std::path::Path;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+
+        // load preference examples
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
+        let preference_data: Vec<PreferenceExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_preference.json' file. Please run EG 07.18."
+            })?;
+
+        // partition data and create train, val, test datasets
+        let (train_data, val_data, _test_data) =
+            partition_data(preference_data, 0.85_f32, 0.05_f32)?;
+        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
+        let val_dataset = PreferenceDataset::new(val_data, &tokenizer, &prompt_formatter);
+
+        // create loaders
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+        let batch_size = 3_usize;
+        let train_loader =
+            PreferenceDataLoader::new(train_dataset, batch_size, true, true, collator.clone());
+        let val_loader =
+            PreferenceDataLoader::new(val_dataset, batch_size, false, false, collator.clone());
+
+        // load reference and policy model
+        let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let policy_model = GPTModel::new(cfg, vb.pp("model"))?;
+
+        // load instructed-finetuned weights
+        varmap
+            .load("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+
+        let varmap2 = varmap.clone();
+        let vb2 = VarBuilder::from_varmap(&varmap2, DType::F32, &Device::cuda_if_available(0)?);
+        let reference_model = GPTModel::new(cfg, vb2.pp("model"))?;
+
+        // invoke training
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.00005,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
+        let tracking = train_model_dpo_simple(
+            &policy_model,
+            &reference_model,
+            &train_loader,
+            &val_loader,
+            0.1,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context.as_str(),
+            &tokenizer,
+        )?;
+
+        println!("{:#?}", tracking);
+
+        // // save model
+        // println!("Saving weights to `./ift.checkpoint.safetensors`");
+        // varmap.save("ift.checkpoint.safetensors")?;
+
+        // // plot loss curves
+        // println!("Saving plot to `./plot_ift_loss.html`");
+        // let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
+        // let tokens_seen = tokens_seen
+        //     .into_iter()
+        //     .map(|el| el as f32)
+        //     .collect::<Vec<_>>();
+        // let save_path = Path::new("plot_ift_loss.html").to_path_buf();
+        // plot_losses(
+        //     epochs_seen,
+        //     tokens_seen,
+        //     train_losses,
+        //     val_losses,
+        //     save_path,
+        // )?;
+
+        Ok(())
+    }
+}
