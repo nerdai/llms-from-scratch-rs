@@ -4,7 +4,9 @@ use super::{
     query_model, write_instruction_data_to_json, InstructionExample, InstructionResponseExample,
     PromptFormatter, DEFAULT_PAD_TOKEN_ID, GPT,
 };
+use crate::listings::ch05::generate_and_print_sample;
 use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
+use candle_nn::Optimizer;
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -766,14 +768,162 @@ pub fn evaluate_dpo_loss_loader<
     ))
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct Tracking {
+    train_losses: Vec<f32>,
+    train_chosen_rewards: Vec<f32>,
+    train_rejected_rewards: Vec<f32>,
+    val_losses: Vec<f32>,
+    val_chosen_rewards: Vec<f32>,
+    val_rejected_rewards: Vec<f32>,
+    tokens_seen: Vec<usize>,
+}
+
+impl Tracking {
+    pub fn train_losses(&self) -> &Vec<f32> {
+        &self.train_losses
+    }
+
+    pub fn train_chosen_rewards(&self) -> &Vec<f32> {
+        &self.train_chosen_rewards
+    }
+
+    pub fn train_rejected_rewards(&self) -> &Vec<f32> {
+        &self.train_rejected_rewards
+    }
+
+    pub fn val_losses(&self) -> &Vec<f32> {
+        &self.val_losses
+    }
+
+    pub fn val_chosen_rewards(&self) -> &Vec<f32> {
+        &self.val_chosen_rewards
+    }
+
+    pub fn val_rejected_rewards(&self) -> &Vec<f32> {
+        &self.val_rejected_rewards
+    }
+
+    pub fn tokens_seen(&self) -> &Vec<usize> {
+        &self.tokens_seen
+    }
+
+    pub fn push_train_loss(&mut self, loss: f32) {
+        self.train_losses.push(loss);
+    }
+
+    pub fn push_train_chosen_reward(&mut self, chosen_reward: f32) {
+        self.train_chosen_rewards.push(chosen_reward);
+    }
+
+    pub fn push_train_rejected_reward(&mut self, rejected_reward: f32) {
+        self.train_rejected_rewards.push(rejected_reward);
+    }
+
+    pub fn push_val_loss(&mut self, loss: f32) {
+        self.val_losses.push(loss);
+    }
+
+    pub fn push_val_chosen_reward(&mut self, chosen_reward: f32) {
+        self.val_chosen_rewards.push(chosen_reward);
+    }
+
+    pub fn push_val_rejected_reward(&mut self, rejected_reward: f32) {
+        self.val_rejected_rewards.push(rejected_reward);
+    }
+
+    pub fn push_token_seen(&mut self, token_seen: usize) {
+        self.tokens_seen.push(token_seen)
+    }
+}
+
+#[allow(clippy::too_many_arguments, dead_code, unused_variables)]
+pub fn train_model_dpo_simple<
+    T: Optimizer,
+    C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone,
+    M: GPT + ModuleT,
+>(
+    policy_model: &M,
+    reference_model: &M,
+    train_loader: &PreferenceDataLoader<C>,
+    val_loader: &PreferenceDataLoader<C>,
+    beta: f64,
+    mut optimizer: T,
+    device: &Device,
+    num_epochs: usize,
+    eval_freq: usize,
+    eval_iter: usize,
+    start_context: &str,
+    tokenizer: &CoreBPE,
+) -> Result<Tracking> {
+    let mut tracking = Tracking::default();
+    let mut global_step = 0_usize;
+    let mut curr_tokens_seen = 0_usize;
+
+    for epoch in 0..num_epochs {
+        let mut train_batcher = train_loader.batcher();
+        while let Some(Ok(batch)) = train_batcher.next() {
+            let (loss, chosen_rewards, rejected_rewards) =
+                compute_dpo_loss_batch(&batch, policy_model, reference_model, beta, true)?;
+            optimizer.backward_step(&loss)?;
+            curr_tokens_seen += batch.chosen().elem_count();
+
+            if global_step % eval_freq == 0 {
+                let (
+                    train_loss,
+                    train_chosen_reward,
+                    train_rejected_reward,
+                    val_loss,
+                    val_chosen_reward,
+                    val_rejected_reward,
+                ) = evaluate_dpo_loss_loader(
+                    policy_model,
+                    reference_model,
+                    train_loader,
+                    val_loader,
+                    beta,
+                    eval_iter,
+                )?;
+
+                tracking.push_train_loss(train_loss);
+                tracking.push_train_chosen_reward(train_chosen_reward);
+                tracking.push_train_rejected_reward(train_rejected_reward);
+                tracking.push_val_loss(val_loss);
+                tracking.push_val_chosen_reward(val_chosen_reward);
+                tracking.push_val_rejected_reward(val_rejected_reward);
+                tracking.push_token_seen(curr_tokens_seen);
+
+                let train_reward_margin = train_chosen_reward - train_rejected_reward;
+                let val_reward_margin = val_chosen_reward - val_rejected_reward;
+
+                println!(
+                    "Ep {} (Step {}) \
+                    Train loss: {}, \
+                    Val loss: {}, \
+                    Train reward margins: {}, \
+                    Val reward margins: {}",
+                    epoch + 1,
+                    global_step,
+                    train_loss,
+                    val_loss,
+                    train_reward_margin,
+                    val_reward_margin
+                );
+            }
+            global_step += 1;
+        }
+        generate_and_print_sample(policy_model, tokenizer, device, start_context)?
+    }
+
+    Ok(tracking)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::listings::ch04::{Config, GPTModel};
     use crate::listings::ch07::AlpacaPromptFormatter;
     use anyhow::Result;
-    use candle_core::{DType, Device};
-    use candle_nn::{VarBuilder, VarMap};
+    use candle_core::Device;
     use rstest::*;
     use tiktoken_rs::get_bpe_from_model;
 
