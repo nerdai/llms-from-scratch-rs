@@ -5,6 +5,7 @@ use super::{
     PromptFormatter, DEFAULT_PAD_TOKEN_ID, GPT,
 };
 use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
+use candle_nn::Optimizer;
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
@@ -764,6 +765,67 @@ pub fn evaluate_dpo_loss_loader<
         val_chosen_rewards,
         val_rejected_rewards,
     ))
+}
+
+pub struct Tracking {
+    train_losses: Vec<f32>,
+    train_chosen_rewards: Vec<f32>,
+    train_rejected_rewards: Vec<f32>,
+    val_losses: Vec<f32>,
+    val_chosen_rewards: Vec<f32>,
+    val_rejected_rewards: Vec<f32>,
+    tokens_seen: Vec<usize>,
+}
+
+impl Tracking {
+    pub fn push_train_loss(&mut self, loss: f32) {
+        self.train_losses.push(loss);
+    }
+
+    pub fn push_train_chosen_reward(&mut self, chosen_reward: f32) {
+        self.train_chosen_rewards.push(chosen_reward);
+    }
+
+    pub fn push_train_rejected_reward(&mut self, rejected_reward: f32) {
+        self.train_rejected_rewards.push(rejected_reward);
+    }
+
+    pub fn push_val_loss(&mut self, loss: f32) {
+        self.val_losses.push(loss);
+    }
+
+    pub fn push_val_chosen_reward(&mut self, chosen_reward: f32) {
+        self.val_chosen_rewards.push(chosen_reward);
+    }
+
+    pub fn push_val_rejected_reward(&mut self, rejected_reward: f32) {
+        self.val_rejected_rewards.push(rejected_reward);
+    }
+
+    pub fn push_token_seen(&mut self, token_seen: usize) {
+        self.tokens_seen.push(token_seen)
+    }
+}
+
+#[allow(clippy::too_many_arguments, dead_code, unused_variables)]
+fn train_model_dpo_simple<
+    T: Optimizer,
+    L: DataLoader<Batcher = impl Iterator<Item = Result<EncodedPreferenceExample>>>,
+    M: GPT + ModuleT,
+>(
+    policy_model: &M,
+    reference_model: &M,
+    train_loader: &L,
+    val_loader: &L,
+    beta: f64,
+    optimizer: T,
+    num_epochs: usize,
+    eval_freq: usize,
+    eval_iter: usize,
+    start_context: &str,
+    tokenizer: &CoreBPE,
+) -> Result<Tracking> {
+    todo!()
 }
 
 #[cfg(test)]
