@@ -838,7 +838,7 @@ impl Tracking {
 }
 
 #[allow(clippy::too_many_arguments, dead_code, unused_variables)]
-fn train_model_dpo_simple<
+pub fn train_model_dpo_simple<
     T: Optimizer,
     C: CustomCollator<BatchItem = EncodedPreferenceExample> + Clone,
     M: GPT + ModuleT,
