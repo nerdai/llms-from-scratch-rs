@@ -767,6 +767,7 @@ pub fn evaluate_dpo_loss_loader<
     ))
 }
 
+#[derive(Default)]
 pub struct Tracking {
     train_losses: Vec<f32>,
     train_chosen_rewards: Vec<f32>,
@@ -778,6 +779,34 @@ pub struct Tracking {
 }
 
 impl Tracking {
+    pub fn train_losses(&self) -> &Vec<f32> {
+        &self.train_losses
+    }
+
+    pub fn train_chosen_rewards(&self) -> &Vec<f32> {
+        &self.train_chosen_rewards
+    }
+
+    pub fn train_rejected_rewards(&self) -> &Vec<f32> {
+        &self.train_rejected_rewards
+    }
+
+    pub fn val_losses(&self) -> &Vec<f32> {
+        &self.val_losses
+    }
+
+    pub fn val_chosen_rewards(&self) -> &Vec<f32> {
+        &self.val_chosen_rewards
+    }
+
+    pub fn val_rejected_rewards(&self) -> &Vec<f32> {
+        &self.val_rejected_rewards
+    }
+
+    pub fn tokens_seen(&self) -> &Vec<usize> {
+        &self.tokens_seen
+    }
+
     pub fn push_train_loss(&mut self, loss: f32) {
         self.train_losses.push(loss);
     }
