@@ -860,11 +860,9 @@ fn train_model_dpo_simple<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::listings::ch04::{Config, GPTModel};
     use crate::listings::ch07::AlpacaPromptFormatter;
     use anyhow::Result;
-    use candle_core::{DType, Device};
-    use candle_nn::{VarBuilder, VarMap};
+    use candle_core::Device;
     use rstest::*;
     use tiktoken_rs::get_bpe_from_model;
 
