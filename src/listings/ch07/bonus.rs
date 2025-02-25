@@ -767,7 +767,7 @@ pub fn evaluate_dpo_loss_loader<
     ))
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct Tracking {
     train_losses: Vec<f32>,
     train_chosen_rewards: Vec<f32>,
