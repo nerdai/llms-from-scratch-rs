@@ -609,8 +609,9 @@ pub fn compute_dpo_loss(
     losses = (-1_f64 * losses.log()?)?;
 
     // Optional values to track progress during training
-    let chosen_rewards = (model_chosen_logprobs - reference_chosen_logprobs)?.detach();
-    let rejected_rewards = (model_rejected_logprobs - reference_rejected_logprobs)?.detach();
+    let chosen_rewards = (model_chosen_logprobs.detach() - reference_chosen_logprobs.detach())?;
+    let rejected_rewards =
+        (model_rejected_logprobs.detach() - reference_rejected_logprobs.detach())?;
 
     Ok((
         losses.mean_all()?,

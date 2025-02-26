@@ -1661,6 +1661,9 @@ impl Example for EG23 {
         let val_loader =
             PreferenceDataLoader::new(val_dataset, batch_size, false, false, collator.clone());
 
+        println!("Train loader: {}", train_loader.len());
+        println!("Val loader: {}", val_loader.len());
+
         // load reference and policy model
         let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
         cfg.qkv_bias = true;
@@ -1675,7 +1678,7 @@ impl Example for EG23 {
 
         let varmap2 = varmap.clone();
         let vb2 = VarBuilder::from_varmap(&varmap2, DType::F32, &Device::cuda_if_available(0)?);
-        let reference_model = GPTModel::new(cfg, vb2.pp("model"))?;
+        let reference_model = GPTModel::new(cfg, vb2.pp("ref_model"))?;
 
         // invoke training
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
