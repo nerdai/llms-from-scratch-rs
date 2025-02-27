@@ -3,7 +3,7 @@
 use candle_core::{Device, Result, Tensor};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use fancy_regex::{Captures, Regex};
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 use std::collections::HashMap;
 use std::fs;
 use std::rc::Rc;
@@ -285,7 +285,7 @@ impl GPTDatasetIter {
     pub fn new(dataset: GPTDatasetV1, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
-            remaining_indices.shuffle(&mut thread_rng());
+            remaining_indices.shuffle(&mut rng());
         }
         Self {
             dataset,

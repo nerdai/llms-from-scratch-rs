@@ -9,8 +9,8 @@ use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use candle_nn::ModuleT;
 use hf_hub::api::sync::Api;
+use rand::{rng, seq::SliceRandom};
 use rand::{rngs::StdRng, SeedableRng};
-use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::{
@@ -269,7 +269,7 @@ impl InstructionDatasetIter {
     pub fn new(dataset: InstructionDataset, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
-            remaining_indices.shuffle(&mut thread_rng());
+            remaining_indices.shuffle(&mut rng());
         }
         Self {
             dataset,

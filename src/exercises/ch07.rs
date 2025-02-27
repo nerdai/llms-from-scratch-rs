@@ -662,7 +662,7 @@ pub mod addons {
         DEFAULT_PAD_TOKEN_ID,
     };
     use candle_core::{Device, Result, Tensor};
-    use rand::{seq::SliceRandom, thread_rng};
+    use rand::{rng, seq::SliceRandom};
     use std::rc::Rc;
     use tiktoken_rs::CoreBPE;
 
@@ -752,7 +752,7 @@ pub mod addons {
         pub fn new(dataset: InstructionDataset, shuffle: bool) -> Self {
             let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
             if shuffle {
-                remaining_indices.shuffle(&mut thread_rng());
+                remaining_indices.shuffle(&mut rng());
             }
             Self {
                 dataset,
