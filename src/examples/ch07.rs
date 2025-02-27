@@ -1,6 +1,6 @@
 //! Examples from Chapter 7
 
-use crate::{listings::ch05::DEFAULT_IGNORE_INDEX, Example};
+use crate::Example;
 use anyhow::{anyhow, Context, Result};
 
 /// # Example usage of `download_and_load_file`
@@ -540,6 +540,7 @@ impl Example for EG09 {
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::Config,
+            ch05::DEFAULT_IGNORE_INDEX,
             ch07::{calc_loss_loader, download_and_load_gpt2},
         };
         use candle_core::{DType, Device};
@@ -1622,7 +1623,7 @@ impl Example for EG23 {
     // TODO: This fails silently if run into OOM issues.
     fn main(&self) -> Result<()> {
         use crate::listings::{
-            ch04::{Config, GPTModel},
+            ch04::Config,
             ch07::bonus::{
                 train_model_dpo_simple, PreferenceDataCollator, PreferenceDataLoader,
                 PreferenceDataset, PreferenceExample,
@@ -1634,7 +1635,8 @@ impl Example for EG23 {
         };
         use candle_core::{DType, Device};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
-        use std::path::Path;
+        use std::path::{Path, PathBuf};
+        use std::str::FromStr;
         use tiktoken_rs::get_bpe_from_model;
 
         let tokenizer = get_bpe_from_model("gpt2")?;
@@ -1664,17 +1666,15 @@ impl Example for EG23 {
         println!("Train loader: {}", train_loader.len());
         println!("Val loader: {}", val_loader.len());
 
-        // load reference and policy model
+        // load policy model
         let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
         cfg.qkv_bias = true;
         let mut varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
-        let policy_model = GPTModel::new(cfg, vb.pp("model"))?;
-
-        // load instructed-finetuned weights
-        varmap
-            .load("ift.checkpoint.safetensors")
+        let checkpoint_path = PathBuf::from_str("ift.checkpoint.safetensors")
             .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+        let policy_model =
+            addons::load_ift_gpt_model(&mut varmap, vb.pp("model"), cfg, &checkpoint_path)?;
 
         // load reference model
         let mut varmap_reference = VarMap::new();
@@ -1683,12 +1683,12 @@ impl Example for EG23 {
             DType::F32,
             &Device::cuda_if_available(0)?,
         );
-        let reference_model = GPTModel::new(cfg, vb_reference.pp("model"))?;
-
-        // load instructed-finetuned weights
-        varmap_reference
-            .load("ift.checkpoint.safetensors")
-            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+        let reference_model = addons::load_ift_gpt_model(
+            &mut varmap_reference,
+            vb_reference.pp("model"),
+            cfg,
+            &checkpoint_path,
+        )?;
 
         // invoke training
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
@@ -1725,5 +1725,32 @@ impl Example for EG23 {
         varmap.save("dpo.checkpoint.safetensors")?;
 
         Ok(())
+    }
+}
+
+pub mod addons {
+    //! Auxiliary module for examples::ch07
+    use crate::listings::ch04::{Config, GPTModel};
+    use anyhow::Context;
+    use candle_nn::{VarBuilder, VarMap};
+
+    /// Helper function to load reference and policy models
+    pub fn load_ift_gpt_model<P>(
+        varmap: &mut VarMap,
+        vb: VarBuilder<'_>,
+        cfg: Config,
+        checkpoint_path: &P,
+    ) -> anyhow::Result<GPTModel>
+    where
+        P: AsRef<std::path::Path> + std::fmt::Debug,
+    {
+        let ift_model = GPTModel::new(cfg, vb)?;
+
+        // load instructed-finetuned weights
+        varmap
+            .load(checkpoint_path)
+            .with_context(|| format!("Missing '{:?}' file.", checkpoint_path))?;
+
+        Ok(ift_model)
     }
 }
