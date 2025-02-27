@@ -1,6 +1,6 @@
 //! Examples from Chapter 7
 
-use crate::{listings::ch05::DEFAULT_IGNORE_INDEX, Example};
+use crate::Example;
 use anyhow::{anyhow, Context, Result};
 
 /// # Example usage of `download_and_load_file`
@@ -540,6 +540,7 @@ impl Example for EG09 {
     fn main(&self) -> Result<()> {
         use crate::listings::{
             ch04::Config,
+            ch05::DEFAULT_IGNORE_INDEX,
             ch07::{calc_loss_loader, download_and_load_gpt2},
         };
         use candle_core::{DType, Device};
@@ -1589,5 +1590,167 @@ impl Example for EG22 {
         println!("Rejected rewards: {}", rejected_rewards);
 
         Ok(())
+    }
+}
+
+/// # [BONUS] Example usage of `train_model_dpo_simple` and `plot_losses` functions
+///
+/// #### Id
+/// 07.23
+///
+/// #### Page
+/// This example is adapted from `04_preference-tuning-with-dpo/create-preference-data-ollama.ipynb`
+///
+/// #### CLI command
+/// ```sh
+/// # without cuda
+/// cargo run example 07.23
+///
+/// # with cuda
+/// cargo run --features cuda example 07.23
+/// ```
+pub struct EG23;
+
+impl Example for EG23 {
+    fn description(&self) -> String {
+        "[BONUS] Example usage of `train_model_dpo_simple` and `plot_losses` functions".to_string()
+    }
+
+    fn page_source(&self) -> usize {
+        0_usize
+    }
+
+    // TODO: This fails silently if run into OOM issues.
+    fn main(&self) -> Result<()> {
+        use crate::listings::{
+            ch04::Config,
+            ch07::bonus::{
+                train_model_dpo_simple, PreferenceDataCollator, PreferenceDataLoader,
+                PreferenceDataset, PreferenceExample,
+            },
+            ch07::{
+                load_instruction_data_from_json, partition_data, AlpacaPromptFormatter,
+                PromptFormatter, DATA_DIR,
+            },
+        };
+        use candle_core::{DType, Device};
+        use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
+        use std::path::{Path, PathBuf};
+        use std::str::FromStr;
+        use tiktoken_rs::get_bpe_from_model;
+
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+
+        // load preference examples
+        let file_path = Path::new(DATA_DIR).join("instruction_data_with_preference.json");
+        let preference_data: Vec<PreferenceExample> = load_instruction_data_from_json(file_path)
+            .with_context(|| {
+                "Missing 'instruction_data_with_preference.json' file. Please run EG 07.18."
+            })?;
+
+        // partition data and create train, val, test datasets
+        let (train_data, val_data, _test_data) =
+            partition_data(preference_data, 0.85_f32, 0.05_f32)?;
+        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
+        let val_dataset = PreferenceDataset::new(val_data, &tokenizer, &prompt_formatter);
+
+        // create loaders
+        let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
+        let batch_size = 3_usize;
+        let train_loader =
+            PreferenceDataLoader::new(train_dataset, batch_size, true, true, collator.clone());
+        let val_loader =
+            PreferenceDataLoader::new(val_dataset, batch_size, false, false, collator.clone());
+
+        println!("Train loader: {}", train_loader.len());
+        println!("Val loader: {}", val_loader.len());
+
+        // load policy model
+        let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
+        cfg.qkv_bias = true;
+        let mut varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
+        let checkpoint_path = PathBuf::from_str("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
+        let policy_model =
+            addons::load_ift_gpt_model(&mut varmap, vb.pp("model"), cfg, &checkpoint_path)?;
+
+        // load reference model
+        let mut varmap_reference = VarMap::new();
+        let vb_reference = VarBuilder::from_varmap(
+            &varmap_reference,
+            DType::F32,
+            &Device::cuda_if_available(0)?,
+        );
+        let reference_model = addons::load_ift_gpt_model(
+            &mut varmap_reference,
+            vb_reference.pp("model"),
+            cfg,
+            &checkpoint_path,
+        )?;
+
+        // invoke training
+        let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
+        let optimizer = AdamW::new(
+            varmap.all_vars(),
+            ParamsAdamW {
+                lr: 0.00005,
+                weight_decay: 0.1,
+                ..Default::default()
+            },
+        )?;
+        let tokenizer = get_bpe_from_model("gpt2")?;
+        let prompt_formatter = AlpacaPromptFormatter;
+        let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
+        let tracking = train_model_dpo_simple(
+            &policy_model,
+            &reference_model,
+            &train_loader,
+            &val_loader,
+            0.1,
+            optimizer,
+            vb.device(),
+            num_epochs,
+            eval_freq,
+            eval_iter,
+            start_context.as_str(),
+            &tokenizer,
+        )?;
+
+        println!("{:#?}", tracking);
+
+        // save model
+        println!("Saving weights to `./dpo.checkpoint.safetensors`");
+        varmap.save("dpo.checkpoint.safetensors")?;
+
+        Ok(())
+    }
+}
+
+pub mod addons {
+    //! Auxiliary module for examples::ch07
+    use crate::listings::ch04::{Config, GPTModel};
+    use anyhow::Context;
+    use candle_nn::{VarBuilder, VarMap};
+
+    /// Helper function to load reference and policy models
+    pub fn load_ift_gpt_model<P>(
+        varmap: &mut VarMap,
+        vb: VarBuilder<'_>,
+        cfg: Config,
+        checkpoint_path: &P,
+    ) -> anyhow::Result<GPTModel>
+    where
+        P: AsRef<std::path::Path> + std::fmt::Debug,
+    {
+        let ift_model = GPTModel::new(cfg, vb)?;
+
+        // load instructed-finetuned weights
+        varmap
+            .load(checkpoint_path)
+            .with_context(|| format!("Missing '{:?}' file.", checkpoint_path))?;
+
+        Ok(ift_model)
     }
 }
