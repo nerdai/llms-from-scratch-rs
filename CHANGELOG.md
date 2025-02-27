@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - ...
 
+## [0.1.4] - 2025-02-27
+
+### Added
+
+- EG 07.23 — example usage of train_model_dpo_simple (#339)
+- train_model_dpo_simple (#338)
+- evaluate_dpo_loss_loader (#337)
+- EG 07.22 (#335)
+- compute_dpo_loss_loader (#334)
+- EG 07.21 - example usage of compute_dpo_loss_batch (#333)
+- dpo_loss_batch (#332)
+- compute_logprobs (#331)
+- compute_dpo_loss (#326)
+- preference data loader (#319)
+- [Fix] rejected/chosen masking & update EG 07.19 (#318)
+- EG 07.19 Example usage of PreferenceDataCollator (#314)
+- PreferenceDatasetCollator (#309)
+- PreferenceDataset (#308)
+- EncodedPreferenceExample and InstructionExample trait (#303)
+- generate_preference_dataset + EG 07.18 (#299)
+- Bonus DPO - Use Ollama to generate chosen/rejection response for an instruction entry + EG 07.17 (#294)
+
+### Changed
+
+Exercise 7.4 + use of GPT trait in listings::ch05 instead of GPTModel (#289)
+
 ## [0.1.3] - 2025-01-23
 
 ### Added
