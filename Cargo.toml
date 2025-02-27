@@ -1,7 +1,7 @@
 [package]
 name = "llms-from-scratch-rs"
 description = "Rust (candle) code for Build a LLM From Scratch by Sebastian Raschka"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 repository = "https://github.com/nerdai/llms-from-scratch-rs"
 authors = ["Val Andrei Fajardo <andrei@nerdai.io>"]
