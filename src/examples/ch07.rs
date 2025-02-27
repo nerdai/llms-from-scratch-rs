@@ -1676,9 +1676,19 @@ impl Example for EG23 {
             .load("ift.checkpoint.safetensors")
             .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
 
-        let varmap2 = varmap.clone();
-        let vb2 = VarBuilder::from_varmap(&varmap2, DType::F32, &Device::cuda_if_available(0)?);
-        let reference_model = GPTModel::new(cfg, vb2.pp("ref_model"))?;
+        // load reference model
+        let mut varmap_reference = VarMap::new();
+        let vb_reference = VarBuilder::from_varmap(
+            &varmap_reference,
+            DType::F32,
+            &Device::cuda_if_available(0)?,
+        );
+        let reference_model = GPTModel::new(cfg, vb_reference.pp("model"))?;
+
+        // load instructed-finetuned weights
+        varmap_reference
+            .load("ift.checkpoint.safetensors")
+            .with_context(|| "Missing 'ift.checkpoint.safetensors' file. Please run EG 07.10.")?;
 
         // invoke training
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 2_usize);
@@ -1710,25 +1720,9 @@ impl Example for EG23 {
 
         println!("{:#?}", tracking);
 
-        // // save model
-        // println!("Saving weights to `./ift.checkpoint.safetensors`");
-        // varmap.save("ift.checkpoint.safetensors")?;
-
-        // // plot loss curves
-        // println!("Saving plot to `./plot_ift_loss.html`");
-        // let epochs_seen = Vec::from_iter(linspace(0_f32, num_epochs as f32, train_losses.len()));
-        // let tokens_seen = tokens_seen
-        //     .into_iter()
-        //     .map(|el| el as f32)
-        //     .collect::<Vec<_>>();
-        // let save_path = Path::new("plot_ift_loss.html").to_path_buf();
-        // plot_losses(
-        //     epochs_seen,
-        //     tokens_seen,
-        //     train_losses,
-        //     val_losses,
-        //     save_path,
-        // )?;
+        // save model
+        println!("Saving weights to `./dpo.checkpoint.safetensors`");
+        varmap.save("dpo.checkpoint.safetensors")?;
 
         Ok(())
     }
