@@ -7,7 +7,7 @@ use super::{
 use crate::listings::ch05::generate_and_print_sample;
 use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::Optimizer;
-use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
+use rand::{rng, rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::{path::Path, rc::Rc};
@@ -80,7 +80,7 @@ pub fn generate_chosen_and_rejected_response<P: PromptFormatter>(
     prompt_formatter: &P,
     rng: &mut StdRng,
 ) -> anyhow::Result<PreferenceExample> {
-    let u: f32 = rng.gen_range(0.0..1.0);
+    let u: f32 = rng.random_range(0.0..1.0);
     let politeness = if u < 0.5 { "polite" } else { "impolite" };
 
     let prompt = format!(
@@ -238,7 +238,7 @@ impl PreferenceDatasetIter {
     pub fn new(dataset: PreferenceDataset, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
-            remaining_indices.shuffle(&mut thread_rng());
+            remaining_indices.shuffle(&mut rng());
         }
         Self {
             dataset,

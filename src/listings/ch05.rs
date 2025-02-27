@@ -10,7 +10,7 @@ use candle_nn::{ops::softmax, Optimizer, VarMap};
 use itertools::Itertools;
 use plotly::{common::Mode, layout::Axis, Layout, Plot, Scatter};
 use rand::{
-    distributions::{Distribution, WeightedIndex},
+    distr::{weighted::WeightedIndex, Distribution},
     rngs::StdRng,
     SeedableRng,
 };

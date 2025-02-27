@@ -14,7 +14,7 @@ use hf_hub::api::sync::Api;
 use plotly::{common::Mode, layout::Axis};
 use plotly::{Layout, Plot, Scatter};
 use polars::prelude::*;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 use std::cmp;
 use std::fs::{create_dir_all, remove_file, rename, File};
 use std::io;
@@ -466,7 +466,7 @@ impl SpamDatasetIter {
     pub fn new(dataset: SpamDataset, shuffle: bool) -> Self {
         let mut remaining_indices = (0..dataset.len()).rev().collect::<Vec<_>>();
         if shuffle {
-            remaining_indices.shuffle(&mut thread_rng());
+            remaining_indices.shuffle(&mut rng());
         }
         Self {
             dataset,
