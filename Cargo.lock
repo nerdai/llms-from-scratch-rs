@@ -1651,14 +1651,15 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hf-hub"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "112fa2f6ad4ab815b9e1b938b4b1e437032d055e2f92ed10fd6ab2e62d02c6b6"
+checksum = "cc03dcb0b0a83ae3f3363ec811014ae669f083e4e499c66602f447c4828737a1"
 dependencies = [
  "dirs",
  "futures",
  "http",
  "indicatif",
+ "libc",
  "log",
  "native-tls",
  "num_cpus",
@@ -1669,6 +1670,7 @@ dependencies = [
  "thiserror 2.0.7",
  "tokio",
  "ureq",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
