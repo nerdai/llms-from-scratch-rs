@@ -20,17 +20,17 @@ pub fn sample_read_text(verbose: bool) -> Result<String> {
 }
 
 /// [Listing 2.2] Creating a vocabulary
-pub fn sample_create_vocab() -> Result<HashMap<i32, String>> {
+pub fn sample_create_vocab() -> Result<HashMap<String, i32>> {
     let raw_text = sample_read_text(false)?;
     let re = Regex::new(r#"([,.?_!"()']|--|\s)"#).unwrap();
     let mut preprocessed: Vec<&str> = re.split(&raw_text[..]).map(|x| x.unwrap()).collect();
     preprocessed.sort();
 
-    let vocab: HashMap<i32, String> = HashMap::from_iter(
+    let vocab: HashMap<String, i32> = HashMap::from_iter(
         preprocessed
             .iter()
             .enumerate()
-            .map(|(idx, el)| (idx as i32, el.to_string())),
+            .map(|(idx, el)| (el.to_string(), idx as i32)),
     );
     Ok(vocab)
 }
