@@ -2085,6 +2085,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
@@ -2337,7 +2346,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "tiktoken-rs",
- "tokenizers 0.21.0",
+ "tokenizers 0.21.1",
  "tqdm",
  "zip 2.2.3",
 ]
@@ -4648,16 +4657,16 @@ dependencies = [
 
 [[package]]
 name = "tokenizers"
-version = "0.21.0"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ecededfed68a69bc657e486510089e255e53c3d38cc7d4d59c8742668ca2cae"
+checksum = "3169b3195f925496c895caee7978a335d49218488ef22375267fba5a46a40bd7"
 dependencies = [
  "aho-corasick",
  "derive_builder",
  "esaxx-rs",
  "getrandom 0.2.15",
  "indicatif",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "lazy_static",
  "log",
  "macro_rules_attribute",
@@ -4672,7 +4681,7 @@ dependencies = [
  "serde",
  "serde_json",
  "spm_precompiled",
- "thiserror 1.0.68",
+ "thiserror 2.0.7",
  "unicode-normalization-alignments",
  "unicode-segmentation",
  "unicode_categories",
