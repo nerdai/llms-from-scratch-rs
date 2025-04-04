@@ -2264,9 +2264,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.168"
+version = "0.2.171"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aaeb2981e0606ca11d79718f8bb01164f1d6ed75080182d3abf017e6d244b6d"
+checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
 
 [[package]]
 name = "libloading"
@@ -2346,7 +2346,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
- "sysinfo",
+ "sysinfo 0.34.1",
  "tempfile",
  "tiktoken-rs",
  "tokenizers 0.21.1",
@@ -2721,6 +2721,15 @@ name = "number_prefix"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
+
+[[package]]
+name = "objc2-core-foundation"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daeaf60f25471d26948a1c2f840e3f7d86f4109e3af4e8e4b5cd70c39690d925"
+dependencies = [
+ "bitflags 2.6.0",
+]
 
 [[package]]
 name = "object"
@@ -3515,7 +3524,7 @@ dependencies = [
  "raw-cpuid 11.2.0",
  "rayon",
  "stacker",
- "sysinfo",
+ "sysinfo 0.33.1",
  "version_check",
 ]
 
@@ -4468,7 +4477,19 @@ dependencies = [
  "libc",
  "memchr",
  "ntapi",
- "rayon",
+ "windows",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.34.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "927fa32067cbb22b8a91987d84c0ff94c7441ccf3f767165a58d77a656d6267c"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
  "windows",
 ]
 
