@@ -19,7 +19,7 @@ bytes = "1.10.1"
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
 candle-datasets = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
-clap = { version = "4.5.35", features = ["derive"] }
+clap = { version = "4.5.36", features = ["derive"] }
 comfy-table = "7.1.4"
 fancy-regex = "0.14.0"
 hf-hub = "0.4.2"
