@@ -16,9 +16,9 @@ exclude = [
 [dependencies]
 anyhow = "1.0.98"
 bytes = "1.10.1"
-candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
-candle-datasets = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
-candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.7.2" }
+candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
+candle-datasets = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
+candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 clap = { version = "4.5.39", features = ["derive"] }
 comfy-table = "7.1.4"
 fancy-regex = "0.14.0"
