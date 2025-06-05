@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## [0.1.5] - 2025-06-05
+
 ### Changed
 
 - Updated candle deps (#382)
