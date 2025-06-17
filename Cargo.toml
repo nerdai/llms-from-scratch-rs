@@ -22,7 +22,7 @@ candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.9.
 clap = { version = "4.5.39", features = ["derive"] }
 comfy-table = "7.1.4"
 fancy-regex = "0.14.0"
-hf-hub = "0.4.2"
+hf-hub = "0.4.3"
 itertools = "0.14.0"
 lexical-core = "1.0.5"
 ndarray = "0.16.1"
