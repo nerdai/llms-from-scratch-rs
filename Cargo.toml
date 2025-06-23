@@ -26,7 +26,7 @@ hf-hub = "0.4.3"
 itertools = "0.14.0"
 lexical-core = "1.0.5"
 ndarray = "0.16.1"
-phf = { version = "0.11.3", features = ["macros"] }
+phf = { version = "0.12.1", features = ["macros"] }
 plotly = "0.12.1"
 polars = { version = "0.48.1", features = ["csv", "dtype-struct", "lazy", "parquet", "rows"] }
 rand = "0.9.1"
