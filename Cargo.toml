@@ -21,7 +21,7 @@ candle-datasets = { git = "https://github.com/huggingface/candle.git", version =
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 clap = { version = "4.5.40", features = ["derive"] }
 comfy-table = "7.1.4"
-fancy-regex = "0.14.0"
+fancy-regex = "0.15.0"
 hf-hub = "0.4.3"
 itertools = "0.14.0"
 lexical-core = "1.0.5"
