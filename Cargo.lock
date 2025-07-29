@@ -591,7 +591,7 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
+source = "git+https://github.com/huggingface/candle.git#42bd33e0a6c114838e623e5e11fb466628888bbf"
 dependencies = [
  "byteorder",
  "candle-kernels",
@@ -615,7 +615,7 @@ dependencies = [
 [[package]]
 name = "candle-datasets"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
+source = "git+https://github.com/huggingface/candle.git#42bd33e0a6c114838e623e5e11fb466628888bbf"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -632,7 +632,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
+source = "git+https://github.com/huggingface/candle.git#42bd33e0a6c114838e623e5e11fb466628888bbf"
 dependencies = [
  "bindgen_cuda",
 ]
@@ -640,7 +640,7 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#1ef13411b5fce996ce5abb7497905bf2e4b64f79"
+source = "git+https://github.com/huggingface/candle.git#42bd33e0a6c114838e623e5e11fb466628888bbf"
 dependencies = [
  "candle-core",
  "half",
@@ -2496,7 +2496,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -5728,7 +5728,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
