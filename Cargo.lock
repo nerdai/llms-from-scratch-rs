@@ -602,11 +602,12 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#26a3222d557caefab41b9c3e63a08213c32e5472"
+source = "git+https://github.com/huggingface/candle.git#86bcf1e6375336c33b8a0870223eb57f869bfb6f"
 dependencies = [
  "byteorder",
  "candle-kernels",
  "cudarc",
+ "float8",
  "gemm 0.17.1",
  "half",
  "memmap2",
@@ -626,7 +627,7 @@ dependencies = [
 [[package]]
 name = "candle-datasets"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#26a3222d557caefab41b9c3e63a08213c32e5472"
+source = "git+https://github.com/huggingface/candle.git#86bcf1e6375336c33b8a0870223eb57f869bfb6f"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -643,7 +644,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#26a3222d557caefab41b9c3e63a08213c32e5472"
+source = "git+https://github.com/huggingface/candle.git#86bcf1e6375336c33b8a0870223eb57f869bfb6f"
 dependencies = [
  "bindgen_cuda",
 ]
@@ -651,7 +652,7 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.1"
-source = "git+https://github.com/huggingface/candle.git#26a3222d557caefab41b9c3e63a08213c32e5472"
+source = "git+https://github.com/huggingface/candle.git#86bcf1e6375336c33b8a0870223eb57f869bfb6f"
 dependencies = [
  "candle-core",
  "half",
@@ -1342,6 +1343,18 @@ dependencies = [
  "crc32fast",
  "libz-rs-sys",
  "miniz_oxide",
+]
+
+[[package]]
+name = "float8"
+version = "0.2.1"
+source = "git+https://github.com/zackangelo/float8?branch=cudarc_0_16#03c1f5fe7cdb2f9cb690823fdd40593be57c408f"
+dependencies = [
+ "cudarc",
+ "half",
+ "num-traits",
+ "rand 0.9.2",
+ "rand_distr",
 ]
 
 [[package]]
@@ -2474,7 +2487,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -5740,7 +5753,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
