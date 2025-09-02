@@ -20,7 +20,7 @@ candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.
 candle-datasets = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 clap = { version = "4.5.45", features = ["derive"] }
-comfy-table = "7.1.4"
+comfy-table = "7.2.0"
 fancy-regex = "0.16.1"
 hf-hub = "0.4.3"
 itertools = "0.14.0"
