@@ -638,7 +638,7 @@ dependencies = [
  "parquet",
  "rand 0.9.2",
  "thiserror 1.0.68",
- "tokenizers",
+ "tokenizers 0.21.4",
 ]
 
 [[package]]
@@ -2592,7 +2592,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "tiktoken-rs",
- "tokenizers",
+ "tokenizers 0.22.0",
  "tqdm",
  "zip 4.6.0",
 ]
@@ -5173,6 +5173,39 @@ name = "tokenizers"
 version = "0.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a620b996116a59e184c2fa2dfd8251ea34a36d0a514758c6f966386bd2e03476"
+dependencies = [
+ "ahash",
+ "aho-corasick",
+ "compact_str",
+ "dary_heap",
+ "derive_builder",
+ "esaxx-rs",
+ "getrandom 0.3.1",
+ "itertools",
+ "log",
+ "macro_rules_attribute",
+ "monostate",
+ "onig",
+ "paste",
+ "rand 0.9.2",
+ "rayon",
+ "rayon-cond",
+ "regex",
+ "regex-syntax",
+ "serde",
+ "serde_json",
+ "spm_precompiled",
+ "thiserror 2.0.7",
+ "unicode-normalization-alignments",
+ "unicode-segmentation",
+ "unicode_categories",
+]
+
+[[package]]
+name = "tokenizers"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af10f51be57162b69d90a15cb226eef12c9e4faecbd5e3ea98a86bfb920b3d71"
 dependencies = [
  "ahash",
  "aho-corasick",
