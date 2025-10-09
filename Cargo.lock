@@ -2626,7 +2626,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "tiktoken-rs",
- "tokenizers 0.22.0",
+ "tokenizers 0.22.1",
  "tqdm",
  "zip 5.1.1",
 ]
@@ -5260,9 +5260,9 @@ dependencies = [
 
 [[package]]
 name = "tokenizers"
-version = "0.22.0"
+version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af10f51be57162b69d90a15cb226eef12c9e4faecbd5e3ea98a86bfb920b3d71"
+checksum = "6475a27088c98ea96d00b39a9ddfb63780d1ad4cceb6f48374349a96ab2b7842"
 dependencies = [
  "ahash",
  "aho-corasick",
