@@ -40,7 +40,7 @@ tempfile = "3.21.0"
 tiktoken-rs = "0.6.0"
 tokenizers = "0.22.1"
 tqdm = "0.8.0"
-zip = "5.1.1"
+zip = "6.0.0"
 
 [features]
 cuda = ["candle-core/cuda", "candle-nn/cuda"]
