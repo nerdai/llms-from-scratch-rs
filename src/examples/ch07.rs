@@ -188,7 +188,7 @@ impl Example for EG04 {
 
         let allowed_special = HashSet::from(["<|endoftext|>"]);
         let tokenizer = get_bpe_from_model("gpt2")?;
-        println!("{:?}", tokenizer.encode("<|endoftext|>", allowed_special));
+        println!("{:?}", tokenizer.encode("<|endoftext|>", &allowed_special));
 
         Ok(())
     }

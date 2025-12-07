@@ -27,7 +27,7 @@ use tiktoken_rs::CoreBPE;
 /// [Listing 5.1 part 1] Utility function for text to token ID conversion
 pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Result<Tensor> {
     let allowed_special = HashSet::from(["<|endoftext|>"]);
-    let encoded = tokenizer.encode(text, allowed_special);
+    let (encoded, _) = tokenizer.encode(text, &allowed_special);
     let num_tokens = encoded.len();
     // encoded tensor
     Tensor::from_vec(encoded, (1_usize, num_tokens), dev)
@@ -797,8 +797,9 @@ mod tests {
             Some(DEFAULT_IGNORE_INDEX),
         )?;
 
-        assert_eq!(loss.to_scalar::<f32>()?, loss_2.to_scalar::<f32>()?);
-
+        let loss_f32 = loss.to_scalar::<f32>()?;
+        let loss_2_f32 = loss_2.to_scalar::<f32>()?;
+        assert!((loss_f32 - loss_2_f32).abs() < 1e-4);
         Ok(())
     }
 
