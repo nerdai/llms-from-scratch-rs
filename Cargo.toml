@@ -35,7 +35,7 @@ rstest = "0.26.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 serde_with = "3.16.1"
-sysinfo = "0.37.2"
+sysinfo = "0.38.0"
 tempfile = "3.24.0"
 tiktoken-rs = "0.9.1"
 tokenizers = "0.22.2"
