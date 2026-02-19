@@ -589,7 +589,7 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git#a0dbd8b8aef6bde9adca3e8ad90791609d64974b"
+source = "git+https://github.com/huggingface/candle.git#2bd0256aff1605b0514a68f4f38d833e1658f02f"
 dependencies = [
  "byteorder",
  "candle-kernels",
@@ -614,7 +614,7 @@ dependencies = [
 [[package]]
 name = "candle-datasets"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git#a0dbd8b8aef6bde9adca3e8ad90791609d64974b"
+source = "git+https://github.com/huggingface/candle.git#2bd0256aff1605b0514a68f4f38d833e1658f02f"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -631,7 +631,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git#a0dbd8b8aef6bde9adca3e8ad90791609d64974b"
+source = "git+https://github.com/huggingface/candle.git#2bd0256aff1605b0514a68f4f38d833e1658f02f"
 dependencies = [
  "cudaforge",
 ]
@@ -639,7 +639,7 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git#a0dbd8b8aef6bde9adca3e8ad90791609d64974b"
+source = "git+https://github.com/huggingface/candle.git#2bd0256aff1605b0514a68f4f38d833e1658f02f"
 dependencies = [
  "candle-core",
  "half",
@@ -654,7 +654,7 @@ dependencies = [
 [[package]]
 name = "candle-ug"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git#a0dbd8b8aef6bde9adca3e8ad90791609d64974b"
+source = "git+https://github.com/huggingface/candle.git#2bd0256aff1605b0514a68f4f38d833e1658f02f"
 dependencies = [
  "ug",
  "ug-cuda",
@@ -2615,7 +2615,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -5963,7 +5963,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
