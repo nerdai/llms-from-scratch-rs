@@ -38,7 +38,7 @@ serde_with = "3.18.0"
 sysinfo = "0.38.4"
 tempfile = "3.27.0"
 tiktoken-rs = "0.9.1"
-tokenizers = "0.22.2"
+tokenizers = "0.23.1"
 tqdm = "0.8.0"
 zip = "8.5.1"
 
