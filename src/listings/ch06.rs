@@ -298,7 +298,8 @@ impl SpamDataset {
 
     /// Checks whether the dataset is empty or has no finetuning examples.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        // polars 0.52 removed `DataFrame::is_empty`; this is its definition.
+        matches!(self.data.shape(), (0, _) | (_, 0))
     }
 
     /// Returns the input tokens for all input sequences.
