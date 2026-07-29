@@ -27,7 +27,9 @@ use tiktoken_rs::CoreBPE;
 /// [Listing 5.1 part 1] Utility function for text to token ID conversion
 pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Result<Tensor> {
     let allowed_special = HashSet::from(["<|endoftext|>"]);
-    let (encoded, _) = tokenizer.encode(text, &allowed_special);
+    let (encoded, _) = tokenizer
+        .encode(text, &allowed_special)
+        .map_err(candle_core::Error::wrap)?;
     let num_tokens = encoded.len();
     // encoded tensor
     Tensor::from_vec(encoded, (1_usize, num_tokens), dev)
@@ -36,7 +38,7 @@ pub fn text_to_token_ids(text: &str, tokenizer: &CoreBPE, dev: &Device) -> Resul
 /// [Listing 5.1 part 2] Utility function for token ID to text ID conversion
 pub fn token_ids_to_text(token_ids: Tensor, tokenizer: &CoreBPE) -> anyhow::Result<String> {
     let flat = token_ids.squeeze(0)?;
-    tokenizer.decode(flat.to_vec1::<u32>()?)
+    tokenizer.decode(&flat.to_vec1::<u32>()?)
 }
 
 pub const DEFAULT_IGNORE_INDEX: i64 = -100;
@@ -727,12 +729,12 @@ mod tests {
     use rand::SeedableRng;
     use rstest::*;
     use std::vec;
-    use tiktoken_rs::get_bpe_from_model;
+    use tiktoken_rs::bpe_for_model;
 
     #[fixture]
     pub fn txt_tokenizer() -> (String, CoreBPE) {
         let txt = "In the heart of the city";
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let tokenizer = bpe_for_model("gpt2").unwrap().clone();
         (txt.to_string(), tokenizer)
     }
 
@@ -882,7 +884,7 @@ mod tests {
     fn test_decode_panics_due_token_id() {
         let bad_token_id = 49426_u32; // not sure why this results in an error when decoding
         let token_ids = Tensor::new(&[[bad_token_id]], &Device::Cpu).unwrap();
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
-        token_ids_to_text(token_ids, &tokenizer).unwrap();
+        let tokenizer = bpe_for_model("gpt2").unwrap();
+        token_ids_to_text(token_ids, tokenizer).unwrap();
     }
 }

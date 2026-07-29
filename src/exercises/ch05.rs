@@ -102,7 +102,7 @@ impl Exercise for X2 {
         use candle_nn::{VarBuilder, VarMap};
         use itertools::iproduct;
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // construct model
         let varmap = VarMap::new();
@@ -112,7 +112,7 @@ impl Exercise for X2 {
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         let temperatures = &[0.1_f64, 1., 5.];
         let top_ks = &[20_usize, 100, cfg.vocab_size];
@@ -122,7 +122,7 @@ impl Exercise for X2 {
 
             let token_ids = generate(
                 &model,
-                text_to_token_ids(start_context, &tokenizer, vb.device())?,
+                text_to_token_ids(start_context, tokenizer, vb.device())?,
                 15_usize,
                 cfg.context_length,
                 Some(*temp),
@@ -132,7 +132,7 @@ impl Exercise for X2 {
             )?;
 
             // decode the token ids to print the output text
-            println!("{:?}\n", token_ids_to_text(token_ids, &tokenizer))
+            println!("{:?}\n", token_ids_to_text(token_ids, tokenizer))
         }
         Ok(())
     }
@@ -178,7 +178,7 @@ impl Exercise for X3 {
         use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // construct model
         let varmap = VarMap::new();
@@ -188,7 +188,7 @@ impl Exercise for X3 {
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         // deterministic settings: temp to None and top_k to any value
         let temp = None;
@@ -200,7 +200,7 @@ impl Exercise for X3 {
 
             let token_ids = generate(
                 &model,
-                text_to_token_ids(start_context, &tokenizer, vb.device())?,
+                text_to_token_ids(start_context, tokenizer, vb.device())?,
                 15_usize,
                 cfg.context_length,
                 temp,
@@ -264,7 +264,7 @@ impl Exercise for X4 {
         };
         use candle_core::{DType, Device};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // construct model
         let mut varmap = VarMap::new();
@@ -287,7 +287,7 @@ impl Exercise for X4 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
         let (train_loader, val_loader) = examples::ch05::addons::get_train_val_data_loaders(false)?;
         let start_context = "Every effort moves you";
@@ -301,7 +301,7 @@ impl Exercise for X4 {
             eval_freq,
             eval_iter,
             start_context,
-            &tokenizer,
+            tokenizer,
             None,
         );
         Ok(())
@@ -422,7 +422,7 @@ impl Exercise for X6 {
         use candle_nn::{VarBuilder, VarMap};
         use hf_hub::api::sync::Api;
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         let dev = Device::cuda_if_available(0)?;
         let varmap = VarMap::new();
@@ -443,12 +443,12 @@ impl Exercise for X6 {
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         let mut rng = StdRng::seed_from_u64(42_u64);
         let token_ids = generate(
             &model,
-            text_to_token_ids(start_context, &tokenizer, vb.device())?,
+            text_to_token_ids(start_context, tokenizer, vb.device())?,
             25_usize,
             cfg.context_length,
             Some(0.1_f64),
@@ -460,7 +460,7 @@ impl Exercise for X6 {
         // decode the token ids to print the output text
         println!(
             "Model:\n{model_name}\n\nOutput text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer)?
+            token_ids_to_text(token_ids, tokenizer)?
         );
         Ok(())
     }

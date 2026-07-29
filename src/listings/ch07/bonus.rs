@@ -926,7 +926,7 @@ mod tests {
     use anyhow::Result;
     use candle_core::Device;
     use rstest::*;
-    use tiktoken_rs::get_bpe_from_model;
+    use tiktoken_rs::bpe_for_model;
 
     #[fixture]
     fn instruction_example() -> InstructionResponseExample {
@@ -1021,12 +1021,12 @@ mod tests {
     fn test_encoded_preference_example_from_preference_example(
         preference_example: PreferenceExample,
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let encoded = EncodedPreferenceExample::from_example(
             &preference_example,
             &prompt_formatter,
-            &tokenizer,
+            tokenizer,
         );
 
         let prompt = prompt_formatter.format_input(&preference_example);
@@ -1050,16 +1050,16 @@ mod tests {
         preference_data: Vec<PreferenceExample>,
         preference_example: PreferenceExample,
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let preference_dataset =
-            PreferenceDataset::new(preference_data, &tokenizer, &prompt_formatter);
+            PreferenceDataset::new(preference_data, tokenizer, &prompt_formatter);
 
         // test encoded example
         let encoded_example = EncodedPreferenceExample::from_example(
             &preference_example,
             &prompt_formatter,
-            &tokenizer,
+            tokenizer,
         );
 
         assert_eq!(preference_dataset.len(), 5);
@@ -1074,12 +1074,12 @@ mod tests {
     #[rstest]
     pub fn test_preference_collator(preference_example: PreferenceExample) -> Result<()> {
         // arrange
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let encoded_example = EncodedPreferenceExample::from_example(
             &preference_example,
             &prompt_formatter,
-            &tokenizer,
+            tokenizer,
         );
         let batch = vec![encoded_example];
         let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -1113,10 +1113,10 @@ mod tests {
 
     #[rstest]
     fn test_preference_data_loader(preference_data: Vec<PreferenceExample>) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let preference_dataset =
-            PreferenceDataset::new(preference_data, &tokenizer, &prompt_formatter);
+            PreferenceDataset::new(preference_data, tokenizer, &prompt_formatter);
         let batch_size = 2_usize;
         let allowed_max_length = 5_usize;
         let collator = PreferenceDataCollator::new()

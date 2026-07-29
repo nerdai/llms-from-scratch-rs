@@ -17,7 +17,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
-use tiktoken_rs::get_bpe_from_model;
+use tiktoken_rs::bpe_for_model;
 
 /// [Listing E.1] Downloading and preparing the dataset
 ///
@@ -55,7 +55,7 @@ pub fn download_and_prepare_spam_dataset() -> anyhow::Result<()> {
 ///
 /// NOTE: This is merely EG 06.05
 pub fn create_candle_datasets() -> anyhow::Result<(SpamDataset, SpamDataset, SpamDataset)> {
-    let tokenizer = get_bpe_from_model("gpt2")?;
+    let tokenizer = bpe_for_model("gpt2")?;
 
     let train_path = Path::new("data").join("train.parquet");
     if train_path.exists().not() {
@@ -63,7 +63,7 @@ pub fn create_candle_datasets() -> anyhow::Result<(SpamDataset, SpamDataset, Spa
             "Missing 'data/train.parquet' file. Please run `listings::apdx_e::download_and_prepare_spam_dataset()`"
         ));
     }
-    let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+    let train_dataset = SpamDatasetBuilder::new(tokenizer)
         .load_data_from_parquet(train_path)
         .build();
 
@@ -73,7 +73,7 @@ pub fn create_candle_datasets() -> anyhow::Result<(SpamDataset, SpamDataset, Spa
             "Missing 'data/validation.parquet' file. Please run `listings::apdx_e::download_and_prepare_spam_dataset()`"
         ));
     }
-    let val_dataset = SpamDatasetBuilder::new(&tokenizer)
+    let val_dataset = SpamDatasetBuilder::new(tokenizer)
         .load_data_from_parquet(val_path)
         .max_length(Some(train_dataset.max_length()))
         .build();
@@ -84,7 +84,7 @@ pub fn create_candle_datasets() -> anyhow::Result<(SpamDataset, SpamDataset, Spa
             "Missing 'data/test.parquet' file. Please run `listings::apdx_e::download_and_prepare_spam_dataset()`"
         ));
     }
-    let test_dataset = SpamDatasetBuilder::new(&tokenizer)
+    let test_dataset = SpamDatasetBuilder::new(tokenizer)
         .load_data_from_parquet(test_path)
         .max_length(Some(train_dataset.max_length()))
         .build();
@@ -782,7 +782,7 @@ mod tests {
 
         // create dummy batch
         let input_length = 2_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, cfg.emb_dim), &vb.device())?;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, cfg.emb_dim), vb.device())?;
         let batch = Tensor::stack(&[&xs, &xs], 0)?;
 
         // forward should result in 0s upon first construction
@@ -828,7 +828,7 @@ mod tests {
 
         // create dummy batch
         let input_length = 2_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, cfg.emb_dim), &vb.device())?;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, cfg.emb_dim), vb.device())?;
         let batch = Tensor::stack(&[&xs, &xs], 0)?;
 
         // forward should result in 0s upon first construction
@@ -891,7 +891,7 @@ mod tests {
 
         // create batch
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device())?;
         let batch = Tensor::stack(&[&xs, &xs], 0)?;
 
         // since this is only init these should be the same

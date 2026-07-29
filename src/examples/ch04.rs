@@ -460,12 +460,12 @@ impl Example for EG08 {
         use crate::listings::ch04::{generate_text_simple, Config, GPTModel};
         use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // get starting context
         let dev = Device::cuda_if_available(0)?;
         let start_context = "Hello, I am";
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let encoded = tokenizer.encode_with_special_tokens(start_context);
         let num_tokens = encoded.len();
         println!("encoded: {:?}", encoded);
@@ -484,7 +484,7 @@ impl Example for EG08 {
         println!("Output length: {}", out.dims()[1]);
 
         // decode with tokenizer
-        let decoded_text = tokenizer.decode(out.reshape(out.dims()[1])?.to_vec1::<u32>()?);
+        let decoded_text = tokenizer.decode(&out.reshape(out.dims()[1])?.to_vec1::<u32>()?);
         println!("{:?}", decoded_text);
         Ok(())
     }
@@ -494,7 +494,7 @@ pub mod addons {
     //! Auxiliary module for examples::ch04
     use crate::listings::ch04::ExampleDeepNeuralNetwork;
     use candle_core::{Device, Error, Module, Result, Tensor};
-    use tiktoken_rs::get_bpe_from_model;
+    use tiktoken_rs::bpe_for_model;
 
     /// Helper function to a sample batch of tokens to feed into GPTs.
     pub fn get_batch_for_gpts() -> Result<Tensor> {
@@ -503,7 +503,7 @@ pub mod addons {
         // create batch
         let mut batch_tokens: Vec<u32> = Vec::new();
         let tokenizer =
-            get_bpe_from_model("gpt2").map_err(|e| Error::Msg(format!("Tokenizer error: {e}")))?;
+            bpe_for_model("gpt2").map_err(|e| Error::Msg(format!("Tokenizer error: {e}")))?;
         batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every effort moves you"));
         batch_tokens.append(&mut tokenizer.encode_with_special_tokens("Every day holds a"));
 
