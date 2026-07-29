@@ -236,7 +236,7 @@ impl SpamDataset {
         pad_token_id: u32,
     ) -> Self {
         let text_series = df.column("sms").unwrap().clone();
-        let text_vec: Vec<Option<&str>> = text_series.str().unwrap().into_iter().collect();
+        let text_vec: Vec<Option<&str>> = text_series.str().unwrap().iter().collect();
         let mut encodings = text_vec
             .iter()
             .map(|el| {
@@ -298,7 +298,7 @@ impl SpamDataset {
 
     /// Checks whether the dataset is empty or has no finetuning examples.
     pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
+        self.len() == 0
     }
 
     /// Returns the input tokens for all input sequences.
