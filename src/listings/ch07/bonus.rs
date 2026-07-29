@@ -7,7 +7,7 @@ use super::{
 use crate::listings::ch05::generate_and_print_sample;
 use candle_core::{Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_nn::Optimizer;
-use rand::{rng, rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+use rand::{rng, rngs::StdRng, seq::SliceRandom, RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, NoneAsEmptyString};
 use std::{path::Path, rc::Rc};
