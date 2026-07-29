@@ -21,7 +21,7 @@ use std::{
     path::Path,
     rc::Rc,
 };
-use tiktoken_rs::{get_bpe_from_model, CoreBPE};
+use tiktoken_rs::{bpe_for_model, CoreBPE};
 use tqdm::tqdm;
 
 /// Bonus material
@@ -207,7 +207,7 @@ impl InstructionDataset {
     /// use llms_from_scratch_rs::listings::ch07::{
     ///     AlpacaPromptFormatter, InstructionDataset, InstructionResponseExample,
     /// };
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let entry = InstructionResponseExample::new(
     ///     "Some instruction",
@@ -215,7 +215,7 @@ impl InstructionDataset {
     ///     "Some output"
     /// );
     /// let data = vec![entry];
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let prompt_formatter = AlpacaPromptFormatter;
     /// let dataset = InstructionDataset::new(data, &tokenizer, &prompt_formatter);
     /// ```
@@ -585,7 +585,7 @@ impl<C: CustomCollator<BatchItem = Tensor> + Clone> InstructionDataLoader<C> {
     ///     AlpacaPromptFormatter, InstructionDataCollator, InstructionDataset,
     ///     InstructionDataLoader, InstructionResponseExample
     /// };
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let entry = InstructionResponseExample::new(
     ///     "Some instruction",
@@ -593,7 +593,7 @@ impl<C: CustomCollator<BatchItem = Tensor> + Clone> InstructionDataLoader<C> {
     ///     "Some output"
     /// );
     /// let data = vec![entry];
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let prompt_formatter = AlpacaPromptFormatter;
     /// let dataset = InstructionDataset::new(data, &tokenizer, &prompt_formatter);
     ///
@@ -709,14 +709,14 @@ pub fn generate_test_set_responses<T: AsRef<Path>, P: PromptFormatter, M: GPT + 
     save_path: T,
     prompt_formatter: &P, // introduced for Exercise 7.1
 ) -> anyhow::Result<()> {
-    let tokenizer = get_bpe_from_model("gpt2")?;
+    let tokenizer = bpe_for_model("gpt2")?;
     let mut rng = StdRng::seed_from_u64(42_u64);
 
     for entry in tqdm(test_data.iter_mut()) {
         let input_text = prompt_formatter.format_input(entry);
         let token_ids = generate(
             model,
-            text_to_token_ids(&input_text[..], &tokenizer, device)?,
+            text_to_token_ids(&input_text[..], tokenizer, device)?,
             256_usize,
             context_size,
             None,
@@ -724,7 +724,7 @@ pub fn generate_test_set_responses<T: AsRef<Path>, P: PromptFormatter, M: GPT + 
             Some(Tensor::new(&[50_256_u32], device)?),
             &mut rng,
         )?;
-        let generated_text = token_ids_to_text(token_ids, &tokenizer)?;
+        let generated_text = token_ids_to_text(token_ids, tokenizer)?;
         let mut response_text = generated_text[input_text.len()..].replace("### Response:", "");
         response_text = response_text.trim().to_string();
 
@@ -848,7 +848,7 @@ mod tests {
     use anyhow::Result;
     use rstest::*;
     use tempfile::NamedTempFile;
-    use tiktoken_rs::get_bpe_from_model;
+    use tiktoken_rs::bpe_for_model;
 
     #[fixture]
     fn instruction_example() -> InstructionResponseExample {
@@ -958,10 +958,10 @@ mod tests {
         instruction_data: Vec<InstructionResponseExample>,
         instruction_example: InstructionResponseExample,
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let instruction_dataset =
-            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
+            InstructionDataset::new(instruction_data, tokenizer, &prompt_formatter);
 
         // test encoded
         let prompt = prompt_formatter.format_input(&instruction_example);
@@ -980,9 +980,9 @@ mod tests {
         instruction_data: Vec<InstructionResponseExample>,
     ) -> Result<()> {
         let prompt_formatter = AlpacaPromptFormatter;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let instruction_dataset =
-            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
+            InstructionDataset::new(instruction_data, tokenizer, &prompt_formatter);
         let mut iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
         let mut count = 0_usize;
 
@@ -1025,10 +1025,10 @@ mod tests {
     pub fn test_instruction_batcher(
         instruction_data: Vec<InstructionResponseExample>,
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let instruction_dataset =
-            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
+            InstructionDataset::new(instruction_data, tokenizer, &prompt_formatter);
         let iter = InstructionDatasetIter::new(instruction_dataset.clone(), false);
         let batch_size = 2_usize;
         let collator = InstructionDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -1049,10 +1049,10 @@ mod tests {
 
     #[rstest]
     fn test_instruct_data_loader(instruction_data: Vec<InstructionResponseExample>) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let instruction_dataset =
-            InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
+            InstructionDataset::new(instruction_data, tokenizer, &prompt_formatter);
         let batch_size = 2_usize;
         let allowed_max_length = 10_usize;
         let collator = InstructionDataCollator::new()

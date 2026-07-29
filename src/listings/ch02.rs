@@ -200,15 +200,15 @@ impl GPTDatasetV1 {
     /// Creates a new `GPTDatasetV1`.
     ///
     /// ```rust
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     /// use llms_from_scratch_rs::listings::ch02::GPTDatasetV1;
     ///
     /// let txt = "In the heart of the city";
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let token_ids = tokenizer.encode_with_special_tokens(&txt[..]);
     /// let stride = 1_usize;
     /// let max_length = 3_usize;
-    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
+    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer.clone(), max_length, stride);
     /// ```
     pub fn new(txt: &str, tokenizer: CoreBPE, max_length: usize, stride: usize) -> Self {
         let token_ids = tokenizer.encode_with_special_tokens(txt);
@@ -272,14 +272,14 @@ impl GPTDatasetIter {
     ///
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch02::{GPTDatasetV1, GPTDatasetIter} ;
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let txt = "In the heart of the city";
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     ///
     /// let stride = 1_usize;
     /// let max_length = 3_usize;
-    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer, max_length, stride);
+    /// let dataset = GPTDatasetV1::new(&txt[..], tokenizer.clone(), max_length, stride);
     /// let iter = GPTDatasetIter::new(dataset.clone(), false);
     /// ```
     pub fn new(dataset: GPTDatasetV1, shuffle: bool) -> Self {
@@ -353,13 +353,13 @@ impl GPTDataLoader {
     ///
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch02::{GPTDatasetV1, GPTDataLoader};
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let txt = "In the heart of the city";
-    /// let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = tiktoken_rs::bpe_for_model("gpt2").unwrap();
     /// let max_length = 3_usize;
     /// let stride = 1_usize;
-    /// let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
+    /// let dataset = GPTDatasetV1::new(txt, tokenizer.clone(), max_length, stride);
     ///
     /// let batch_size = 2_usize;
     /// let shuffle = false;
@@ -419,7 +419,7 @@ pub fn create_dataloader_v1(
     shuffle: bool,
     drop_last: bool,
 ) -> GPTDataLoader {
-    let tokenizer = tiktoken_rs::get_bpe_from_model("gpt2").unwrap();
+    let tokenizer = tiktoken_rs::bpe_for_model("gpt2").unwrap().clone();
     let dataset = GPTDatasetV1::new(txt, tokenizer, max_length, stride);
     GPTDataLoader::new(dataset, batch_size, shuffle, drop_last)
 }
@@ -432,7 +432,7 @@ mod tests {
     use anyhow::Result;
     use candle_datasets::Batcher;
     use rstest::*;
-    use tiktoken_rs::get_bpe_from_model;
+    use tiktoken_rs::bpe_for_model;
 
     #[fixture]
     pub fn vocab() -> HashMap<&'static str, i32> {
@@ -447,7 +447,7 @@ mod tests {
     #[fixture]
     pub fn txt_tokenizer() -> (String, CoreBPE) {
         let txt = "In the heart of the city";
-        let tokenizer = get_bpe_from_model("gpt2").unwrap();
+        let tokenizer = bpe_for_model("gpt2").unwrap().clone();
         (txt.to_string(), tokenizer)
     }
 

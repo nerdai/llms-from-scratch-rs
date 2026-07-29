@@ -215,7 +215,7 @@ impl SpamDataset {
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, PAD_TOKEN_ID};
     /// use polars::prelude::*;
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let mut df = df!(
     ///     "sms"=> &[
@@ -225,7 +225,7 @@ impl SpamDataset {
     ///     "label"=> &[0_i64, 1],
     /// )
     /// .unwrap();
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let max_length = 24_usize;
     /// let dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     /// ```
@@ -353,7 +353,7 @@ impl<'a> SpamDatasetBuilder<'a> {
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, SpamDatasetBuilder};
     /// use polars::prelude::*;
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let df = df!(
     ///     "sms"=> &[
@@ -363,7 +363,7 @@ impl<'a> SpamDatasetBuilder<'a> {
     ///     "label"=> &[0_i64, 1],
     /// )
     /// .unwrap();
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let dataset: SpamDataset = SpamDatasetBuilder::new(&tokenizer)
     ///     .data(df)
     ///     .max_length(Some(24_usize))
@@ -383,7 +383,7 @@ impl<'a> SpamDatasetBuilder<'a> {
     /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, SpamDatasetBuilder};
     /// use polars::prelude::*;
     /// use tempfile::NamedTempFile;
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let mut df = df!(
     ///     "sms"=> &[
@@ -400,7 +400,7 @@ impl<'a> SpamDatasetBuilder<'a> {
     /// let parquet_file = test_file.into_temp_path().keep().unwrap();
     ///
     /// // build dataset
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let dataset: SpamDataset = SpamDatasetBuilder::new(&tokenizer)
     ///     .load_data_from_parquet(parquet_file)
     ///     .max_length(Some(24_usize))
@@ -448,7 +448,7 @@ impl SpamDatasetIter {
     /// ```rust
     /// use llms_from_scratch_rs::listings::ch06::{SpamDataset, SpamDatasetIter, PAD_TOKEN_ID};
     /// use polars::prelude::*;
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// let df = df!(
     ///     "sms"=> &[
@@ -458,7 +458,7 @@ impl SpamDatasetIter {
     ///     "label"=> &[0_i64, 1],
     /// )
     /// .unwrap();
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let max_length = 24_usize;
     /// let dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     /// let iter = SpamDatasetIter::new(dataset.clone(), false);
@@ -517,7 +517,7 @@ impl SpamDataLoader {
     ///     PAD_TOKEN_ID
     /// };
     /// use polars::prelude::*;
-    /// use tiktoken_rs::get_bpe_from_model;
+    /// use tiktoken_rs::bpe_for_model;
     ///
     /// // create SpamDataset
     /// let df = df!(
@@ -528,7 +528,7 @@ impl SpamDataLoader {
     ///     "label"=> &[0_i64, 1],
     /// )
     /// .unwrap();
-    /// let tokenizer = get_bpe_from_model("gpt2").unwrap();
+    /// let tokenizer = bpe_for_model("gpt2").unwrap();
     /// let max_length = 24_usize;
     /// let dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
     ///
@@ -989,7 +989,7 @@ mod tests {
     use rstest::*;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
-    use tiktoken_rs::get_bpe_from_model;
+    use tiktoken_rs::bpe_for_model;
 
     #[fixture]
     pub fn sms_spam_df() -> (DataFrame, usize) {
@@ -1059,8 +1059,8 @@ mod tests {
         #[case] max_length: Option<usize>,
         #[case] expected_max_length: usize,
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
-        let spam_dataset = SpamDataset::new(df, &tokenizer, max_length, PAD_TOKEN_ID);
+        let tokenizer = bpe_for_model("gpt2")?;
+        let spam_dataset = SpamDataset::new(df, tokenizer, max_length, PAD_TOKEN_ID);
 
         assert_eq!(spam_dataset.len(), 5);
         assert_eq!(spam_dataset.max_length, expected_max_length);
@@ -1081,8 +1081,8 @@ mod tests {
         #[case] max_length: Option<usize>,
         #[case] expected_max_length: usize,
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
-        let spam_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let tokenizer = bpe_for_model("gpt2")?;
+        let spam_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(test_parquet_path)
             .max_length(max_length)
             .build();
@@ -1101,9 +1101,9 @@ mod tests {
     pub fn test_spam_dataset_iter(
         #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let max_length = 10_usize;
-        let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+        let spam_dataset = SpamDataset::new(df, tokenizer, Some(max_length), PAD_TOKEN_ID);
         let mut iter = SpamDatasetIter::new(spam_dataset.clone(), false);
         let mut count = 0_usize;
 
@@ -1121,9 +1121,9 @@ mod tests {
     fn test_spam_data_loader(
         #[from(sms_spam_df)] (df, _num_spam): (DataFrame, usize),
     ) -> Result<()> {
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let max_length = 10_usize;
-        let spam_dataset = SpamDataset::new(df, &tokenizer, Some(max_length), PAD_TOKEN_ID);
+        let spam_dataset = SpamDataset::new(df, tokenizer, Some(max_length), PAD_TOKEN_ID);
         let batch_size = 2_usize;
         let shuffle = false;
         let drop_last = false;

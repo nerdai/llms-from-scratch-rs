@@ -536,7 +536,7 @@ mod tests {
 
         // create batch
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device())?;
         let batch = Tensor::stack(&[&xs, &xs], 0)?;
         let context_vectors = casual_attn.forward(&batch)?;
 
@@ -584,7 +584,7 @@ mod tests {
 
         // create batch
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device())?;
         let batch = Tensor::stack(&[&xs, &xs], 0)?;
         let context_vectors = multihead_attn.forward(&batch)?;
 
@@ -624,7 +624,7 @@ mod tests {
 
         // create batch
         let input_length = 10_usize;
-        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), &vb.device())?;
+        let xs = Tensor::rand(0f32, 1f32, (input_length, d_in), vb.device())?;
         let batch = Tensor::stack(&[&xs, &xs], 0)?;
         let context_vectors = mha.forward(&batch)?;
 

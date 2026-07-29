@@ -184,10 +184,10 @@ impl Example for EG04 {
 
     fn main(&self) -> Result<()> {
         use std::collections::HashSet;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         let allowed_special = HashSet::from(["<|endoftext|>"]);
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         println!("{:?}", tokenizer.encode("<|endoftext|>", &allowed_special));
 
         Ok(())
@@ -370,9 +370,9 @@ impl EG07 {
         };
         use candle_core::Device;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         // load instruction examples
         let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
@@ -381,9 +381,9 @@ impl EG07 {
         // partition data and create train, val, test datasets
         let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
         let prompt_formatter = AlpacaPromptFormatter;
-        let train_dataset = InstructionDataset::new(train_data, &tokenizer, &prompt_formatter);
-        let val_dataset = InstructionDataset::new(val_data, &tokenizer, &prompt_formatter);
-        let test_dataset = InstructionDataset::new(test_data, &tokenizer, &prompt_formatter);
+        let train_dataset = InstructionDataset::new(train_data, tokenizer, &prompt_formatter);
+        let val_dataset = InstructionDataset::new(val_data, tokenizer, &prompt_formatter);
+        let test_dataset = InstructionDataset::new(test_data, tokenizer, &prompt_formatter);
 
         // create loaders
         let collator = InstructionDataCollator::new()
@@ -466,7 +466,7 @@ impl Example for EG08 {
         use candle_nn::{VarBuilder, VarMap};
         use rand::{rngs::StdRng, SeedableRng};
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // partition data and create train, val, test datasets
         let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
@@ -487,11 +487,11 @@ impl Example for EG08 {
         println!("{}", input_text);
 
         // run inference
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let mut rng = StdRng::seed_from_u64(42_u64);
         let token_ids = generate(
             &model,
-            text_to_token_ids(input_text.as_str(), &tokenizer, vb.device())?,
+            text_to_token_ids(input_text.as_str(), tokenizer, vb.device())?,
             35_usize,
             cfg.context_length,
             None,
@@ -499,7 +499,7 @@ impl Example for EG08 {
             Some(Tensor::new(&[50_256_u32], vb.device())?),
             &mut rng,
         )?;
-        let generated_text = token_ids_to_text(token_ids, &tokenizer)?;
+        let generated_text = token_ids_to_text(token_ids, tokenizer)?;
         let response_text = &generated_text[input_text.len()..].trim();
 
         println!("---generated-text-below---\n{}", response_text);
@@ -626,7 +626,7 @@ impl Example for EG10 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use ndarray::linspace;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // use `download_and_load_gpt2`
         let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
@@ -651,7 +651,7 @@ impl Example for EG10 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
         let (train_losses, val_losses, tokens_seen) = train_model_simple(
@@ -664,7 +664,7 @@ impl Example for EG10 {
             eval_freq,
             eval_iter,
             start_context.as_str(),
-            &tokenizer,
+            tokenizer,
             Some(DEFAULT_IGNORE_INDEX),
         )?;
 
@@ -730,7 +730,7 @@ impl Example for EG11 {
         use candle_core::{DType, Device, Tensor};
         use candle_nn::{VarBuilder, VarMap};
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // setup the gpt2 model
         let mut cfg = Config::gpt2_124m(); // must match model size used in EG10
@@ -747,7 +747,7 @@ impl Example for EG11 {
         // extract responses
         let eg07 = EG07;
         let (_train_loader, _val_loader, test_loader) = eg07.main_with_return(8_usize, false)?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let mut rng = StdRng::seed_from_u64(42_u64);
         let prompt_formatter = AlpacaPromptFormatter;
 
@@ -755,7 +755,7 @@ impl Example for EG11 {
             let input_text = prompt_formatter.format_input(entry);
             let token_ids = generate(
                 &model,
-                text_to_token_ids(&input_text[..], &tokenizer, vb.device())?,
+                text_to_token_ids(&input_text[..], tokenizer, vb.device())?,
                 256_usize,
                 cfg.context_length,
                 None,
@@ -763,7 +763,7 @@ impl Example for EG11 {
                 Some(Tensor::new(&[50_256_u32], vb.device())?),
                 &mut rng,
             )?;
-            let generated_text = token_ids_to_text(token_ids, &tokenizer)?;
+            let generated_text = token_ids_to_text(token_ids, tokenizer)?;
             let response_text = &generated_text[input_text.len()..].trim();
 
             // print
@@ -1214,9 +1214,9 @@ impl Example for EG19 {
         };
         use candle_core::{Device, IndexOp};
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
 
         // load preference examples
@@ -1236,7 +1236,7 @@ impl Example for EG19 {
 
         let batch = sample
             .into_iter()
-            .map(|el| EncodedPreferenceExample::from_example(&el, &prompt_formatter, &tokenizer))
+            .map(|el| EncodedPreferenceExample::from_example(&el, &prompt_formatter, tokenizer))
             .collect::<Vec<_>>();
 
         let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -1259,17 +1259,17 @@ impl Example for EG19 {
         );
 
         // Decode prompt and print
-        let prompt_text = token_ids_to_text(collated_item.prompt()[1].clone(), &tokenizer)?;
+        let prompt_text = token_ids_to_text(collated_item.prompt()[1].clone(), tokenizer)?;
         println!("\nCollated Batch Item 1: Prompt Text\n\n{}\n", prompt_text);
 
         // Decode chosen and print
         let chosen = collated_item.chosen().i((1, ..))?;
-        let chosen_text = token_ids_to_text(chosen.clone(), &tokenizer)?;
+        let chosen_text = token_ids_to_text(chosen.clone(), tokenizer)?;
         println!("\nCollated Batch Item 1: Chosen Text\n\n{}\n", chosen_text);
 
         // Decode chosen and print
         let rejected = collated_item.rejected().i((1, ..))?;
-        let rejected_text = token_ids_to_text(rejected.clone(), &tokenizer)?;
+        let rejected_text = token_ids_to_text(rejected.clone(), tokenizer)?;
         println!(
             "\nCollated Batch Item 1: Rejected Text\n\n{}\n",
             rejected_text
@@ -1349,9 +1349,9 @@ impl Example for EG20 {
         };
         use candle_core::Device;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
 
         // load preference examples
@@ -1364,9 +1364,9 @@ impl Example for EG20 {
         // partition data and create train, val, test datasets
         let (train_data, val_data, test_data) =
             partition_data(preference_data, 0.85_f32, 0.05_f32)?;
-        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
-        let val_dataset = PreferenceDataset::new(val_data, &tokenizer, &prompt_formatter);
-        let test_dataset = PreferenceDataset::new(test_data, &tokenizer, &prompt_formatter);
+        let train_dataset = PreferenceDataset::new(train_data, tokenizer, &prompt_formatter);
+        let val_dataset = PreferenceDataset::new(val_data, tokenizer, &prompt_formatter);
+        let test_dataset = PreferenceDataset::new(test_data, tokenizer, &prompt_formatter);
 
         // create loaders
         let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -1442,9 +1442,9 @@ impl Example for EG21 {
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
 
         // load reference and policy model
@@ -1472,7 +1472,7 @@ impl Example for EG21 {
         // partition data and create train, val, test datasets
         let (train_data, _val_data, _test_data) =
             partition_data(preference_data, 0.85_f32, 0.05_f32)?;
-        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
+        let train_dataset = PreferenceDataset::new(train_data, tokenizer, &prompt_formatter);
 
         // create loaders
         let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -1536,9 +1536,9 @@ impl Example for EG22 {
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
 
         // load reference and policy model
@@ -1566,7 +1566,7 @@ impl Example for EG22 {
         // partition data and create train, val, test datasets
         let (train_data, _val_data, _test_data) =
             partition_data(preference_data, 0.85_f32, 0.05_f32)?;
-        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
+        let train_dataset = PreferenceDataset::new(train_data, tokenizer, &prompt_formatter);
 
         // create loaders
         let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -1637,9 +1637,9 @@ impl Example for EG23 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use std::path::{Path, PathBuf};
         use std::str::FromStr;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
 
         // load preference examples
@@ -1652,8 +1652,8 @@ impl Example for EG23 {
         // partition data and create train, val, test datasets
         let (train_data, val_data, _test_data) =
             partition_data(preference_data, 0.85_f32, 0.05_f32)?;
-        let train_dataset = PreferenceDataset::new(train_data, &tokenizer, &prompt_formatter);
-        let val_dataset = PreferenceDataset::new(val_data, &tokenizer, &prompt_formatter);
+        let train_dataset = PreferenceDataset::new(train_data, tokenizer, &prompt_formatter);
+        let val_dataset = PreferenceDataset::new(val_data, tokenizer, &prompt_formatter);
 
         // create loaders
         let collator = PreferenceDataCollator::new().device(Device::cuda_if_available(0)?);
@@ -1700,7 +1700,7 @@ impl Example for EG23 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
         let tracking = train_model_dpo_simple(
@@ -1715,7 +1715,7 @@ impl Example for EG23 {
             eval_freq,
             eval_iter,
             start_context.as_str(),
-            &tokenizer,
+            tokenizer,
         )?;
 
         println!("{:#?}", tracking);

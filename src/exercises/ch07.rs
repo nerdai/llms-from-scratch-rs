@@ -40,9 +40,9 @@ impl X1 {
         };
         use candle_core::Device;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         // load instruction examples
         let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
@@ -51,9 +51,9 @@ impl X1 {
         // partition data and create train, val, test datasets
         let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
         let prompt_formatter = Phi3PromptFormatter;
-        let train_dataset = InstructionDataset::new(train_data, &tokenizer, &prompt_formatter);
-        let val_dataset = InstructionDataset::new(val_data, &tokenizer, &prompt_formatter);
-        let test_dataset = InstructionDataset::new(test_data, &tokenizer, &prompt_formatter);
+        let train_dataset = InstructionDataset::new(train_data, tokenizer, &prompt_formatter);
+        let val_dataset = InstructionDataset::new(val_data, tokenizer, &prompt_formatter);
+        let test_dataset = InstructionDataset::new(test_data, tokenizer, &prompt_formatter);
 
         // create loaders
         let batch_size = 5_usize;
@@ -108,7 +108,7 @@ impl Exercise for X1 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use ndarray::linspace;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // use `download_and_load_gpt2`
         let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
@@ -131,7 +131,7 @@ impl Exercise for X1 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = Phi3PromptFormatter;
         let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
         let (train_losses, val_losses, tokens_seen) = train_model_simple(
@@ -144,7 +144,7 @@ impl Exercise for X1 {
             eval_freq,
             eval_iter,
             start_context.as_str(),
-            &tokenizer,
+            tokenizer,
             Some(DEFAULT_IGNORE_INDEX),
         )?;
 
@@ -203,9 +203,9 @@ impl X2 {
         use addons::{InstructionDataLoader, InstructionDataset, MaskedInstructionCollator};
         use candle_core::Device;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         // load instruction examples
         let file_path = Path::new(DATA_DIR).join(INSTRUCTION_DATA_FILENAME);
@@ -214,9 +214,9 @@ impl X2 {
         // partition data and create train, val, test datasets
         let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
         let prompt_formatter = Phi3PromptFormatter;
-        let train_dataset = InstructionDataset::new(train_data, &tokenizer, &prompt_formatter);
-        let val_dataset = InstructionDataset::new(val_data, &tokenizer, &prompt_formatter);
-        let test_dataset = InstructionDataset::new(test_data, &tokenizer, &prompt_formatter);
+        let train_dataset = InstructionDataset::new(train_data, tokenizer, &prompt_formatter);
+        let val_dataset = InstructionDataset::new(val_data, tokenizer, &prompt_formatter);
+        let test_dataset = InstructionDataset::new(test_data, tokenizer, &prompt_formatter);
 
         // create loaders
         let batch_size = 5_usize;
@@ -273,7 +273,7 @@ impl Exercise for X2 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use ndarray::linspace;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // use `download_and_load_gpt2`
         let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
@@ -295,7 +295,7 @@ impl Exercise for X2 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
         let (train_losses, val_losses, tokens_seen) = train_model_simple(
@@ -308,7 +308,7 @@ impl Exercise for X2 {
             eval_freq,
             eval_iter,
             start_context.as_str(),
-            &tokenizer,
+            tokenizer,
             Some(DEFAULT_IGNORE_INDEX),
         )?;
 
@@ -375,9 +375,9 @@ impl X3 {
         };
         use candle_core::Device;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         // load instruction examples
         let file_name = "alpaca_data.json";
@@ -388,9 +388,9 @@ impl X3 {
 
         // partition data and create train, val, test datasets
         let (train_data, val_data, test_data) = partition_data(data, 0.85_f32, 0.05_f32)?;
-        let train_dataset = InstructionDataset::new(train_data, &tokenizer, prompt_formatter);
-        let val_dataset = InstructionDataset::new(val_data, &tokenizer, prompt_formatter);
-        let test_dataset = InstructionDataset::new(test_data, &tokenizer, prompt_formatter);
+        let train_dataset = InstructionDataset::new(train_data, tokenizer, prompt_formatter);
+        let val_dataset = InstructionDataset::new(val_data, tokenizer, prompt_formatter);
+        let test_dataset = InstructionDataset::new(test_data, tokenizer, prompt_formatter);
 
         // create loaders
         let collator = InstructionDataCollator::new()
@@ -454,7 +454,7 @@ impl Exercise for X3 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use ndarray::linspace;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // use `download_and_load_gpt2`
         let model_id = "openai-community/gpt2";
@@ -480,7 +480,7 @@ impl Exercise for X3 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
         let (train_losses, val_losses, tokens_seen) = train_model_simple(
             &model,
@@ -492,7 +492,7 @@ impl Exercise for X3 {
             eval_freq,
             eval_iter,
             start_context.as_str(),
-            &tokenizer,
+            tokenizer,
             Some(DEFAULT_IGNORE_INDEX),
         )?;
 
@@ -567,7 +567,7 @@ impl Exercise for X4 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use ndarray::linspace;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // use `download_and_load_gpt2`
         let model_id = "openai-community/gpt2"; // use `gpt2-medium` for med instead
@@ -613,7 +613,7 @@ impl Exercise for X4 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let prompt_formatter = AlpacaPromptFormatter;
         let start_context = prompt_formatter.format_input(&val_loader.dataset().data()[0]);
         let (train_losses, val_losses, tokens_seen) = train_model_simple(
@@ -626,7 +626,7 @@ impl Exercise for X4 {
             eval_freq,
             eval_iter,
             start_context.as_str(),
-            &tokenizer,
+            tokenizer,
             Some(DEFAULT_IGNORE_INDEX),
         )?;
 
@@ -981,7 +981,7 @@ pub mod addons {
         use crate::listings::ch07::AlpacaPromptFormatter;
         use anyhow::Result;
         use rstest::*;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         #[fixture]
         fn instruction_example() -> InstructionResponseExample {
@@ -1051,10 +1051,10 @@ pub mod addons {
         fn test_instruct_data_loader(
             instruction_data: Vec<InstructionResponseExample>,
         ) -> Result<()> {
-            let tokenizer = get_bpe_from_model("gpt2")?;
+            let tokenizer = bpe_for_model("gpt2")?;
             let prompt_formatter = AlpacaPromptFormatter;
             let instruction_dataset =
-                InstructionDataset::new(instruction_data, &tokenizer, &prompt_formatter);
+                InstructionDataset::new(instruction_data, tokenizer, &prompt_formatter);
             let batch_size = 2_usize;
             let allowed_max_length = 10_usize;
             let collator = MaskedInstructionCollator::new()

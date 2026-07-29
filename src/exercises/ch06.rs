@@ -46,11 +46,11 @@ impl Exercise for X1 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use std::ops::Not;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         println!("Creating train, val, test datasets");
         // create datasets
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let max_length = Some(512_usize);
 
         let train_path = Path::new("data").join("train.parquet");
@@ -59,7 +59,7 @@ impl Exercise for X1 {
                 "Missing 'data/train.parquet' file. Please run EG 06.04."
             ));
         }
-        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let train_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(train_path)
             .max_length(max_length)
             .build();
@@ -74,7 +74,7 @@ impl Exercise for X1 {
                 "Missing 'data/validation.parquet' file. Please run EG 06.04."
             ));
         }
-        let val_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let val_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(val_path)
             .max_length(max_length)
             .build();
@@ -86,7 +86,7 @@ impl Exercise for X1 {
                 "Missing 'data/test.parquet' file. Please run EG 06.04."
             ));
         }
-        let test_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let test_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(test_path)
             .max_length(max_length)
             .build();

@@ -38,13 +38,13 @@ impl Exercise for X1 {
     }
 
     fn main(&self) -> Result<()> {
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let token_ids = tokenizer.encode_with_special_tokens("Akwirw ier");
         println!("token ids: {:?}", token_ids);
 
-        let decoded_text = tokenizer.decode(token_ids)?;
+        let decoded_text = tokenizer.decode(&token_ids)?;
         println!("decoded text: {}", decoded_text);
         Ok(())
     }

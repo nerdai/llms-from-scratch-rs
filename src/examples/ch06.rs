@@ -276,9 +276,9 @@ impl Example for EG05 {
         use anyhow::anyhow;
         use std::ops::Not;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         let train_path = Path::new("data").join("train.parquet");
         if train_path.exists().not() {
@@ -286,7 +286,7 @@ impl Example for EG05 {
                 "Missing 'data/train.parquet' file. Please run EG 06.04."
             ));
         }
-        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let train_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(train_path)
             .build();
         println!("train dataset max length: {}", train_dataset.max_length());
@@ -297,7 +297,7 @@ impl Example for EG05 {
                 "Missing 'data/validation.parquet' file. Please run EG 06.04."
             ));
         }
-        let val_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let val_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(val_path)
             .max_length(Some(train_dataset.max_length()))
             .build();
@@ -309,7 +309,7 @@ impl Example for EG05 {
                 "Missing 'data/test.parquet' file. Please run EG 06.04."
             ));
         }
-        let test_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let test_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(test_path)
             .max_length(Some(train_dataset.max_length()))
             .build();
@@ -349,10 +349,10 @@ impl EG06 {
         use anyhow::anyhow;
         use std::ops::Not;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // create datasets
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         let train_path = Path::new("data").join("train.parquet");
         if train_path.exists().not() {
@@ -360,7 +360,7 @@ impl EG06 {
                 "Missing 'data/train.parquet' file. Please run EG 06.04."
             ));
         }
-        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let train_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(train_path)
             .build();
 
@@ -370,7 +370,7 @@ impl EG06 {
                 "Missing 'data/validation.parquet' file. Please run EG 06.04."
             ));
         }
-        let val_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let val_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(val_path)
             .build();
 
@@ -380,7 +380,7 @@ impl EG06 {
                 "Missing 'data/test.parquet' file. Please run EG 06.04."
             ));
         }
-        let test_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let test_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(test_path)
             .build();
 
@@ -457,7 +457,7 @@ impl Example for EG07 {
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // use `download_and_load_gpt2`
         let mut cfg = Config::gpt2_124m();
@@ -467,14 +467,14 @@ impl Example for EG07 {
         let model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
 
         // sample setup and load tokenizer
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let mut rng = StdRng::seed_from_u64(42_u64);
 
         // generate next tokens with model
         let text_1 = "Every effort moves you";
         let token_ids = generate(
             &model,
-            text_to_token_ids(text_1, &tokenizer, vb.device())?,
+            text_to_token_ids(text_1, tokenizer, vb.device())?,
             15_usize,
             cfg.context_length,
             None,
@@ -486,7 +486,7 @@ impl Example for EG07 {
         // decode the token ids to print the output text
         println!(
             "Output text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer)
+            token_ids_to_text(token_ids, tokenizer)
         );
 
         // test inherent classification abilities
@@ -495,7 +495,7 @@ impl Example for EG07 {
         cash or a $2000 award.'";
         let token_ids = generate(
             &model,
-            text_to_token_ids(text_2, &tokenizer, vb.device())?,
+            text_to_token_ids(text_2, tokenizer, vb.device())?,
             23_usize,
             cfg.context_length,
             None,
@@ -507,7 +507,7 @@ impl Example for EG07 {
         // decode the token ids to print the classification
         println!(
             "Output text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer)
+            token_ids_to_text(token_ids, tokenizer)
         );
 
         Ok(())
@@ -597,7 +597,7 @@ impl Example for EG09 {
         };
         use candle_core::{DType, Device, IndexOp, ModuleT, Tensor};
         use candle_nn::{VarBuilder, VarMap};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // use `download_and_load_gpt2`
         let mut cfg = Config::gpt2_124m();
@@ -622,7 +622,7 @@ impl Example for EG09 {
         println!("new classification head: {:?}", out_head);
 
         // run sample inference
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let inputs = tokenizer.encode_with_special_tokens("Do you have time");
         let num_tokens = inputs.len();
         let inputs = Tensor::from_vec(inputs, num_tokens, vb.device())?.unsqueeze(0)?;
@@ -1062,17 +1062,17 @@ impl Example for EG15 {
         use candle_nn::{VarBuilder, VarMap};
         use std::ops::Not;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // tokenizer and train_dataset
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let train_path = Path::new("data").join("train.parquet");
         if train_path.exists().not() {
             return Err(anyhow!(
                 "Missing 'data/train.parquet' file. Please run EG 06.04."
             ));
         }
-        let train_dataset = SpamDatasetBuilder::new(&tokenizer)
+        let train_dataset = SpamDatasetBuilder::new(tokenizer)
             .load_data_from_parquet(train_path)
             .build();
 
@@ -1097,7 +1097,7 @@ impl Example for EG15 {
             classify_review(
                 text_1,
                 &model,
-                &tokenizer,
+                tokenizer,
                 vb.device(),
                 Some(train_dataset.max_length()),
                 PAD_TOKEN_ID,
@@ -1112,7 +1112,7 @@ impl Example for EG15 {
             classify_review(
                 text_2,
                 &model,
-                &tokenizer,
+                tokenizer,
                 vb.device(),
                 Some(train_dataset.max_length()),
                 PAD_TOKEN_ID,
