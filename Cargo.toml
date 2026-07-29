@@ -29,7 +29,7 @@ ndarray = "0.17.2"
 phf = { version = "0.14.0", features = ["macros"] }
 plotly = "0.12.1"
 polars = { version = "0.54.4", features = ["csv", "dtype-struct", "lazy", "parquet", "rows", "strings"] }
-rand = "0.9.2"
+rand = "0.10.2"
 reqwest = { version = "0.13.4", features = ["blocking", "json"] }
 rstest = "0.26.1"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -37,7 +37,7 @@ serde_json = "1.0.150"
 serde_with = "3.20.0"
 sysinfo = "0.39.3"
 tempfile = "3.27.0"
-tiktoken-rs = "0.9.1"
+tiktoken-rs = "0.12.0"
 tokenizers = "0.23.1"
 tqdm = "0.8.0"
 zip = "8.6.0"

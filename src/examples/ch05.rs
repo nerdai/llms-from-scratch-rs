@@ -37,7 +37,7 @@ impl Example for EG01 {
         };
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // construct model
         let varmap = VarMap::new();
@@ -47,13 +47,13 @@ impl Example for EG01 {
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         // generate next tokens with model
         let max_new_tokens = 10_usize;
         let token_ids = generate_text_simple(
             &model,
-            text_to_token_ids(start_context, &tokenizer, vb.device())?,
+            text_to_token_ids(start_context, tokenizer, vb.device())?,
             max_new_tokens,
             cfg.context_length,
         )?;
@@ -61,7 +61,7 @@ impl Example for EG01 {
         // decode the token ids to print the output text
         println!(
             "Output text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer)
+            token_ids_to_text(token_ids, tokenizer)
         );
         Ok(())
     }
@@ -102,7 +102,7 @@ impl Example for EG02 {
         };
         use candle_core::{DType, Device, IndexOp, ModuleT, Tensor, D};
         use candle_nn::{loss::cross_entropy, ops::softmax, VarBuilder, VarMap};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // construct model
         let varmap = VarMap::new();
@@ -124,14 +124,14 @@ impl Example for EG02 {
         println!("Token IDs:\n{:?}", token_ids.to_vec3::<u32>());
 
         // compare predictions to targets
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         println!(
             "Targets batch 1: {:?}",
-            token_ids_to_text(targets.i(0)?, &tokenizer)
+            token_ids_to_text(targets.i(0)?, tokenizer)
         );
         println!(
             "Outputs batch 1: {:?}",
-            token_ids_to_text(token_ids.i(0)?.flatten_all()?, &tokenizer)
+            token_ids_to_text(token_ids.i(0)?.flatten_all()?, tokenizer)
         );
 
         // let's see the predicted probas for the target tokens
@@ -316,7 +316,7 @@ impl Example for EG05 {
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
         use ndarray::linspace;
         use std::path::Path;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::cuda_if_available(0)?);
@@ -330,7 +330,7 @@ impl Example for EG05 {
                 ..Default::default()
             },
         )?;
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 10_usize);
         let (train_loader, val_loader) = addons::get_train_val_data_loaders(false)?;
         let start_context = "Every effort moves you";
@@ -344,14 +344,14 @@ impl Example for EG05 {
             eval_freq,
             eval_iter,
             start_context,
-            &tokenizer,
+            tokenizer,
             None,
         )?;
 
         // run inference with trained model using deterministic decoding
         let token_ids = generate_text_simple(
             &model,
-            text_to_token_ids(start_context, &tokenizer, vb.device())?,
+            text_to_token_ids(start_context, tokenizer, vb.device())?,
             25,
             cfg.context_length,
         )?;
@@ -359,7 +359,7 @@ impl Example for EG05 {
         // should be the same as the last output generation during training
         println!(
             "Output text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer)
+            token_ids_to_text(token_ids, tokenizer)
         );
 
         // plot loss curves
@@ -551,7 +551,7 @@ impl Example for EG08 {
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // construct model
         let varmap = VarMap::new();
@@ -561,13 +561,13 @@ impl Example for EG08 {
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         // generate next tokens with model
         let mut rng = StdRng::seed_from_u64(42_u64);
         let token_ids = generate(
             &model,
-            text_to_token_ids(start_context, &tokenizer, vb.device())?,
+            text_to_token_ids(start_context, tokenizer, vb.device())?,
             15_usize,
             cfg.context_length,
             Some(1.4_f64),
@@ -579,7 +579,7 @@ impl Example for EG08 {
         // decode the token ids to print the output text
         println!(
             "Output text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer)
+            token_ids_to_text(token_ids, tokenizer)
         );
         Ok(())
     }
@@ -619,7 +619,7 @@ impl Example for EG09 {
         };
         use candle_core::{DType, Device, Error, IndexOp};
         use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // construt model
         let varmap = VarMap::new();
@@ -636,7 +636,7 @@ impl Example for EG09 {
         )?;
 
         // train model for an epoch
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let (eval_freq, eval_iter, num_epochs) = (5_usize, 5_usize, 1_usize);
         let (train_loader, val_loader) = addons::get_train_val_data_loaders(false)?;
         let start_context = "Every effort moves you";
@@ -650,7 +650,7 @@ impl Example for EG09 {
             eval_freq,
             eval_iter,
             start_context,
-            &tokenizer,
+            tokenizer,
             None,
         );
 
@@ -803,7 +803,7 @@ impl Example for EG11 {
         use candle_nn::{VarBuilder, VarMap};
         use hf_hub::api::sync::Api;
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         let dev = Device::cuda_if_available(0)?;
         let varmap = VarMap::new();
@@ -823,12 +823,12 @@ impl Example for EG11 {
 
         // sample setup and load tokenizer
         let start_context = "Every effort moves you";
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
 
         let mut rng = StdRng::seed_from_u64(42_u64);
         let token_ids = generate(
             &model,
-            text_to_token_ids(start_context, &tokenizer, vb.device())?,
+            text_to_token_ids(start_context, tokenizer, vb.device())?,
             25_usize,
             cfg.context_length,
             Some(0.1_f64),
@@ -840,7 +840,7 @@ impl Example for EG11 {
         // decode the token ids to print the output text
         println!(
             "Output text:\n{:?}",
-            token_ids_to_text(token_ids, &tokenizer)?
+            token_ids_to_text(token_ids, tokenizer)?
         );
         Ok(())
     }
@@ -876,13 +876,13 @@ pub mod addons {
     ) -> anyhow::Result<(GPTDataLoader, GPTDataLoader)> {
         use crate::listings::{ch02::create_dataloader_v1, ch04::Config};
         use std::fs;
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         // load the verdict short story and compute stats
         let text_data =
             fs::read_to_string("data/the-verdict.txt").expect("Unable to read the file");
         let total_characters = text_data.len();
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let total_tokens = tokenizer
             .encode_with_special_tokens(text_data.as_str())
             .len();

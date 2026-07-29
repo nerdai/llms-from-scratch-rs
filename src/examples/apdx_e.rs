@@ -88,7 +88,7 @@ impl Example for EG02 {
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
         use rand::{rngs::StdRng, SeedableRng};
-        use tiktoken_rs::get_bpe_from_model;
+        use tiktoken_rs::bpe_for_model;
 
         let mut cfg = Config::gpt2_124m();
         cfg.qkv_bias = true;
@@ -97,14 +97,14 @@ impl Example for EG02 {
         let mut model = download_and_load_gpt2(&varmap, vb.pp("model"), cfg, HF_GPT2_MODEL_ID)?;
 
         // sample setup and load tokenizer
-        let tokenizer = get_bpe_from_model("gpt2")?;
+        let tokenizer = bpe_for_model("gpt2")?;
         let mut rng = StdRng::seed_from_u64(42_u64);
 
         // generate next tokens with model
         let text_1 = "Every effort moves you";
         let token_ids = generate(
             &model,
-            text_to_token_ids(text_1, &tokenizer, vb.device())?,
+            text_to_token_ids(text_1, tokenizer, vb.device())?,
             15_usize,
             cfg.context_length,
             None,
@@ -114,7 +114,7 @@ impl Example for EG02 {
         )?;
 
         // decode the token ids to print the output text
-        println!("{:?}", token_ids_to_text(token_ids, &tokenizer));
+        println!("{:?}", token_ids_to_text(token_ids, tokenizer));
 
         // attach spam classification head
         let num_classes = 2_usize;
