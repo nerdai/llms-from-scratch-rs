@@ -851,6 +851,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "comfy-table"
+version = "8.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "136c8c4c3823846e8ba6d4bda011b4e5d5827b8bb0ac26c31f9ab31abe9f54f2"
+dependencies = [
+ "crossterm 0.29.0",
+ "unicode-segmentation",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
 name = "compact_str"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2881,7 +2892,7 @@ dependencies = [
  "candle-datasets",
  "candle-nn",
  "clap",
- "comfy-table",
+ "comfy-table 8.0.0",
  "fancy-regex 0.18.0",
  "hf-hub 0.5.0",
  "itertools 0.15.0",
@@ -3837,7 +3848,7 @@ dependencies = [
  "bytemuck",
  "chrono",
  "chrono-tz",
- "comfy-table",
+ "comfy-table 7.2.2",
  "either",
  "getrandom 0.3.1",
  "hashbrown 0.16.1",
