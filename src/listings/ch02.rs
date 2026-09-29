@@ -86,7 +86,7 @@ impl SimpleTokenizerV1 {
 
         // remove space before any punctuations
         let re = Regex::new(r#"\s+([,.?!"()\'])"#).unwrap();
-        String::from(re.replace_all(text, |caps: &Captures| caps[1].to_string()))
+        String::from(re.replace_all(text, |caps: &Captures<str>| caps[1].to_string()))
     }
 }
 
@@ -165,7 +165,7 @@ impl SimpleTokenizerV2 {
 
         // remove space before any punctuations
         let re = Regex::new(r#"\s+([,.?!"()\'])"#).unwrap();
-        String::from(re.replace_all(text, |caps: &Captures| caps[1].to_string()))
+        String::from(re.replace_all(text, |caps: &Captures<str>| caps[1].to_string()))
     }
 }
 
