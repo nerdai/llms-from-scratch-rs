@@ -749,11 +749,14 @@ impl Example for EG10 {
     fn main(&self) -> Result<()> {
         use crate::listings::ch04::Config;
         use candle_core::Device;
-        use hf_hub::api::sync::Api;
+        use hf_hub::HFClientSync;
 
-        let api = Api::new()?;
-        let repo = api.model("openai-community/gpt2".to_string());
-        let weights = repo.get("model.safetensors")?;
+        let client = HFClientSync::new()?;
+        let weights = client
+            .model("openai-community", "gpt2")
+            .download_file()
+            .filename("model.safetensors")
+            .send()?;
         let weights = candle_core::safetensors::load(weights, &Device::Cpu)?;
 
         // update config
@@ -801,7 +804,7 @@ impl Example for EG11 {
         };
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
-        use hf_hub::api::sync::Api;
+        use hf_hub::HFClientSync;
         use rand::{rngs::StdRng, SeedableRng};
         use tiktoken_rs::bpe_for_model;
 
@@ -813,9 +816,12 @@ impl Example for EG11 {
         let model = GPTModel::new(cfg, vb.pp("model"))?;
 
         // get weights from HF Hub
-        let api = Api::new()?;
-        let repo = api.model("openai-community/gpt2".to_string());
-        let weights = repo.get("model.safetensors")?;
+        let client = HFClientSync::new()?;
+        let weights = client
+            .model("openai-community", "gpt2")
+            .download_file()
+            .filename("model.safetensors")
+            .send()?;
         let weights = candle_core::safetensors::load(weights, &dev)?;
 
         // load weights

@@ -349,14 +349,17 @@ impl Exercise for X5 {
         };
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
-        use hf_hub::api::sync::Api;
+        use hf_hub::HFClientSync;
 
         let dev = Device::cuda_if_available(0)?;
 
         // download openai weights
-        let api = Api::new()?;
-        let repo = api.model("openai-community/gpt2".to_string());
-        let weights = repo.get("model.safetensors")?;
+        let client = HFClientSync::new()?;
+        let weights = client
+            .model("openai-community", "gpt2")
+            .download_file()
+            .filename("model.safetensors")
+            .send()?;
         let weights = candle_core::safetensors::load(weights, &dev)?;
 
         // construct model
@@ -420,7 +423,7 @@ impl Exercise for X6 {
         };
         use candle_core::{DType, Device};
         use candle_nn::{VarBuilder, VarMap};
-        use hf_hub::api::sync::Api;
+        use hf_hub::{split_id, HFClientSync};
         use rand::{rngs::StdRng, SeedableRng};
         use tiktoken_rs::bpe_for_model;
 
@@ -433,9 +436,13 @@ impl Exercise for X6 {
 
         // get weights from HF Hub
         let model_name = "openai-community/gpt2-xl";
-        let api = Api::new()?;
-        let repo = api.model(model_name.to_string());
-        let weights = repo.get("model.safetensors")?;
+        let client = HFClientSync::new()?;
+        let (owner, name) = split_id(model_name);
+        let weights = client
+            .model(owner, name)
+            .download_file()
+            .filename("model.safetensors")
+            .send()?;
         let weights = candle_core::safetensors::load(weights, &Device::Cpu)?;
 
         // load weights
