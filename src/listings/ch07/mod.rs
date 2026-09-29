@@ -8,7 +8,7 @@ use anyhow::Context;
 use bytes::Bytes;
 use candle_core::{Device, Result, Tensor};
 use candle_nn::ModuleT;
-use hf_hub::api::sync::Api;
+use hf_hub::{split_id, HFClientSync};
 use rand::{rng, seq::SliceRandom};
 use rand::{rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
@@ -656,10 +656,13 @@ pub use crate::listings::ch06::download_and_load_gpt2;
 
 /// Delete previously downloaded model weights from local HF cache.
 pub fn delete_hf_cache(model_id: &str) -> Result<()> {
-    let api = Api::new().map_err(candle_core::Error::wrap)?;
-    let repo = api.model(model_id.to_string());
-    let weights = repo
-        .get("model.safetensors")
+    let client = HFClientSync::new().map_err(candle_core::Error::wrap)?;
+    let (owner, name) = split_id(model_id);
+    let weights = client
+        .model(owner, name)
+        .download_file()
+        .filename("model.safetensors")
+        .send()
         .map_err(candle_core::Error::wrap)?;
     std::fs::remove_file(weights)?;
 

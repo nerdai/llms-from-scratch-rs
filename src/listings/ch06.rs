@@ -10,7 +10,7 @@ use bytes::Bytes;
 use candle_core::{bail, DType, Device, IndexOp, ModuleT, Result, Tensor, D};
 use candle_datasets::{batcher::IterResult2, Batcher};
 use candle_nn::{linear_b, Optimizer, VarBuilder, VarMap};
-use hf_hub::api::sync::Api;
+use hf_hub::{split_id, HFClientSync};
 use plotly::{common::Mode, layout::Axis};
 use plotly::{Layout, Plot, Scatter};
 use polars::prelude::*;
@@ -593,10 +593,13 @@ pub fn download_and_load_gpt2(
     let model = GPTModel::new(cfg, vb)?;
 
     // get weights from HF Hub
-    let api = Api::new().map_err(candle_core::Error::wrap)?;
-    let repo = api.model(model_id.to_string());
-    let weights = repo
-        .get("model.safetensors")
+    let client = HFClientSync::new().map_err(candle_core::Error::wrap)?;
+    let (owner, name) = split_id(model_id);
+    let weights = client
+        .model(owner, name)
+        .download_file()
+        .filename("model.safetensors")
+        .send()
         .map_err(candle_core::Error::wrap)?;
     let weights = candle_core::safetensors::load(weights, &dev)?;
 
