@@ -144,7 +144,7 @@ pub fn create_balanced_dataset(df: DataFrame) -> anyhow::Result<DataFrame> {
     let mask = df.column("label")?.i64()?.equal(0);
     let ham_subset = df.filter(&mask)?;
     let n = Series::from_iter([num_spam as i32].iter());
-    let undersampled_ham_subset = ham_subset.sample_n(&n, false, true, Some(1234_u64))?;
+    let undersampled_ham_subset = ham_subset.sample_n(&n, false, Some(true), Some(1234_u64))?;
 
     let balanced_df = concat(
         [
@@ -166,7 +166,7 @@ pub fn random_split(
     validation_frac: f32,
 ) -> anyhow::Result<(DataFrame, DataFrame, DataFrame)> {
     let frac = Series::from_iter([1_f32].iter());
-    let shuffled_df = df.sample_frac(&frac, false, true, Some(123_u64))?;
+    let shuffled_df = df.sample_frac(&frac, false, Some(true), Some(123_u64))?;
 
     let df_size = df.shape().0;
     let train_size = (df.shape().0 as f32 * train_frac) as usize;
