@@ -1692,6 +1692,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fancy-regex"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20ed7f62ce0ae0da1a8b93c3c7104ab7e0760a74491e097c701fff966e945390"
+dependencies = [
+ "bit-set",
+ "regex-automata 0.4.18",
+ "regex-syntax 0.8.11",
+]
+
+[[package]]
 name = "fast-float2"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3117,7 +3128,7 @@ dependencies = [
  "candle-nn",
  "clap",
  "comfy-table 8.0.1",
- "fancy-regex",
+ "fancy-regex 0.20.0",
  "hf-hub 1.0.0",
  "itertools 0.15.0",
  "lexical-core",
@@ -6098,7 +6109,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bstr",
- "fancy-regex",
+ "fancy-regex 0.19.2",
  "regex",
  "rustc-hash",
 ]
