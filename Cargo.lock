@@ -3131,7 +3131,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
- "sysinfo 0.39.6",
+ "sysinfo 0.40.1",
  "tempfile",
  "tiktoken-rs",
  "tokenizers 0.23.2",
@@ -5985,6 +5985,20 @@ name = "sysinfo"
 version = "0.39.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2071df9448915b71c4fe6d25deaf1c22f12bd234f01540b77312bb8e41361e6"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.40.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e8a3edbe0394ce115f3917a00349dd242be09eb5a091ed509eaf67b55cfb8a8"
 dependencies = [
  "libc",
  "memchr",
